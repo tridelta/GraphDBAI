@@ -57,17 +57,21 @@
     "emerald": 3,
     "iron_ingot": 5,
     "wood": 10,
-    "pickaxe": "iron",
-    "crafting_table": true
+    "iron_pickaxe": 0.8,  # 0-1 代表耐久度
+    "crafting_table": 2
   },
   "environment": {
-    "nearby_village": true,
-    "nearby_mine": false,
-    "nearby_crafting_table": true,
-    "biome": "plains"
-  },
-  "ambiguous": {
-    "village_has_armorer": "unknown"
+    "nearby_biomes": [
+      {
+        "type": "plains",
+        "distance": 10, # blocks / meter
+      },
+      {
+        "type": "mountains",
+        "distance": 20, # blocks / meter
+      }
+    ],
+    "nearby_structures": false,
   }
 }
 ```
@@ -98,11 +102,15 @@
   "id": "v_003",
   "label": "持有足够钻石",
   "type": "checkpoint",
-  "required": {"diamond": ">=24", "crafting_table": true},
-  "suggested": "附近有工作台可以省去移动步骤",
+  "base_req": {
+    "diamond": ">=24", 
+    "crafting_table": ">=1"
+  },
   "stats": {"attempts": 30, "successes": 22}
 }
 ```
+
+base_requirement 是硬性条件、程序性的，必须完全满足才能进入这个节点；
 
 节点类型：
 - `goal`：最终目标节点（如"获得钻石套装"）
@@ -118,15 +126,18 @@
   "from": "v_001",
   "to": "v_003",
   "action": "mine(diamond)",
-  "hard_precondition": {"pickaxe": "iron|diamond"},
-  "soft_precondition": "附近有矿洞时效率高",
+  "base_req": {
+    "iron_pickaxe": ">=1"
+  },
+  "suggestions": "建议当没有其他更简易的获取钻石的路径时使用挖矿策略",
   "stats": {"attempts": 20, "successes": 14}
 }
 ```
 
 边的两层条件：
-- **hard_precondition**：JSON 格式，代码硬检查。不满足则这条边不可用。
-- **soft_precondition**：自然语言，供 LLM 参考。影响路径选择但不阻断。
+- **base_req**：JSON 格式，硬性条件，代码硬检查。不满足则这条边不可用。
+- **suggestions**：建议在什么情况下选择这条道路更好、成功率更大。自然语言，供 LLM 参考。影响路径选择但不阻断。
+- **stats**：记录曾经走这条道路的尝试次数和成功次数，用于计算成功率、指导路径选择。
 
 **路径 P — 从起始节点到目标节点的有序边序列**
 
