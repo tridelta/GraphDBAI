@@ -4,7 +4,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-from experience_graph.agents.base import BaseAgent
+from experience_graph.agents.base import BaseAgent, extract_action_data
+from experience_graph.agents.prompts import TEXTCRAFT_ACTION_GUIDE
 from experience_graph.agents.memory_utils import append_jsonl, jaccard, observation_features, read_jsonl
 from experience_graph.core.models import Action, AgentInput, AgentOutput, ExperienceRecord
 from experience_graph.llm.client import LLMClient
@@ -19,7 +20,7 @@ class SkillLibraryAgent(BaseAgent):
 
     def act(self, agent_input: AgentInput) -> AgentOutput:
         payload = self._ask(agent_input)
-        action_data = payload.get("next_action") or payload.get("action")
+        action_data = extract_action_data(payload)
         if not isinstance(action_data, dict) or "name" not in action_data:
             return AgentOutput(action=None, rationale="invalid_llm_output")
         plan = None
@@ -52,7 +53,7 @@ class SkillLibraryAgent(BaseAgent):
         messages = [
             {
                 "role": "system",
-                "content": "You are a SkillLibrary TextCraft-MC agent. Reuse or adapt successful action-sequence skills when applicable. Return JSON with next_action and optional adapted_plan.",
+                "content": "You are a SkillLibrary TextCraft-MC agent. Reuse or adapt successful action-sequence skills when applicable. " + TEXTCRAFT_ACTION_GUIDE,
             },
             {
                 "role": "user",
@@ -86,3 +87,8 @@ class SkillLibraryAgent(BaseAgent):
             }
             for score, row in scored[: self.top_k]
         ]
+
+
+
+
+

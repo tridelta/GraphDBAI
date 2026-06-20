@@ -67,6 +67,7 @@ class OpenAILLMClient:
         self.model = model or os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
         self.client = OpenAI(api_key=api_key or os.getenv("OPENAI_API_KEY"))
         self.usage = LLMUsage()
+        self.last_trace: dict = {}
 
     def complete_json(self, messages: list[dict[str, str]]) -> dict:
         response = self.client.chat.completions.create(
@@ -77,7 +78,14 @@ class OpenAILLMClient:
         )
         content = response.choices[0].message.content or "{}"
         self._record_usage(messages, content, response)
-        return json.loads(content)
+        try:
+            parsed = json.loads(content)
+            parse_error = None
+        except json.JSONDecodeError as exc:
+            parsed = {}
+            parse_error = str(exc)
+        self.last_trace = {"model": self.model, "messages": messages, "raw_response": content, "response": parsed, "parse_error": parse_error}
+        return parsed
 
     def usage_snapshot(self) -> dict:
         return self.usage.snapshot()
@@ -111,11 +119,13 @@ class DeepSeekLLMClient:
         raw_model = model or os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash")
         self.model = normalize_deepseek_model(raw_model)
         self.temperature = temperature
+        self.max_tokens = int(os.getenv("DEEPSEEK_MAX_TOKENS", "2048"))
         self.client = OpenAI(
             api_key=api_key or os.getenv("DEEPSEEK_API_KEY"),
             base_url=base_url or os.getenv("DEEPSEEK_BASE_URL", DEEPSEEK_BASE_URL),
         )
         self.usage = LLMUsage()
+        self.last_trace: dict = {}
 
     def complete_json(self, messages: list[dict[str, str]]) -> dict:
         response = self.client.chat.completions.create(
@@ -123,10 +133,18 @@ class DeepSeekLLMClient:
             messages=messages,
             temperature=self.temperature,
             response_format={"type": "json_object"},
+            max_tokens=self.max_tokens,
         )
         content = response.choices[0].message.content or "{}"
         self._record_usage(messages, content, response)
-        return json.loads(content)
+        try:
+            parsed = json.loads(content)
+            parse_error = None
+        except json.JSONDecodeError as exc:
+            parsed = {}
+            parse_error = str(exc)
+        self.last_trace = {"model": self.model, "messages": messages, "raw_response": content, "response": parsed, "parse_error": parse_error}
+        return parsed
 
     def usage_snapshot(self) -> dict:
         return self.usage.snapshot()
@@ -152,12 +170,19 @@ class FakeLLMClient:
     def __init__(self, response: dict | None = None):
         self.response = response or {"next_action": {"name": "inspect", "args": {"target": "village"}}, "reason": "fake"}
         self.usage = LLMUsage(token_source="fake")
+        self.last_trace: dict = {}
 
     def complete_json(self, messages: list[dict[str, str]]) -> dict:
         self.usage.calls += 1
         self.usage.estimated_prompt_tokens += estimate_message_tokens(messages)
         self.usage.estimated_completion_tokens += estimate_text_tokens(json.dumps(self.response))
         self.usage.total_tokens = self.usage.estimated_prompt_tokens + self.usage.estimated_completion_tokens
+        self.last_trace = {
+            "model": "fake",
+            "messages": messages,
+            "raw_response": json.dumps(self.response, ensure_ascii=False),
+            "response": self.response,
+        }
         return self.response
 
     def usage_snapshot(self) -> dict:
@@ -181,4 +206,5 @@ def build_llm_client(provider: str | None = None, model: str | None = None) -> L
     if selected == "fake":
         return FakeLLMClient()
     raise ValueError(f"Unsupported LLM provider: {selected}")
+
 

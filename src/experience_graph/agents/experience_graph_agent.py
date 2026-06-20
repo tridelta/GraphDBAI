@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 
+from experience_graph.agents.base import extract_action_data
+from experience_graph.agents.prompts import TEXTCRAFT_ACTION_GUIDE
 from experience_graph.agents.react import ReActAgent
 from experience_graph.core.models import Action, AgentInput, AgentOutput
 from experience_graph.llm.client import LLMClient
@@ -14,7 +16,7 @@ class ExperienceGraphAgent(ReActAgent):
 
     def act(self, agent_input: AgentInput) -> AgentOutput:
         payload = self._ask(agent_input)
-        action_data = payload.get("next_action") or payload.get("action")
+        action_data = extract_action_data(payload)
         if not isinstance(action_data, dict) or "name" not in action_data:
             return AgentOutput(action=None, rationale="invalid_llm_output")
         plan = self._parse_plan(payload.get("selected_plan") or payload.get("novel_candidate_path"))
@@ -32,8 +34,9 @@ class ExperienceGraphAgent(ReActAgent):
                 "role": "system",
                 "content": (
                     "You are an ExperienceGraph TextCraft-MC agent. "
-                    "If exploration is enabled, first propose one novel candidate path, then compare it with graph candidate paths. "
-                    "Return JSON with novel_candidate_path, selected_strategy, selected_plan, next_action, reason, confidence."
+                    + TEXTCRAFT_ACTION_GUIDE
+                    + " If exploration is enabled, first propose one novel candidate path, then compare it with graph candidate paths."
+                    + " Return JSON with novel_candidate_path, selected_strategy, selected_plan, next_action, reason, confidence."
                 ),
             },
             {
@@ -85,4 +88,9 @@ class ExperienceGraphAgent(ReActAgent):
             elif isinstance(item, str):
                 plan.append(Action.parse(item))
         return plan or None
+
+
+
+
+
 

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 
-from experience_graph.agents.base import BaseAgent
+from experience_graph.agents.base import BaseAgent, extract_action_data
+from experience_graph.agents.prompts import TEXTCRAFT_ACTION_GUIDE
 from experience_graph.core.models import Action, AgentInput, AgentOutput
 from experience_graph.llm.client import LLMClient
 
@@ -13,7 +14,7 @@ class ReActAgent(BaseAgent):
 
     def act(self, agent_input: AgentInput) -> AgentOutput:
         payload = self._ask(agent_input)
-        action_data = payload.get("next_action") or payload.get("action")
+        action_data = extract_action_data(payload)
         if not isinstance(action_data, dict) or "name" not in action_data:
             return AgentOutput(action=None, rationale="invalid_llm_output")
         return AgentOutput(
@@ -24,7 +25,7 @@ class ReActAgent(BaseAgent):
 
     def _ask(self, agent_input: AgentInput) -> dict:
         messages = [
-            {"role": "system", "content": "You are a TextCraft-MC agent. Return only JSON with next_action."},
+            {"role": "system", "content": "You are a TextCraft-MC agent. " + TEXTCRAFT_ACTION_GUIDE},
             {
                 "role": "user",
                 "content": json.dumps(
@@ -40,3 +41,8 @@ class ReActAgent(BaseAgent):
             },
         ]
         return self.llm.complete_json(messages)
+
+
+
+
+

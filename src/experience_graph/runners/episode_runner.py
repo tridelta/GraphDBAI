@@ -96,6 +96,7 @@ class EpisodeRunner:
             output = self.agent.act(agent_input)
             usage_after = self._usage_snapshot()
             llm_step_usage = usage_delta(usage_before, usage_after)
+            llm_trace = self._last_llm_trace()
             if output.plan is not None:
                 proposed_plan = output.plan
             if output.action is None:
@@ -118,6 +119,10 @@ class EpisodeRunner:
                         "done": False,
                         "failure_reason": failure_reason,
                         "llm_usage_delta": llm_step_usage,
+                        "llm_model": llm_trace.get("model"),
+                        "llm_input_messages": llm_trace.get("messages", []),
+                        "llm_output": llm_trace.get("response"),
+                        "llm_raw_response": llm_trace.get("raw_response"),
                     },
                 )
                 break
@@ -157,6 +162,10 @@ class EpisodeRunner:
                     "revealed_conditions": result.revealed_conditions,
                     "state_delta": result.state_delta,
                     "llm_usage_delta": llm_step_usage,
+                    "llm_model": llm_trace.get("model"),
+                    "llm_input_messages": llm_trace.get("messages", []),
+                    "llm_output": llm_trace.get("response"),
+                    "llm_raw_response": llm_trace.get("raw_response"),
                 },
             )
             if result.done:
@@ -213,6 +222,10 @@ class EpisodeRunner:
         payload["oracle_solvable"] = case.get("oracle", {}).get("solvable")
         return payload
 
+    def _last_llm_trace(self) -> dict:
+        llm = getattr(self.agent, "llm", None)
+        trace = getattr(llm, "last_trace", None)
+        return dict(trace) if isinstance(trace, dict) else {}
     def _usage_snapshot(self) -> dict:
         llm = getattr(self.agent, "llm", None)
         snapshot = getattr(llm, "usage_snapshot", None)

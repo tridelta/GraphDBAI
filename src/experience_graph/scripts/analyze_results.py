@@ -16,6 +16,7 @@ def main() -> None:
     parser.add_argument("--run-dir", default="runs")
     parser.add_argument("--output-dir", default=None)
     parser.add_argument("--window", type=int, default=50)
+    parser.add_argument("--run-id-prefix", default=None)
     args = parser.parse_args()
 
     run_dir = Path(args.run_dir)
@@ -23,7 +24,7 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "figures").mkdir(parents=True, exist_ok=True)
 
-    runs = load_runs(run_dir)
+    runs = load_runs(run_dir, run_id_prefix=args.run_id_prefix)
     summary_rows = build_main_summary(runs)
     write_csv(output_dir / "main_comparison.csv", summary_rows)
     write_csv(output_dir / "token_cost.csv", build_token_cost(summary_rows))
@@ -37,11 +38,14 @@ def main() -> None:
     print(f"Analysis written to {output_dir}")
 
 
-def load_runs(run_dir: Path) -> list[dict[str, Any]]:
+def load_runs(run_dir: Path, run_id_prefix: str | None = None) -> list[dict[str, Any]]:
     runs = []
     for config_path in sorted(run_dir.glob("*/config.yaml")):
         run_path = config_path.parent
         config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+        run_id = str(config.get("run_id") or run_path.name)
+        if run_id_prefix and not run_id.startswith(run_id_prefix):
+            continue
         metrics = read_jsonl(run_path / "metrics.jsonl")
         steps = read_jsonl(run_path / "steps.jsonl")
         budget = read_jsonl(run_path / "budget_progress.jsonl")
@@ -312,3 +316,4 @@ def format_value(value: Any) -> str:
 
 if __name__ == "__main__":
     main()
+
