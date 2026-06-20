@@ -168,7 +168,7 @@ class DeepSeekLLMClient:
 
 class FakeLLMClient:
     def __init__(self, response: dict | None = None):
-        self.response = response or {"next_action": {"name": "inspect", "args": {"target": "village"}}, "reason": "fake"}
+        self.response = response if response is not None else {"next_action": {"name": "inspect", "args": {"target": "village"}}, "reason": "fake"}
         self.usage = LLMUsage(token_source="fake")
         self.last_trace: dict = {}
 

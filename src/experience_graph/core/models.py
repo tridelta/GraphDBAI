@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 
@@ -62,7 +63,22 @@ class Observation:
         return get_path(self.state, dotted_key, default=default)
 
     def to_dict(self) -> dict[str, Any]:
-        return {"state": self.state, "case_id": self.case_id, "step_count": self.step_count}
+        return {"state": visible_state(self.state), "case_id": self.case_id, "step_count": self.step_count}
+
+
+def visible_state(state: dict[str, Any]) -> dict[str, Any]:
+    copied = copy.deepcopy(state)
+    copied.pop("hidden_facts", None)
+    ambiguous = copied.get("ambiguous")
+    environment = copied.get("environment")
+    if isinstance(ambiguous, dict) and isinstance(environment, dict):
+        for key in list(ambiguous):
+            env_key = key.split(".", 1)[1] if key.startswith("environment.") else key
+            if environment.get(env_key, UNKNOWN) != UNKNOWN:
+                ambiguous.pop(key, None)
+        if not ambiguous:
+            copied["ambiguous"] = {}
+    return copied
 
 
 @dataclass(frozen=True)

@@ -54,3 +54,21 @@ def test_inspect_reveals_armorer(textcraft_env):
 def test_impossible_case_remains_unsolved(textcraft_env):
     obs, _ = run_plan(textcraft_env, "TC_IMPOSSIBLE_001")
     assert not textcraft_env.is_success(obs, TaskSpec("diamond_set"))
+
+
+def test_observation_hides_hidden_facts(textcraft_env):
+    obs = textcraft_env.reset(case_id="TC_TRADE_002")
+    state = obs.to_dict()["state"]
+    assert "hidden_facts" not in state
+    assert state["environment"]["village_has_armorer"] == "unknown"
+    assert state["ambiguous"] == {"village_has_armorer": "unknown"}
+
+
+def test_inspect_clears_revealed_ambiguous_flag(textcraft_env):
+    textcraft_env.reset(case_id="TC_TRADE_003")
+    textcraft_env.step(Action.parse("move_to(village)"))
+    result = textcraft_env.step(Action.parse("inspect(village)"))
+    state = result.observation.to_dict()["state"]
+    assert state["environment"]["village_has_armorer"] is False
+    assert state["ambiguous"] == {}
+    assert "hidden_facts" not in state

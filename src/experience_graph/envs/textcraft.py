@@ -17,6 +17,7 @@ from experience_graph.core.models import (
     get_path,
     pickaxe_rank,
     set_path,
+    visible_state,
 )
 
 
@@ -156,7 +157,17 @@ class TextCraftAdapter:
     def _observation(self) -> Observation:
         assert self.state is not None
         assert self.current_case is not None
-        return Observation(copy.deepcopy(self.state), case_id=self.current_case["id"], step_count=self.step_count)
+        return Observation(visible_state(self.state), case_id=self.current_case["id"], step_count=self.step_count)
+
+
+    def _clear_ambiguous(self, dotted_key: str) -> None:
+        assert self.state is not None
+        ambiguous = self.state.get("ambiguous")
+        if not isinstance(ambiguous, dict):
+            return
+        leaf_key = dotted_key.split(".", 1)[1] if dotted_key.startswith("environment.") else dotted_key
+        ambiguous.pop(dotted_key, None)
+        ambiguous.pop(leaf_key, None)
 
     def _craft(self, item: str | None) -> tuple[bool, str | None, dict[str, Any]]:
         assert self.state is not None
@@ -231,6 +242,7 @@ class TextCraftAdapter:
                 return False, "village_not_discovered", {}, []
             value = self._hidden("village_has_armorer", default=get_path(self.state, "environment.village_has_armorer", UNKNOWN))
             set_path(self.state, "environment.village_has_armorer", value)
+            self._clear_ambiguous("environment.village_has_armorer")
             condition = Condition("environment.village_has_armorer", "==", value, source="inspect")
             return True, None, {"environment.village_has_armorer": value}, [condition]
         if target == "mine":
@@ -249,6 +261,7 @@ class TextCraftAdapter:
                 return False, "mine_search_unavailable", {}, []
             value = self._hidden("nearby_mine", default=False)
             set_path(self.state, "environment.nearby_mine", value)
+            self._clear_ambiguous("environment.nearby_mine")
             revealed = [Condition("environment.nearby_mine", "==", value, source="explore")]
             depth = self._hidden("mine_depth", default=None)
             delta = {"environment.nearby_mine": value}
@@ -262,6 +275,7 @@ class TextCraftAdapter:
                 return False, "village_search_unavailable", {}, []
             value = self._hidden("nearby_village", default=False)
             set_path(self.state, "environment.nearby_village", value)
+            self._clear_ambiguous("environment.nearby_village")
             return True, None, {"environment.nearby_village": value}, [Condition("environment.nearby_village", "==", value, source="explore")]
         return False, "unknown_explore_target", {}, []
 

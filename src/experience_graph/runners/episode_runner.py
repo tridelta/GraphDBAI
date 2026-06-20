@@ -78,6 +78,7 @@ class EpisodeRunner:
         proposed_plan = None
         success = False
         failure_reason = None
+        action_history: list[str] = []
         episode_context = self._episode_context(case, episode_seed, context)
         episode_usage_before = self._usage_snapshot()
 
@@ -97,10 +98,12 @@ class EpisodeRunner:
             usage_after = self._usage_snapshot()
             llm_step_usage = usage_delta(usage_before, usage_after)
             llm_trace = self._last_llm_trace()
+            prompt_diagnostics = self._prompt_diagnostics(llm_trace)
             if output.plan is not None:
                 proposed_plan = output.plan
             if output.action is None:
-                failure_reason = case.get("oracle", {}).get("failure_reason") or output.rationale or "no_action"
+                oracle_failure_reason = case.get("oracle", {}).get("failure_reason")
+                failure_reason = output.rationale or "no_action"
                 self.logger.write_jsonl(
                     "steps.jsonl",
                     {
@@ -118,6 +121,10 @@ class EpisodeRunner:
                         "ok": False,
                         "done": False,
                         "failure_reason": failure_reason,
+                        "oracle_failure_reason": oracle_failure_reason,
+                        "repeated_action_count": 0,
+                        "repeated_action": False,
+                        "prompt_diagnostics": prompt_diagnostics,
                         "llm_usage_delta": llm_step_usage,
                         "llm_model": llm_trace.get("model"),
                         "llm_input_messages": llm_trace.get("messages", []),
@@ -126,6 +133,9 @@ class EpisodeRunner:
                     },
                 )
                 break
+            action_label = output.action.label()
+            repeated_action_count = self._consecutive_action_count(action_history, action_label) + 1
+            action_history.append(action_label)
             before = observation
             result = self.env.step(output.action)
             observation = result.observation
@@ -159,6 +169,10 @@ class EpisodeRunner:
                     "reward": result.reward,
                     "cost": result.cost,
                     "failure_reason": result.failure_reason,
+                    "oracle_failure_reason": case.get("oracle", {}).get("failure_reason"),
+                    "repeated_action_count": repeated_action_count,
+                    "repeated_action": repeated_action_count > 1,
+                    "prompt_diagnostics": prompt_diagnostics,
                     "revealed_conditions": result.revealed_conditions,
                     "state_delta": result.state_delta,
                     "llm_usage_delta": llm_step_usage,
@@ -193,6 +207,7 @@ class EpisodeRunner:
             "success": success,
             "steps": len(trajectory),
             "failure_reason": experience.failure_reason,
+            "oracle_failure_reason": case.get("oracle", {}).get("failure_reason"),
             "initial_state_hash": self._stable_hash(initial.to_dict()),
             "final_state_hash": self._stable_hash(experience.final_observation.to_dict()),
             "discovered_conditions": len(experience.discovered_conditions),
@@ -208,10 +223,64 @@ class EpisodeRunner:
             "llm_usage_cumulative": episode_usage_after,
         }
         experience.metrics.update(metrics)
-        self.logger.write_jsonl("episodes.jsonl", experience)
+        episode_row = to_jsonable(experience)
+        episode_row.update(metrics)
+        episode_row["metrics"] = metrics
+        self.logger.write_jsonl("episodes.jsonl", episode_row)
         self.logger.write_jsonl("metrics.jsonl", metrics)
         self.agent.update(experience)
         return EpisodeResult(experience=experience, metrics=metrics)
+
+    def _consecutive_action_count(self, action_history: list[str], action_label: str) -> int:
+        count = 0
+        for previous in reversed(action_history):
+            if previous != action_label:
+                break
+            count += 1
+        return count
+
+    def _prompt_diagnostics(self, llm_trace: dict) -> dict[str, Any]:
+        diagnostics: dict[str, Any] = {
+            "prompt_hidden_facts": False,
+            "prompt_ambiguous_keys": [],
+            "prompt_candidate_paths": 0,
+            "prompt_retrieved_skills": 0,
+            "prompt_retrieved_trajectories": 0,
+            "prompt_has_experience_view_ref": False,
+            "prompt_parse_errors": 0,
+        }
+        ambiguous_keys: set[str] = set()
+        for message in llm_trace.get("messages", []):
+            if message.get("role") != "user":
+                continue
+            content = message.get("content", "")
+            if "hidden_facts" in content:
+                diagnostics["prompt_hidden_facts"] = True
+            try:
+                payload = json.loads(content)
+            except (TypeError, json.JSONDecodeError):
+                diagnostics["prompt_parse_errors"] += 1
+                continue
+            observation = payload.get("observation", {})
+            state = observation.get("state", {}) if isinstance(observation, dict) else {}
+            if isinstance(state, dict) and "hidden_facts" in state:
+                diagnostics["prompt_hidden_facts"] = True
+            ambiguous = state.get("ambiguous") if isinstance(state, dict) else None
+            if isinstance(ambiguous, dict):
+                ambiguous_keys.update(str(key) for key in ambiguous)
+            candidate_paths = payload.get("candidate_paths")
+            if isinstance(candidate_paths, list):
+                diagnostics["prompt_candidate_paths"] += len(candidate_paths)
+            retrieved_skills = payload.get("retrieved_skills")
+            if isinstance(retrieved_skills, list):
+                diagnostics["prompt_retrieved_skills"] += len(retrieved_skills)
+            retrieved_trajectories = payload.get("retrieved_trajectories")
+            if isinstance(retrieved_trajectories, list):
+                diagnostics["prompt_retrieved_trajectories"] += len(retrieved_trajectories)
+            diagnostics["prompt_has_experience_view_ref"] = diagnostics["prompt_has_experience_view_ref"] or "experience_view" in payload
+        diagnostics["prompt_ambiguous_keys"] = sorted(ambiguous_keys)
+        return diagnostics
+
 
     def _episode_context(self, case: dict[str, Any], seed: int | None, context: dict[str, Any] | None) -> dict[str, Any]:
         payload = self.run_context.as_dict()
@@ -244,5 +313,3 @@ class EpisodeRunner:
     def _stable_hash(self, payload: Any) -> str:
         text = json.dumps(to_jsonable(payload), ensure_ascii=False, sort_keys=True)
         return hashlib.sha1(text.encode("utf-8")).hexdigest()[:12]
-
-

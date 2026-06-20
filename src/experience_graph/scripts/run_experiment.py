@@ -49,12 +49,52 @@ CONFIG_COMPARE_KEYS = [
     "llm_provider",
     "llm_model",
 ]
+EPISODE_SCOPED_LOGS = (
+    "steps.jsonl",
+    "experience_views.jsonl",
+    "budget_progress.jsonl",
+)
 
 
 def append_jsonl(path: Path, row: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+def read_jsonl(path: Path) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    rows: list[dict[str, Any]] = []
+    with path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            if line.strip():
+                rows.append(json.loads(line))
+    return rows
+
+
+def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
+    with path.open("w", encoding="utf-8") as handle:
+        for row in rows:
+            handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+def prune_incomplete_episode_logs(run_dir: Path, completed_episodes: int) -> dict[str, int]:
+    pruned: dict[str, int] = {}
+    for name in EPISODE_SCOPED_LOGS:
+        path = run_dir / name
+        rows = read_jsonl(path)
+        if not rows:
+            continue
+        kept = []
+        for row in rows:
+            episode_index = row.get("episode_index")
+            if episode_index is None or int(episode_index) < completed_episodes:
+                kept.append(row)
+        removed = len(rows) - len(kept)
+        if removed:
+            write_jsonl(path, kept)
+            pruned[name] = removed
+    return pruned
 
 
 def main() -> None:
@@ -149,6 +189,10 @@ def main() -> None:
     runner = EpisodeRunner(env, agent, organizer, retriever, logger, max_steps=args.max_steps, run_context=run_context)
 
     completed = count_completed_episodes(run_dir / "metrics.jsonl") if args.resume else 0
+    if args.resume:
+        pruned_logs = prune_incomplete_episode_logs(run_dir, completed)
+        if pruned_logs:
+            print(f"Pruned incomplete episode logs: {pruned_logs}")
     if completed:
         print(f"Resuming {run_id}: {completed} completed episodes found.")
     budget = BudgetTracker(

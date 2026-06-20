@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from experience_graph.llm.client import DEEPSEEK_BASE_URL, DeepSeekLLMClient, build_llm_client, normalize_deepseek_model
+from experience_graph.llm.client import DEEPSEEK_BASE_URL, DeepSeekLLMClient, FakeLLMClient, build_llm_client, normalize_deepseek_model
 
 
 def test_deepseek_model_aliases():
@@ -29,3 +29,8 @@ def test_deepseek_default_base_url():
     client = DeepSeekLLMClient(api_key="test-key", model="flash")
     assert client.model == "deepseek-v4-flash"
     assert DEEPSEEK_BASE_URL == "https://api.deepseek.com"
+
+
+def test_fake_llm_preserves_empty_response():
+    client = FakeLLMClient(response={})
+    assert client.complete_json([]) == {}
