@@ -2,7 +2,7 @@
 
 ## Abstract
 
-Large language model (LLM) agents have demonstrated strong reasoning and action capabilities in interactive environments. However, existing approaches either lack cross-episode memory (ReAct), store experiences as unstructured text lists (Reflexion), or accumulate isolated skills without modeling conditional dependencies between alternative paths (Voyager). This flat or fragmented experience organization prevents agents from systematically improving decision quality as task attempts accumulate. We observe that in multi-path environments, the key to sample-efficient learning is not merely *remembering* past trajectories, but *organizing* them into a structured, state-conditioned, and statistically grounded decision memory. Based on this insight, we propose ExperienceGraph, a framework that organizes cross-episode execution trajectories into a directed graph where nodes represent state-condition checkpoints and edges represent actions with hard preconditions, soft heuristics, and success/failure statistics. At decision time, the agent retrieves top-K feasible paths from the graph conditioned on the current state, generates a novel candidate path for exploration, and selects among them using both statistical evidence and LLM reasoning. Experiments on TextCraft, a text-based crafting environment with partial observability and multiple solution paths, show that ExperienceGraph achieves **[PROJECTED: 85% success rate at episode 300]** compared to **[PROJECTED: 45% for ReAct and 65% for Reflexion]**, while requiring **[PROJECTED: 40% fewer episodes]** to reach stable performance. Ablation studies confirm that graph structure, path-level statistics, and the explore-then-compare mechanism each contribute significantly to the overall gain.
+Large language model (LLM) agents have demonstrated strong reasoning and action capabilities in interactive environments. However, existing approaches either lack cross-episode memory (ReAct), store experiences as unstructured text lists (Reflexion), or accumulate isolated skills without modeling conditional dependencies between alternative paths (Voyager). This flat or fragmented experience organization prevents agents from systematically improving decision quality as task attempts accumulate. We observe that in multi-path environments, the key to sample-efficient learning is not merely *remembering* past trajectories, but *organizing* them into a structured, state-conditioned, and statistically grounded decision memory. Based on this insight, we propose ExperienceGraph, a framework that organizes cross-episode execution trajectories into a directed graph where nodes represent state-condition checkpoints and edges represent actions with hard preconditions, soft heuristics, and success/failure statistics. At decision time, the agent retrieves top-K feasible paths from the graph conditioned on the current state, generates a novel candidate path for exploration, and selects among them using both statistical evidence and LLM reasoning. Experiments on TextCraft, a text-based crafting environment with partial observability and multiple solution paths, show that ExperienceGraph achieves **<mark style="background-color: yellow;">[PROJECTED: 85% success rate at episode 300]</mark>** compared to **<mark style="background-color: yellow;">[PROJECTED: 45% for ReAct and 65% for Reflexion]</mark>**, while requiring **<mark style="background-color: yellow;">[PROJECTED: 40% fewer episodes]</mark>** to reach stable performance. Ablation studies confirm that graph structure, path-level statistics, and the explore-then-compare mechanism each contribute significantly to the overall gain.
 
 ## 1. Introduction
 
@@ -142,7 +142,7 @@ This hierarchical approach minimizes LLM calls (expensive) by resolving most cas
 
 A critical engineering challenge is preventing the experience graph from overwhelming the LLM's context window. We address this through bounded growth and active compression.
 
-**Bounded Growth.** In TextCraft, the state space is finite and discrete (~10 resource dimensions with bounded values, ~5 environment dimensions). The number of meaningfully distinct checkpoints is bounded by the combinatorial space of relevant conditions. Empirically, we observe sublinear growth: **[PROJECTED: graph growth plateaus at approximately 40-60 nodes and 80-120 edges by episode 200, with new episodes primarily updating statistics rather than adding structure]**.
+**Bounded Growth.** In TextCraft, the state space is finite and discrete (~10 resource dimensions with bounded values, ~5 environment dimensions). The number of meaningfully distinct checkpoints is bounded by the combinatorial space of relevant conditions. Empirically, we observe sublinear growth: **<mark style="background-color: yellow;">[PROJECTED: graph growth plateaus at approximately 40-60 nodes and 80-120 edges by episode 200, with new episodes primarily updating statistics rather than adding structure]</mark>**.
 
 **Active Compression (Experience Distillation):**
 - *Edge Pruning*: Edges with success rate below 10% after K ≥ 10 attempts are marked dormant and excluded from retrieval.
@@ -197,28 +197,28 @@ All agents share the same LLM backbone (GPT-4), the same TextCraft environment, 
 
 ### 5.2 Main Results
 
-> **⚠️ PROJECTED RESULTS — Pending experimental validation**
+> **<mark style="background-color: yellow;">⚠️ PROJECTED RESULTS — Pending experimental validation</mark>**
 
 **Table 1: Main comparison on TextCraft (300 episodes, 5 seeds, mean ± std).**
 
 | Method | SR@300 (Easy) | SR@300 (Medium) | SR@300 (Hard) | CS (Medium) | SE (Medium) |
 |--------|:---:|:---:|:---:|:---:|:---:|
-| ReAct | [PROJ: 72±5%] | [PROJ: 45±6%] | [PROJ: 25±7%] | [PROJ: N/A*] | [PROJ: 18±3] |
-| Reflexion | [PROJ: 82±4%] | [PROJ: 65±5%] | [PROJ: 42±6%] | [PROJ: 180±25] | [PROJ: 14±3] |
-| VectorTrajectory | [PROJ: 80±4%] | [PROJ: 62±5%] | [PROJ: 40±7%] | [PROJ: 195±30] | [PROJ: 15±3] |
-| SkillLibrary | [PROJ: 85±3%] | [PROJ: 68±5%] | [PROJ: 45±6%] | [PROJ: 160±20] | [PROJ: 13±2] |
-| **ExperienceGraph** | **[PROJ: 92±3%]** | **[PROJ: 85±4%]** | **[PROJ: 65±5%]** | **[PROJ: 100±15]** | **[PROJ: 10±2]** |
+| ReAct | <mark style="background-color: yellow;">[PROJ: 72±5%]</mark> | <mark style="background-color: yellow;">[PROJ: 45±6%]</mark> | <mark style="background-color: yellow;">[PROJ: 25±7%]</mark> | <mark style="background-color: yellow;">[PROJ: N/A*]</mark> | <mark style="background-color: yellow;">[PROJ: 18±3]</mark> |
+| Reflexion | <mark style="background-color: yellow;">[PROJ: 82±4%]</mark> | <mark style="background-color: yellow;">[PROJ: 65±5%]</mark> | <mark style="background-color: yellow;">[PROJ: 42±6%]</mark> | <mark style="background-color: yellow;">[PROJ: 180±25]</mark> | <mark style="background-color: yellow;">[PROJ: 14±3]</mark> |
+| VectorTrajectory | <mark style="background-color: yellow;">[PROJ: 80±4%]</mark> | <mark style="background-color: yellow;">[PROJ: 62±5%]</mark> | <mark style="background-color: yellow;">[PROJ: 40±7%]</mark> | <mark style="background-color: yellow;">[PROJ: 195±30]</mark> | <mark style="background-color: yellow;">[PROJ: 15±3]</mark> |
+| SkillLibrary | <mark style="background-color: yellow;">[PROJ: 85±3%]</mark> | <mark style="background-color: yellow;">[PROJ: 68±5%]</mark> | <mark style="background-color: yellow;">[PROJ: 45±6%]</mark> | <mark style="background-color: yellow;">[PROJ: 160±20]</mark> | <mark style="background-color: yellow;">[PROJ: 13±2]</mark> |
+| **ExperienceGraph** | **<mark style="background-color: yellow;">[PROJ: 92±3%]</mark>** | **<mark style="background-color: yellow;">[PROJ: 85±4%]</mark>** | **<mark style="background-color: yellow;">[PROJ: 65±5%]</mark>** | **<mark style="background-color: yellow;">[PROJ: 100±15]</mark>** | **<mark style="background-color: yellow;">[PROJ: 10±2]</mark>** |
 
 *ReAct does not converge to 80% on Medium tasks within 300 episodes.
 
-**Key Observations (Projected):**
+**<mark style="background-color: yellow;">Key Observations (Projected):</mark>**
 1. ExperienceGraph achieves the highest final success rate across all difficulty levels, with the advantage increasing as task complexity grows (from +7% on Easy to +20% on Hard vs. best baseline).
 2. Convergence speed on Medium tasks is approximately 40% faster than Reflexion and 37% faster than SkillLibrary, demonstrating the sample efficiency benefit of structured path-level experience.
 3. Step efficiency improves substantially, indicating that the graph helps the agent identify shorter, more direct paths over time.
 
 ### 5.3 Learning Curves
 
-> **⚠️ PROJECTED RESULTS — Pending experimental validation**
+> **<mark style="background-color: yellow;">⚠️ PROJECTED RESULTS — Pending experimental validation</mark>**
 
 Figure 2 shows success rate (y-axis) as a function of episode number (x-axis) for Medium-difficulty tasks, averaged over 5 seeds with standard error bands.
 
@@ -237,9 +237,9 @@ Success Rate (%)
   0|____________________________________________________________
    0    50    100   150   200   250   300  Episode
 ```
-*Figure 2: Learning curves on Medium tasks (projected). ExperienceGraph shows faster convergence and higher asymptotic performance.*
+*Figure 2: Learning curves on Medium tasks <mark style="background-color: yellow;">(projected)</mark>. ExperienceGraph shows faster convergence and higher asymptotic performance.*
 
-**Projected observations:**
+**<mark style="background-color: yellow;">Projected observations:</mark>**
 - ReAct shows no learning trend (flat line) since it has no cross-episode memory.
 - Reflexion and VectorTrajectory show gradual improvement but plateau at a lower level.
 - SkillLibrary converges faster initially (reusing successful macros) but plateaus because it cannot compare alternative strategies conditioned on state.
@@ -247,7 +247,7 @@ Success Rate (%)
 
 ### 5.4 Ablation Studies
 
-> **⚠️ PROJECTED RESULTS — Pending experimental validation**
+> **<mark style="background-color: yellow;">⚠️ PROJECTED RESULTS — Pending experimental validation</mark>**
 
 We ablate key components of ExperienceGraph to isolate their contributions. All ablations are evaluated on Medium tasks.
 
@@ -255,15 +255,15 @@ We ablate key components of ExperienceGraph to isolate their contributions. All 
 
 | Variant | SR@300 | CS | Δ vs. Full |
 |---------|:---:|:---:|:---:|
-| **ExperienceGraph (Full)** | **[PROJ: 85%]** | **[PROJ: 100]** | — |
-| EG − No Exploration | [PROJ: 72%] | [PROJ: 155] | −13% |
-| EG − No Statistics | [PROJ: 70%] | [PROJ: 170] | −15% |
-| EG − No Node Merging | [PROJ: 75%] | [PROJ: 140] | −10% |
-| EG − No Failure Edges | [PROJ: 78%] | [PROJ: 130] | −7% |
-| EG − No Decay | [PROJ: 80%] | [PROJ: 120] | −5% |
-| EG − Random Retrieval | [PROJ: 68%] | [PROJ: 185] | −17% |
+| **ExperienceGraph (Full)** | **<mark style="background-color: yellow;">[PROJ: 85%]</mark>** | **<mark style="background-color: yellow;">[PROJ: 100]</mark>** | — |
+| EG − No Exploration | <mark style="background-color: yellow;">[PROJ: 72%]</mark> | <mark style="background-color: yellow;">[PROJ: 155]</mark> | −13% |
+| EG − No Statistics | <mark style="background-color: yellow;">[PROJ: 70%]</mark> | <mark style="background-color: yellow;">[PROJ: 170]</mark> | −15% |
+| EG − No Node Merging | <mark style="background-color: yellow;">[PROJ: 75%]</mark> | <mark style="background-color: yellow;">[PROJ: 140]</mark> | −10% |
+| EG − No Failure Edges | <mark style="background-color: yellow;">[PROJ: 78%]</mark> | <mark style="background-color: yellow;">[PROJ: 130]</mark> | −7% |
+| EG − No Decay | <mark style="background-color: yellow;">[PROJ: 80%]</mark> | <mark style="background-color: yellow;">[PROJ: 120]</mark> | −5% |
+| EG − Random Retrieval | <mark style="background-color: yellow;">[PROJ: 68%]</mark> | <mark style="background-color: yellow;">[PROJ: 185]</mark> | −17% |
 
-**Analysis (Projected):**
+**<mark style="background-color: yellow;">Analysis (Projected):</mark>**
 - Removing exploration (only retrieving from graph, never generating novel paths) reduces final performance by 13%, confirming that the graph alone is insufficient and continued exploration prevents premature convergence.
 - Removing statistics (showing paths without success rates) causes the largest single-component drop (−15%), demonstrating that quantitative evidence is critical for path selection.
 - Replacing state-conditioned retrieval with random path retrieval produces the worst single ablation (−17%), confirming that presenting *relevant* paths rather than arbitrary ones is essential.
@@ -272,36 +272,36 @@ We ablate key components of ExperienceGraph to isolate their contributions. All 
 
 ### 5.5 Graph Growth Analysis
 
-> **⚠️ PROJECTED RESULTS — Pending experimental validation**
+> **<mark style="background-color: yellow;">⚠️ PROJECTED RESULTS — Pending experimental validation</mark>**
 
 **Table 3: Graph statistics at episode milestones (Medium task, single seed).**
 
 | Episode | |V| (Nodes) | |E| (Edges) | New Nodes/Ep | Paths to Goal | Prompt Tokens |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| 50 | [PROJ: 25] | [PROJ: 45] | [PROJ: 1.2] | [PROJ: 4] | [PROJ: 650] |
-| 100 | [PROJ: 38] | [PROJ: 72] | [PROJ: 0.5] | [PROJ: 7] | [PROJ: 820] |
-| 150 | [PROJ: 45] | [PROJ: 90] | [PROJ: 0.2] | [PROJ: 9] | [PROJ: 900] |
-| 200 | [PROJ: 50] | [PROJ: 100] | [PROJ: 0.1] | [PROJ: 10] | [PROJ: 950] |
-| 300 | [PROJ: 55] | [PROJ: 110] | [PROJ: 0.05] | [PROJ: 11] | [PROJ: 980] |
+| 50 | <mark style="background-color: yellow;">[PROJ: 25]</mark> | <mark style="background-color: yellow;">[PROJ: 45]</mark> | <mark style="background-color: yellow;">[PROJ: 1.2]</mark> | <mark style="background-color: yellow;">[PROJ: 4]</mark> | <mark style="background-color: yellow;">[PROJ: 650]</mark> |
+| 100 | <mark style="background-color: yellow;">[PROJ: 38]</mark> | <mark style="background-color: yellow;">[PROJ: 72]</mark> | <mark style="background-color: yellow;">[PROJ: 0.5]</mark> | <mark style="background-color: yellow;">[PROJ: 7]</mark> | <mark style="background-color: yellow;">[PROJ: 820]</mark> |
+| 150 | <mark style="background-color: yellow;">[PROJ: 45]</mark> | <mark style="background-color: yellow;">[PROJ: 90]</mark> | <mark style="background-color: yellow;">[PROJ: 0.2]</mark> | <mark style="background-color: yellow;">[PROJ: 9]</mark> | <mark style="background-color: yellow;">[PROJ: 900]</mark> |
+| 200 | <mark style="background-color: yellow;">[PROJ: 50]</mark> | <mark style="background-color: yellow;">[PROJ: 100]</mark> | <mark style="background-color: yellow;">[PROJ: 0.1]</mark> | <mark style="background-color: yellow;">[PROJ: 10]</mark> | <mark style="background-color: yellow;">[PROJ: 950]</mark> |
+| 300 | <mark style="background-color: yellow;">[PROJ: 55]</mark> | <mark style="background-color: yellow;">[PROJ: 110]</mark> | <mark style="background-color: yellow;">[PROJ: 0.05]</mark> | <mark style="background-color: yellow;">[PROJ: 11]</mark> | <mark style="background-color: yellow;">[PROJ: 980]</mark> |
 
-**Projected observations:**
+**<mark style="background-color: yellow;">Projected observations:</mark>**
 - Node creation rate decreases rapidly, confirming that the merging algorithm effectively consolidates equivalent checkpoints.
 - The graph approaches structural saturation by episode 150–200, after which new episodes primarily update statistics.
 - Prompt token usage remains bounded below 1000 tokens throughout, validating the fixed-budget mechanism.
 
 ### 5.6 Cost Analysis
 
-> **⚠️ PROJECTED RESULTS — Pending experimental validation**
+> **<mark style="background-color: yellow;">⚠️ PROJECTED RESULTS — Pending experimental validation</mark>**
 
 **Table 4: Token cost per successful episode (Medium task, averaged over 5 seeds).**
 
 | Method | Tokens/Success | Tokens/Episode (all) | Total Cost (300 eps) |
 |--------|:---:|:---:|:---:|
-| ReAct | [PROJ: 3200] | [PROJ: 2800] | [PROJ: 840K] |
-| Reflexion | [PROJ: 4500] | [PROJ: 4000] | [PROJ: 1200K] |
-| VectorTrajectory | [PROJ: 4200] | [PROJ: 3800] | [PROJ: 1140K] |
-| SkillLibrary | [PROJ: 3800] | [PROJ: 3500] | [PROJ: 1050K] |
-| **ExperienceGraph** | [PROJ: 4800] | [PROJ: 4200] | [PROJ: 1260K] |
+| ReAct | <mark style="background-color: yellow;">[PROJ: 3200]</mark> | <mark style="background-color: yellow;">[PROJ: 2800]</mark> | <mark style="background-color: yellow;">[PROJ: 840K]</mark> |
+| Reflexion | <mark style="background-color: yellow;">[PROJ: 4500]</mark> | <mark style="background-color: yellow;">[PROJ: 4000]</mark> | <mark style="background-color: yellow;">[PROJ: 1200K]</mark> |
+| VectorTrajectory | <mark style="background-color: yellow;">[PROJ: 4200]</mark> | <mark style="background-color: yellow;">[PROJ: 3800]</mark> | <mark style="background-color: yellow;">[PROJ: 1140K]</mark> |
+| SkillLibrary | <mark style="background-color: yellow;">[PROJ: 3800]</mark> | <mark style="background-color: yellow;">[PROJ: 3500]</mark> | <mark style="background-color: yellow;">[PROJ: 1050K]</mark> |
+| **ExperienceGraph** | <mark style="background-color: yellow;">[PROJ: 4800]</mark> | <mark style="background-color: yellow;">[PROJ: 4200]</mark> | <mark style="background-color: yellow;">[PROJ: 1260K]</mark> |
 
 ExperienceGraph has moderately higher per-episode token cost due to the graph context presented to the LLM. However, when normalized by success rate, the *cost per successful outcome* may be competitive because fewer episodes are wasted on failures. We report both raw cost and cost-normalized-by-success to provide a complete efficiency picture.
 
@@ -309,7 +309,7 @@ ExperienceGraph has moderately higher per-episode token cost due to the graph co
 
 ### 6.1 Case Study: Path Discovery and Refinement
 
-> **⚠️ PROJECTED — Illustrative example based on environment design**
+> **<mark style="background-color: yellow;">⚠️ PROJECTED — Illustrative example based on environment design</mark>**
 
 We trace the evolution of the agent's strategy for the Medium task (diamond armor) across episodes:
 
@@ -322,7 +322,7 @@ We trace the evolution of the agent's strategy for the Medium task (diamond armo
 
 ### 6.2 Failure Mode Analysis
 
-> **⚠️ PROJECTED — Based on anticipated failure modes**
+> **<mark style="background-color: yellow;">⚠️ PROJECTED — Based on anticipated failure modes</mark>**
 
 We identify three primary failure modes:
 
@@ -334,14 +334,14 @@ We identify three primary failure modes:
 
 ### 6.3 Node Merging Quality
 
-> **⚠️ PROJECTED — Pending manual annotation study**
+> **<mark style="background-color: yellow;">⚠️ PROJECTED — Pending manual annotation study</mark>**
 
 We sample 50 merging decisions and manually annotate correctness:
-- **[PROJECTED: 88% correct merges]** — conditions are genuinely equivalent.
-- **[PROJECTED: 8% conservative non-merges]** — conditions are equivalent but rules were too strict; results in minor redundancy but no harm.
-- **[PROJECTED: 4% incorrect merges]** — conditions differ meaningfully; leads to incorrect path suggestions in some states.
+- **<mark style="background-color: yellow;">[PROJECTED: 88% correct merges]</mark>** — conditions are genuinely equivalent.
+- **<mark style="background-color: yellow;">[PROJECTED: 8% conservative non-merges]</mark>** — conditions are equivalent but rules were too strict; results in minor redundancy but no harm.
+- **<mark style="background-color: yellow;">[PROJECTED: 4% incorrect merges]</mark>** — conditions differ meaningfully; leads to incorrect path suggestions in some states.
 
-The hierarchical merging algorithm (deterministic rules first, LLM only when ambiguous) reduces LLM merging calls to **[PROJECTED: ~12% of total merge decisions]**, keeping cost low while maintaining high merge accuracy.
+The hierarchical merging algorithm (deterministic rules first, LLM only when ambiguous) reduces LLM merging calls to **<mark style="background-color: yellow;">[PROJECTED: ~12% of total merge decisions]</mark>**, keeping cost low while maintaining high merge accuracy.
 
 ## 7. Discussion
 
@@ -376,7 +376,7 @@ We leave empirical validation of cross-domain transfer to future work.
 
 This paper proposes ExperienceGraph, a framework for organizing LLM agent experience as a conditional path graph with state-conditioned retrieval and path-level success statistics. The key insight is that in multi-path environments, *structured, statistically grounded experience organization* enables fundamentally better cross-episode learning than flat memory or isolated skill storage.
 
-Experiments on TextCraft demonstrate that ExperienceGraph achieves **[PROJECTED: 20+ percentage points]** higher success rate than the strongest baseline while converging **[PROJECTED: ~40%]** faster. Ablation studies confirm that the graph structure, statistical annotations, exploration mechanism, and state-conditioned retrieval each contribute meaningfully to performance.
+Experiments on TextCraft demonstrate that ExperienceGraph achieves **<mark style="background-color: yellow;">[PROJECTED: 20+ percentage points]</mark>** higher success rate than the strongest baseline while converging **<mark style="background-color: yellow;">[PROJECTED: ~40%]</mark>** faster. Ablation studies confirm that the graph structure, statistical annotations, exploration mechanism, and state-conditioned retrieval each contribute meaningfully to performance.
 
 A current limitation is the controlled, discrete nature of the evaluation environment. Extending ExperienceGraph to continuous state spaces, multi-goal settings, and real-world embodied environments—where node merging requires learned representations rather than symbolic matching—represents the most important direction for future work.
 
@@ -404,19 +404,19 @@ A current limitation is the controlled, discrete nature of the evaluation enviro
 
 | # | Claim | Evidence | Status |
 |---|-------|----------|--------|
-| 1 | ExperienceGraph achieves higher success rate than all baselines | Table 1 main comparison | ⚠️ Needs evidence (projected) |
-| 2 | Convergence is ~40% faster than Reflexion | Table 1 CS column + Figure 2 | ⚠️ Needs evidence (projected) |
-| 3 | Graph structure, statistics, and exploration each contribute significantly | Table 2 ablation | ⚠️ Needs evidence (projected) |
-| 4 | Graph growth is sublinear and plateaus | Table 3 graph statistics | ⚠️ Needs evidence (projected) |
-| 5 | Prompt size remains bounded under 1000 tokens | Table 3 prompt tokens column | ⚠️ Needs evidence (projected) |
-| 6 | Node merging is 88% accurate | Section 6.3 annotation study | ⚠️ Needs evidence (projected) |
-| 7 | Advantage grows with task complexity | Table 1 Easy/Medium/Hard comparison | ⚠️ Needs evidence (projected) |
-| 8 | Flat memory cannot model conditional path preferences | Conceptual argument + ablation EG-no-stats and EG-random-retrieval | Partially supported (ablation projected) |
-| 9 | Explore-then-compare prevents premature convergence | EG-no-exploration ablation shows -13% | ⚠️ Needs evidence (projected) |
+| 1 | ExperienceGraph achieves higher success rate than all baselines | Table 1 main comparison | <mark style="background-color: yellow;">⚠️ Needs evidence (projected)</mark> |
+| 2 | Convergence is ~40% faster than Reflexion | Table 1 CS column + Figure 2 | <mark style="background-color: yellow;">⚠️ Needs evidence (projected)</mark> |
+| 3 | Graph structure, statistics, and exploration each contribute significantly | Table 2 ablation | <mark style="background-color: yellow;">⚠️ Needs evidence (projected)</mark> |
+| 4 | Graph growth is sublinear and plateaus | Table 3 graph statistics | <mark style="background-color: yellow;">⚠️ Needs evidence (projected)</mark> |
+| 5 | Prompt size remains bounded under 1000 tokens | Table 3 prompt tokens column | <mark style="background-color: yellow;">⚠️ Needs evidence (projected)</mark> |
+| 6 | Node merging is 88% accurate | Section 6.3 annotation study | <mark style="background-color: yellow;">⚠️ Needs evidence (projected)</mark> |
+| 7 | Advantage grows with task complexity | Table 1 Easy/Medium/Hard comparison | <mark style="background-color: yellow;">⚠️ Needs evidence (projected)</mark> |
+| 8 | Flat memory cannot model conditional path preferences | Conceptual argument + ablation EG-no-stats and EG-random-retrieval | <mark style="background-color: yellow;">Partially supported (ablation projected)</mark> |
+| 9 | Explore-then-compare prevents premature convergence | EG-no-exploration ablation shows -13% | <mark style="background-color: yellow;">⚠️ Needs evidence (projected)</mark> |
 | 10 | ExperienceGraph is complementary to test-time search | Not experimentally tested | ❌ Unsupported — future work |
 
 **Action items before submission:**
-- Claims 1–9 require running the full experiment suite to convert from projected to verified.
+- Claims 1–9 require running the full experiment suite to convert from <mark style="background-color: yellow;">projected</mark> to verified.
 - Claim 10 should either be tested with an additional LATS+ExperienceGraph condition, or explicitly moved to future work without implying empirical support.
 
 ---
@@ -468,7 +468,7 @@ A current limitation is the controlled, discrete nature of the evaluation enviro
 | Are design choices justified? | Beta-binomial scoring: justified over raw ratios. Top-K retrieval: justified by token budget. Hierarchical merging: justified by cost. |
 | Are there potential failure modes acknowledged? | Yes — incorrect merging, exploration overhead, stale statistics (Section 6.2). |
 | Is the approach reproducible? | State space, action space, scoring formula, merging algorithm, and compression rules are all specified. Environment details in Section 4 enable reimplementation. |
-| What would a skeptical reviewer attack? | (1) TextCraft is too simple / not a real benchmark. (2) Projected results are speculative. (3) Cost overhead not justified. (4) Node merging quality may degrade in harder environments. All acknowledged in Discussion. |
+| What would a skeptical reviewer attack? | (1) TextCraft is too simple / not a real benchmark. (2) <mark style="background-color: yellow;">Projected results</mark> are speculative. (3) Cost overhead not justified. (4) Node merging quality may degrade in harder environments. All acknowledged in Discussion. |
 
 ---
 
