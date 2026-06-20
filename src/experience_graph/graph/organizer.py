@@ -97,6 +97,7 @@ class GraphOrganizer:
                     goal_node=previous_node.id,
                     edge_ids=edge_ids,
                     stats=PathStats(),
+                    metadata=self._path_metadata(record),
                 )
                 summary.added_paths += 1
             path.stats.attempts += 1
@@ -190,6 +191,25 @@ class GraphOrganizer:
         self.store.upsert_edge(edge)
         return edge
 
+
+    def _path_metadata(self, record: ExperienceRecord) -> dict:
+        actions = [step.action for step in record.trajectory]
+        return {
+            "task_id": record.task_id,
+            "case_id": record.initial_observation.case_id,
+            "action_tags": sorted({action.name for action in actions}),
+            "resource_tags": self._resource_tags(actions),
+            "domain_tags": ["textcraft_mc"],
+        }
+
+    def _resource_tags(self, actions: list[Action]) -> list[str]:
+        tags: set[str] = set()
+        for action in actions:
+            for key in ["item", "resource", "want", "target", "location", "villager"]:
+                value = action.args.get(key)
+                if value:
+                    tags.add(str(value))
+        return sorted(tags)
 
     def _action_preconditions(self, action: Action, state: dict, ok: bool, failure_reason: str | None) -> list[Condition]:
         if not ok:

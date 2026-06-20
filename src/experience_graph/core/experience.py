@@ -20,7 +20,7 @@ class ExperienceBuilder:
         for step in trajectory:
             executed_path.append(step.action.label())
             discovered.extend(step.result.revealed_conditions)
-            if not step.result.ok:
+            if not success and not step.result.ok:
                 failure_reason = step.result.failure_reason
         metrics = {
             "steps": len(trajectory),

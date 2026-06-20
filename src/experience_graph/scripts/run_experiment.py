@@ -48,6 +48,11 @@ CONFIG_COMPARE_KEYS = [
     "max_steps",
     "llm_provider",
     "llm_model",
+    "llm_max_tokens",
+    "llm_retry_max_tokens",
+    "llm_retries",
+    "continue_after_env_failure",
+    "cross_task_mode",
 ]
 EPISODE_SCOPED_LOGS = (
     "steps.jsonl",
@@ -111,12 +116,17 @@ def main() -> None:
     parser.add_argument("--task-id", default="diamond_set")
     parser.add_argument("--case-schedule", choices=["ordered", "shuffled_cycle", "random"], default="shuffled_cycle")
     parser.add_argument("--top-k", type=int, default=5)
+    parser.add_argument("--cross-task-mode", choices=["same_task", "cross_task_actions", "all_tasks"], default="same_task")
     parser.add_argument("--token-budget", type=int, default=1000)
     parser.add_argument("--min-attempts-for-dormant", type=int, default=5)
     parser.add_argument("--dormant-success-threshold", type=float, default=0.1)
     parser.add_argument("--llm-provider", default=None)
     parser.add_argument("--llm-model", default=None)
+    parser.add_argument("--llm-max-tokens", type=int, default=int(os.getenv("EG_LLM_MAX_TOKENS", "4096")))
+    parser.add_argument("--llm-retry-max-tokens", type=int, default=int(os.getenv("EG_LLM_RETRY_MAX_TOKENS", "8192")))
+    parser.add_argument("--llm-retries", type=int, default=int(os.getenv("EG_LLM_RETRIES", "1")))
     parser.add_argument("--max-budget-rmb", type=float, default=None)
+    parser.add_argument("--stop-on-env-failure", action="store_true", help="End an episode after the first environment/precondition failure.")
     parser.add_argument("--input-price-per-million-rmb", type=float, default=float(os.getenv("EG_INPUT_PRICE_PER_M_RMB", "1.0")))
     parser.add_argument("--output-price-per-million-rmb", type=float, default=float(os.getenv("EG_OUTPUT_PRICE_PER_M_RMB", "3.0")))
     parser.add_argument("--resume", action="store_true")
@@ -156,7 +166,7 @@ def main() -> None:
         config_path.write_text(yaml.safe_dump(config, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
     plans = {case_id: env.cases[case_id]["oracle"].get("reference_plan", []) for case_id in env.cases}
-    agent = build_agent(args.agent, plans, run_dir, effective_llm_provider, effective_llm_model, variant_config)
+    agent = build_agent(args.agent, plans, run_dir, effective_llm_provider, effective_llm_model, variant_config, args.llm_max_tokens, args.llm_retry_max_tokens, args.llm_retries)
     store = JsonGraphStore(run_dir, load_existing=args.resume)
     organizer = GraphOrganizer(
         store,
@@ -172,6 +182,7 @@ def main() -> None:
         include_statistics=variant_config["include_statistics"],
         ranking_mode=variant_config["ranking_mode"],
         random_seed=args.seed,
+        cross_task_mode=args.cross_task_mode,
     )
     logger = EvaluationLogger(run_dir)
     run_context = RunContext(
@@ -186,7 +197,16 @@ def main() -> None:
             "llm_model": effective_llm_model,
         },
     )
-    runner = EpisodeRunner(env, agent, organizer, retriever, logger, max_steps=args.max_steps, run_context=run_context)
+    runner = EpisodeRunner(
+        env,
+        agent,
+        organizer,
+        retriever,
+        logger,
+        max_steps=args.max_steps,
+        run_context=run_context,
+        continue_after_env_failure=not args.stop_on_env_failure,
+    )
 
     completed = count_completed_episodes(run_dir / "metrics.jsonl") if args.resume else 0
     if args.resume:
@@ -219,6 +239,9 @@ def main() -> None:
                 "case_id": case_id,
                 "estimated_cost_rmb": cost,
                 "max_budget_rmb": args.max_budget_rmb,
+                "llm_max_tokens": args.llm_max_tokens,
+                "llm_retry_max_tokens": args.llm_retry_max_tokens,
+                "llm_retries": args.llm_retries,
                 "llm_usage_cumulative": result.metrics.get("llm_usage_cumulative", {}),
             },
         )
@@ -230,6 +253,9 @@ def main() -> None:
                 "episode_index": index,
                 "estimated_cost_rmb": cost,
                 "max_budget_rmb": args.max_budget_rmb,
+                "llm_max_tokens": args.llm_max_tokens,
+                "llm_retry_max_tokens": args.llm_retry_max_tokens,
+                "llm_retries": args.llm_retries,
                 "reason": "budget_limit_reached",
             }
             (run_dir / "budget_stop.json").write_text(json.dumps(stop_payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -326,6 +352,7 @@ def build_config(args: argparse.Namespace, run_id: str, case_ids: list[str], var
         "task_id": args.task_id,
         "case_schedule": args.case_schedule,
         "case_ids": case_ids,
+        "cross_task_mode": args.cross_task_mode,
         "top_k": variant_config["top_k"],
         "requested_top_k": args.top_k,
         "token_budget": args.token_budget,
@@ -335,6 +362,10 @@ def build_config(args: argparse.Namespace, run_id: str, case_ids: list[str], var
         "llm_provider": llm_provider,
         "llm_model": llm_model,
         "max_budget_rmb": args.max_budget_rmb,
+        "llm_max_tokens": args.llm_max_tokens,
+        "llm_retry_max_tokens": args.llm_retry_max_tokens,
+        "llm_retries": args.llm_retries,
+        "continue_after_env_failure": not args.stop_on_env_failure,
         "input_price_per_million_rmb": args.input_price_per_million_rmb,
         "output_price_per_million_rmb": args.output_price_per_million_rmb,
         "supported_agents": AGENTS,
@@ -385,10 +416,19 @@ def build_agent(
     llm_provider: str,
     llm_model: str,
     variant_config: dict[str, Any],
+    llm_max_tokens: int | None = None,
+    llm_retry_max_tokens: int | None = None,
+    llm_retries: int = 0,
 ):
     if agent_type == "scripted":
         return ScriptedAgent(plans)
-    llm = build_llm_client(llm_provider, model=llm_model)
+    llm = build_llm_client(
+        llm_provider,
+        model=llm_model,
+        max_tokens=llm_max_tokens,
+        retry_max_tokens=llm_retry_max_tokens,
+        retries=llm_retries,
+    )
     if agent_type == "react":
         return ReActAgent(llm)
     if agent_type == "reflexion":

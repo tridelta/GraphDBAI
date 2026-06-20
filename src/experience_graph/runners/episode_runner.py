@@ -52,6 +52,7 @@ class EpisodeRunner:
         logger: EvaluationLogger,
         max_steps: int = 30,
         run_context: RunContext | None = None,
+        continue_after_env_failure: bool = True,
     ):
         self.env = env
         self.agent = agent
@@ -61,6 +62,7 @@ class EpisodeRunner:
         self.max_steps = max_steps
         self.builder = ExperienceBuilder()
         self.run_context = run_context or RunContext()
+        self.continue_after_env_failure = continue_after_env_failure
 
     def run_episode(
         self,
@@ -130,6 +132,11 @@ class EpisodeRunner:
                         "llm_input_messages": llm_trace.get("messages", []),
                         "llm_output": llm_trace.get("response"),
                         "llm_raw_response": llm_trace.get("raw_response"),
+                        "llm_parse_error": llm_trace.get("parse_error"),
+                        "llm_finish_reason": llm_trace.get("finish_reason"),
+                        "llm_retry_count": llm_trace.get("retry_count", 0),
+                        "llm_max_tokens": llm_trace.get("max_tokens"),
+                        "llm_attempts": self._trace_attempt_summary(llm_trace),
                     },
                 )
                 break
@@ -180,18 +187,29 @@ class EpisodeRunner:
                     "llm_input_messages": llm_trace.get("messages", []),
                     "llm_output": llm_trace.get("response"),
                     "llm_raw_response": llm_trace.get("raw_response"),
+                    "llm_parse_error": llm_trace.get("parse_error"),
+                    "llm_finish_reason": llm_trace.get("finish_reason"),
+                    "llm_retry_count": llm_trace.get("retry_count", 0),
+                    "llm_max_tokens": llm_trace.get("max_tokens"),
+                    "llm_attempts": self._trace_attempt_summary(llm_trace),
                 },
             )
             if result.done:
                 success = True
+                failure_reason = None
                 break
             if not result.ok:
                 failure_reason = result.failure_reason
+                if self._should_continue_after_failure(result.failure_reason, step_index):
+                    continue
                 break
         if not success and failure_reason is None:
             failure_reason = "step_budget_exhausted"
 
         experience = self.builder.build(episode_id, task.id, initial, trajectory, success, proposed_plan=proposed_plan)
+        if success:
+            experience.failure_reason = None
+            experience.metrics["failure_reason"] = None
         if failure_reason and not experience.failure_reason:
             experience.failure_reason = failure_reason
             experience.metrics["failure_reason"] = failure_reason
@@ -230,6 +248,18 @@ class EpisodeRunner:
         self.logger.write_jsonl("metrics.jsonl", metrics)
         self.agent.update(experience)
         return EpisodeResult(experience=experience, metrics=metrics)
+
+    def _should_continue_after_failure(self, failure_reason: str | None, step_index: int) -> bool:
+        if not self.continue_after_env_failure:
+            return False
+        if step_index >= self.max_steps - 1:
+            return False
+        terminal_reasons = {
+            "unknown_action",
+            "premature_impossible_report",
+            "incorrect_impossible_report",
+        }
+        return failure_reason not in terminal_reasons
 
     def _consecutive_action_count(self, action_history: list[str], action_label: str) -> int:
         count = 0
@@ -295,6 +325,28 @@ class EpisodeRunner:
         llm = getattr(self.agent, "llm", None)
         trace = getattr(llm, "last_trace", None)
         return dict(trace) if isinstance(trace, dict) else {}
+
+    def _trace_attempt_summary(self, llm_trace: dict) -> list[dict[str, Any]]:
+        attempts = llm_trace.get("attempts")
+        if not isinstance(attempts, list):
+            return []
+        summary = []
+        for attempt in attempts:
+            if not isinstance(attempt, dict):
+                continue
+            raw = attempt.get("raw_response") or ""
+            summary.append(
+                {
+                    "attempt_index": attempt.get("attempt_index"),
+                    "finish_reason": attempt.get("finish_reason"),
+                    "parse_error": attempt.get("parse_error"),
+                    "max_tokens": attempt.get("max_tokens"),
+                    "valid": attempt.get("valid"),
+                    "raw_response_length": len(raw),
+                }
+            )
+        return summary
+
     def _usage_snapshot(self) -> dict:
         llm = getattr(self.agent, "llm", None)
         snapshot = getattr(llm, "usage_snapshot", None)

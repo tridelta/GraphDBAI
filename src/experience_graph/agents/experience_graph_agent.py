@@ -53,6 +53,10 @@ class ExperienceGraphAgent(ReActAgent):
                                 "label": c.label,
                                 "applicability": c.applicability,
                                 "route_type": c.route_type,
+                                "transfer_scope": c.transfer_scope,
+                                "source_task_id": c.source_task_id,
+                                "action_tags": c.action_tags,
+                                "resource_tags": c.resource_tags,
                                 "success_rate": c.success_rate,
                                 "attempts": c.attempts,
                                 "avg_steps": c.avg_steps,
@@ -76,7 +80,7 @@ class ExperienceGraphAgent(ReActAgent):
                 ),
             },
         ]
-        return self.llm.complete_json(messages)
+        return self.llm.complete_json(messages, validator=lambda payload: extract_action_data(payload) is not None)
 
     def _parse_plan(self, raw) -> list[Action] | None:
         if not isinstance(raw, list):

@@ -139,6 +139,7 @@ class JsonGraphStore:
                         avg_cost=stats.get("avg_cost"),
                     ),
                     last_used_episode=int(row.get("last_used_episode", 0)),
+                    metadata=dict(row.get("metadata", {})),
                 )
             )
         return paths

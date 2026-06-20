@@ -68,6 +68,7 @@ class TextCraftAdapter:
                 ActionSpec("inspect", {"target": "mine"}),
                 ActionSpec("explore", {"target": "mine"}),
                 ActionSpec("explore", {"target": "village"}),
+                ActionSpec("report_impossible", {"reason": "no_viable_plan"}),
                 ActionSpec("trade", {"villager": "armorer", "offer": "emerald", "want": "diamond_set"}),
                 ActionSpec("trade", {"villager": "armorer", "offer": "emerald", "want": "diamond_boots"}),
                 ActionSpec("trade", {"villager": "armorer", "offer": "emerald", "want": "diamond_chestplate"}),
@@ -98,12 +99,14 @@ class TextCraftAdapter:
             ok, failure_reason, state_delta, revealed = self._explore(action.args.get("target"))
         elif action.name == "trade":
             ok, failure_reason, state_delta = self._trade(action.args.get("want"))
+        elif action.name == "report_impossible":
+            ok, failure_reason, state_delta = self._report_impossible(action.args.get("reason"))
         else:
             ok = False
             failure_reason = "unknown_action"
 
         self.step_count += 1
-        done = self.is_success(self._observation(), TaskSpec(id="diamond_set"))
+        done = self.is_success(self._observation(), TaskSpec(id="diamond_set")) or (ok and action.name == "report_impossible")
         reward = 1.0 if done else 0.0
         if not ok:
             self.state = before
@@ -261,10 +264,11 @@ class TextCraftAdapter:
                 return False, "mine_search_unavailable", {}, []
             value = self._hidden("nearby_mine", default=False)
             set_path(self.state, "environment.nearby_mine", value)
+            set_path(self.state, "environment.mine_search_available", False)
             self._clear_ambiguous("environment.nearby_mine")
             revealed = [Condition("environment.nearby_mine", "==", value, source="explore")]
             depth = self._hidden("mine_depth", default=None)
-            delta = {"environment.nearby_mine": value}
+            delta = {"environment.nearby_mine": value, "environment.mine_search_available": False}
             if depth is not None:
                 set_path(self.state, "environment.mine_depth", depth)
                 delta["environment.mine_depth"] = depth
@@ -275,9 +279,60 @@ class TextCraftAdapter:
                 return False, "village_search_unavailable", {}, []
             value = self._hidden("nearby_village", default=False)
             set_path(self.state, "environment.nearby_village", value)
+            set_path(self.state, "environment.village_search_available", False)
             self._clear_ambiguous("environment.nearby_village")
-            return True, None, {"environment.nearby_village": value}, [Condition("environment.nearby_village", "==", value, source="explore")]
+            return True, None, {"environment.nearby_village": value, "environment.village_search_available": False}, [Condition("environment.nearby_village", "==", value, source="explore")]
         return False, "unknown_explore_target", {}, []
+
+    def _report_impossible(self, reason: str | None) -> tuple[bool, str | None, dict[str, Any]]:
+        assert self.state is not None
+        if self._needs_more_information():
+            return False, "premature_impossible_report", {}
+        if self._has_viable_completion_route():
+            return False, "incorrect_impossible_report", {}
+        oracle_solvable = (self.current_case or {}).get("oracle", {}).get("solvable")
+        if oracle_solvable is True:
+            return False, "incorrect_impossible_report", {}
+        return True, None, {"task.reported_impossible": reason or "no_viable_plan"}
+
+    def _needs_more_information(self) -> bool:
+        assert self.state is not None
+        ambiguous = self.state.get("ambiguous")
+        if isinstance(ambiguous, dict) and ambiguous:
+            return True
+        nearby_mine = get_path(self.state, "environment.nearby_mine", False)
+        nearby_village = get_path(self.state, "environment.nearby_village", False)
+        if nearby_mine == UNKNOWN and get_path(self.state, "environment.mine_search_available", False):
+            return True
+        if nearby_village == UNKNOWN and get_path(self.state, "environment.village_search_available", False):
+            return True
+        if nearby_village is True and get_path(self.state, "environment.village_has_armorer", False) == UNKNOWN:
+            return True
+        return False
+
+    def _has_viable_completion_route(self) -> bool:
+        assert self.state is not None
+        if self.is_success(self._observation(), TaskSpec(id="diamond_set")):
+            return True
+        diamonds = get_path(self.state, "inventory.diamond", 0)
+        has_table = get_path(self.state, "inventory.crafting_table", False)
+        wood = get_path(self.state, "inventory.wood", 0)
+        if diamonds >= 24 and (has_table or wood >= 4):
+            return True
+        pickaxe_ok = pickaxe_rank(get_path(self.state, "inventory.pickaxe", "none")) >= 3
+        mine_known = get_path(self.state, "environment.nearby_mine", False) is True
+        if pickaxe_ok and mine_known:
+            return True
+        if pickaxe_ok and get_path(self.state, "environment.mine_search_available", False):
+            return True
+        emeralds = get_path(self.state, "inventory.emerald", 0)
+        village_known = get_path(self.state, "environment.nearby_village", False) is True
+        armorer = get_path(self.state, "environment.village_has_armorer", False)
+        if emeralds >= 10 and village_known and armorer is True:
+            return True
+        if emeralds >= 10 and get_path(self.state, "environment.village_search_available", False):
+            return True
+        return False
 
     def _trade(self, want: str | None) -> tuple[bool, str | None, dict[str, Any]]:
         assert self.state is not None

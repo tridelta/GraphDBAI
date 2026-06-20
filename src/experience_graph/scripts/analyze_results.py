@@ -8,6 +8,10 @@ from pathlib import Path
 from statistics import mean, pstdev
 from typing import Any
 
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import yaml
 
 
@@ -33,8 +37,9 @@ def main() -> None:
     write_csv(output_dir / "ablation.csv", build_ablation(summary_rows))
     write_summary_markdown(output_dir / "summary_tables.md", summary_rows, runs)
     write_experiment_writeup(output_dir / "experiment_writeup.md", summary_rows, runs)
-    write_learning_curve_svg(output_dir / "figures" / "learning_curve_medium.svg", build_learning_curve(runs, args.window, difficulty="medium"))
-    write_graph_growth_svg(output_dir / "figures" / "graph_growth.svg", build_graph_growth(runs))
+    write_learning_curve_png(output_dir / "figures" / "learning_curve_medium.png", build_learning_curve(runs, args.window, difficulty="medium"))
+    write_graph_growth_png(output_dir / "figures" / "graph_growth.png", build_graph_growth(runs))
+    write_token_cost_png(output_dir / "figures" / "token_cost.png", summary_rows)
     print(f"Analysis written to {output_dir}")
 
 
@@ -242,15 +247,30 @@ def markdown_table(rows: list[dict[str, Any]], keys: list[str]) -> list[str]:
     return lines
 
 
-def write_learning_curve_svg(path: Path, rows: list[dict[str, Any]]) -> None:
+def write_learning_curve_png(path: Path, rows: list[dict[str, Any]]) -> None:
     series = aggregate_series(rows, "episode_index", "window_success_rate", ["agent", "variant"])
-    write_line_svg(path, series, y_label="Window SR")
+    write_line_plot(path, series, y_label="Window SR", title="Medium Learning Curve")
 
 
-def write_graph_growth_svg(path: Path, rows: list[dict[str, Any]]) -> None:
+def write_graph_growth_png(path: Path, rows: list[dict[str, Any]]) -> None:
     graph_rows = [row for row in rows if row.get("agent") == "graph"]
     series = aggregate_series(graph_rows, "episode_index", "graph_nodes", ["variant"])
-    write_line_svg(path, series, y_label="Graph Nodes")
+    write_line_plot(path, series, y_label="Graph Nodes", title="ExperienceGraph Growth")
+
+
+def write_token_cost_png(path: Path, rows: list[dict[str, Any]]) -> None:
+    labels = [f"{row.get('agent')}/{row.get('variant')}" for row in rows]
+    values = [float(row.get("tokens_per_episode") or 0) for row in rows]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig, ax = plt.subplots(figsize=(10, 4.8))
+    ax.bar(labels, values, color="#2563eb")
+    ax.set_ylabel("Tokens per episode")
+    ax.set_title("Token Cost by Run")
+    ax.tick_params(axis="x", labelrotation=30)
+    ax.grid(axis="y", alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(path, dpi=180)
+    plt.close(fig)
 
 
 def aggregate_series(rows: list[dict[str, Any]], x_key: str, y_key: str, group_keys: list[str]) -> dict[str, list[tuple[float, float]]]:
@@ -265,35 +285,24 @@ def aggregate_series(rows: list[dict[str, Any]], x_key: str, y_key: str, group_k
     return {label: [(x, mean(values)) for x, values in sorted(points.items())] for label, points in grouped.items()}
 
 
-def write_line_svg(path: Path, series: dict[str, list[tuple[float, float]]], y_label: str) -> None:
-    width, height = 900, 420
-    margin = 50
-    all_points = [point for points in series.values() for point in points]
-    if not all_points:
-        path.write_text("<svg xmlns='http://www.w3.org/2000/svg' width='900' height='420'></svg>", encoding="utf-8")
-        return
-    max_x = max(x for x, _ in all_points) or 1
-    max_y = max(y for _, y in all_points) or 1
-    colors = ["#2563eb", "#dc2626", "#16a34a", "#9333ea", "#ea580c", "#0891b2", "#4b5563"]
-    lines = [f"<svg xmlns='http://www.w3.org/2000/svg' width='{width}' height='{height}' viewBox='0 0 {width} {height}'>"]
-    lines.append("<rect width='100%' height='100%' fill='white'/>")
-    lines.append(f"<line x1='{margin}' y1='{height-margin}' x2='{width-margin}' y2='{height-margin}' stroke='#111827'/>")
-    lines.append(f"<line x1='{margin}' y1='{margin}' x2='{margin}' y2='{height-margin}' stroke='#111827'/>")
-    lines.append(f"<text x='{margin}' y='24' font-size='14' fill='#111827'>{y_label}</text>")
-    for idx, (label, points) in enumerate(series.items()):
-        color = colors[idx % len(colors)]
-        coords = []
-        for x, y in points:
-            sx = margin + (x / max_x) * (width - 2 * margin)
-            sy = height - margin - (y / max_y) * (height - 2 * margin)
-            coords.append(f"{sx:.1f},{sy:.1f}")
-        if coords:
-            lines.append(f"<polyline fill='none' stroke='{color}' stroke-width='2' points='{' '.join(coords)}'/>")
-            legend_y = margin + 18 * idx
-            lines.append(f"<text x='{width-margin-180}' y='{legend_y}' font-size='12' fill='{color}'>{label}</text>")
-    lines.append("</svg>")
-    path.write_text("\n".join(lines), encoding="utf-8")
-
+def write_line_plot(path: Path, series: dict[str, list[tuple[float, float]]], y_label: str, title: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig, ax = plt.subplots(figsize=(9, 4.8))
+    for label, points in series.items():
+        if not points:
+            continue
+        xs = [x for x, _ in points]
+        ys = [y for _, y in points]
+        ax.plot(xs, ys, marker="o", linewidth=2, label=label)
+    ax.set_xlabel("Episode index")
+    ax.set_ylabel(y_label)
+    ax.set_title(title)
+    ax.grid(alpha=0.25)
+    if series:
+        ax.legend(loc="best", fontsize=8)
+    fig.tight_layout()
+    fig.savefig(path, dpi=180)
+    plt.close(fig)
 
 def episode_index_from_id(episode_id: str | None) -> int:
     if not episode_id:

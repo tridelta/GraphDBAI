@@ -229,6 +229,7 @@ class PathRecord:
     edge_ids: list[str]
     stats: PathStats = field(default_factory=PathStats)
     last_used_episode: int = 0
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -249,6 +250,10 @@ class CandidatePathView:
     retrieval_score: float = 0.0
     retrieval_reason: str = ""
     common_failures: list[str] = field(default_factory=list)
+    transfer_scope: str = "same_task"
+    source_task_id: str | None = None
+    action_tags: list[str] = field(default_factory=list)
+    resource_tags: list[str] = field(default_factory=list)
 
 
 @dataclass

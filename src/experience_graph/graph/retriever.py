@@ -26,12 +26,14 @@ class GraphRetriever:
         include_statistics: bool = True,
         ranking_mode: str = "score",
         random_seed: int = 0,
+        cross_task_mode: str = "same_task",
     ):
         self.store = store
         self.token_budget = token_budget
         self.top_k = top_k
         self.include_statistics = include_statistics
         self.ranking_mode = ranking_mode
+        self.cross_task_mode = cross_task_mode
         self.random = random.Random(random_seed)
 
     def retrieve(self, task: TaskSpec, observation: Observation, current_conditions: list[Condition]) -> ExperienceView:
@@ -42,7 +44,8 @@ class GraphRetriever:
         state = observation.state
         candidates: list[CandidatePathView] = []
         for path in self.store.paths.values():
-            if path.task_id != task.id:
+            transfer_scope = self._transfer_scope(path, task.id)
+            if transfer_scope is None:
                 continue
             actions = []
             missing = []
@@ -87,6 +90,10 @@ class GraphRetriever:
                 applicability=applicability,
                 failure_counts=failure_counts,
             )
+            adjusted_score = relevance.retrieval_score if transfer_scope == "same_task" else round(relevance.retrieval_score * 0.75, 4)
+            retrieval_reason = relevance.retrieval_reason
+            if transfer_scope != "same_task":
+                retrieval_reason = f"Cross-task transfer from {path.task_id}. " + retrieval_reason
             candidates.append(
                 CandidatePathView(
                     path_id=path.id,
@@ -102,9 +109,13 @@ class GraphRetriever:
                     matched_conditions=relevance.matched_conditions,
                     suggested_probe_actions=relevance.suggested_probe_actions,
                     state_similarity=relevance.state_similarity,
-                    retrieval_score=relevance.retrieval_score,
-                    retrieval_reason=relevance.retrieval_reason,
+                    retrieval_score=adjusted_score,
+                    retrieval_reason=retrieval_reason,
                     common_failures=relevance.common_failures,
+                    transfer_scope=transfer_scope,
+                    source_task_id=path.task_id,
+                    action_tags=list(path.metadata.get("action_tags", [])) if isinstance(path.metadata, dict) else [],
+                    resource_tags=list(path.metadata.get("resource_tags", [])) if isinstance(path.metadata, dict) else [],
                 )
             )
         if self.ranking_mode == "random":
@@ -122,6 +133,17 @@ class GraphRetriever:
             view.summaries.append(f"Experience view truncated to top {self.top_k} paths.")
             view.token_estimate = self.token_budget
         return view
+
+    def _transfer_scope(self, path, current_task_id: str) -> str | None:
+        if path.task_id == current_task_id:
+            return "same_task"
+        if self.cross_task_mode == "same_task":
+            return None
+        if self.cross_task_mode == "cross_task_actions":
+            return "cross_task_action"
+        if self.cross_task_mode == "all_tasks":
+            return "cross_task_path"
+        return None
 
     def _estimate_tokens(self, candidates: list[CandidatePathView]) -> int:
         text = " ".join(candidate.label + " " + candidate.evidence + " " + candidate.retrieval_reason for candidate in candidates)

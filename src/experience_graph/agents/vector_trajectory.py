@@ -64,7 +64,7 @@ class VectorTrajectoryAgent(BaseAgent):
                 ),
             },
         ]
-        return self.llm.complete_json(messages)
+        return self.llm.complete_json(messages, validator=lambda payload: extract_action_data(payload) is not None)
 
     def _retrieve(self, query_features: set[str], task_id: str) -> list[dict[str, Any]]:
         scored = []

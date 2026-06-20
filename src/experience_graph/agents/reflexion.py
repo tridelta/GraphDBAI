@@ -62,7 +62,7 @@ class ReflexionAgent(BaseAgent):
                 ),
             },
         ]
-        return self.llm.complete_json(messages)
+        return self.llm.complete_json(messages, validator=lambda payload: extract_action_data(payload) is not None)
 
     def _make_reflection(self, feedback: ExperienceRecord) -> str:
         summary = summarize_experience(feedback)
