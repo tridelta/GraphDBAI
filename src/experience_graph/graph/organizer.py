@@ -44,11 +44,15 @@ class GraphOrganizer:
         store: JsonGraphStore,
         min_attempts_for_dormant: int = 5,
         dormant_success_threshold: float = 0.1,
+        enable_node_merging: bool = True,
+        learn_failure_preconditions: bool = True,
     ):
         self.store = store
         self.merger = NodeMerger()
         self.min_attempts_for_dormant = min_attempts_for_dormant
         self.dormant_success_threshold = dormant_success_threshold
+        self.enable_node_merging = enable_node_merging
+        self.learn_failure_preconditions = learn_failure_preconditions
 
     def integrate(self, record: ExperienceRecord) -> GraphUpdateSummary:
         summary = GraphUpdateSummary()
@@ -58,7 +62,7 @@ class GraphOrganizer:
 
         for step in record.trajectory:
             target_conditions = list(step.result.revealed_conditions)
-            if step.result.failure_reason and step.result.failure_reason in FAILURE_PRECONDITIONS:
+            if self.learn_failure_preconditions and step.result.failure_reason and step.result.failure_reason in FAILURE_PRECONDITIONS:
                 target_conditions.append(FAILURE_PRECONDITIONS[step.result.failure_reason])
             if not target_conditions and step.result.ok:
                 target_conditions = [Condition("action.result", "==", step.action.label(), source="env")]
@@ -103,27 +107,41 @@ class GraphOrganizer:
         return summary
 
     def _upsert_node(self, node: GraphNode, record: ExperienceRecord, summary: GraphUpdateSummary) -> GraphNode:
-        decision = self.merger.decide(node, list(self.store.nodes.values()))
-        if decision.decision == "merged" and decision.target_node_id:
-            existing = self.store.nodes[decision.target_node_id]
-            existing.stats.attempts += 1
-            if record.success:
-                existing.stats.successes += 1
-            self.store.append_merge_decision(
-                {
-                    "new_node": node.id,
-                    "target_node": existing.id,
-                    "decision": "merged",
-                    "method": decision.method,
-                    "rationale": decision.rationale,
-                    "episode_id": record.episode_id,
-                }
-            )
-            return existing
+        if self.enable_node_merging:
+            decision = self.merger.decide(node, list(self.store.nodes.values()))
+            if decision.decision == "merged" and decision.target_node_id:
+                existing = self.store.nodes[decision.target_node_id]
+                existing.stats.attempts += 1
+                if record.success:
+                    existing.stats.successes += 1
+                self.store.append_merge_decision(
+                    {
+                        "new_node": node.id,
+                        "target_node": existing.id,
+                        "decision": "merged",
+                        "method": decision.method,
+                        "rationale": decision.rationale,
+                        "episode_id": record.episode_id,
+                    }
+                )
+                return existing
+        if not self.enable_node_merging:
+            node.id = f"{node.id}_{len(self.store.nodes):06d}"
         node.stats.attempts = 1
         node.stats.successes = 1 if record.success else 0
         self.store.upsert_node(node)
         summary.added_nodes += 1
+        if not self.enable_node_merging:
+            self.store.append_merge_decision(
+                {
+                    "new_node": node.id,
+                    "target_node": None,
+                    "decision": "created",
+                    "method": "disabled",
+                    "rationale": "node merging disabled for experiment variant",
+                    "episode_id": record.episode_id,
+                }
+            )
         return node
 
     def _upsert_edge(
@@ -137,7 +155,7 @@ class GraphOrganizer:
         summary: GraphUpdateSummary,
     ) -> GraphEdge:
         preconditions = []
-        if failure_reason and failure_reason in FAILURE_PRECONDITIONS:
+        if self.learn_failure_preconditions and failure_reason and failure_reason in FAILURE_PRECONDITIONS:
             preconditions.append(FAILURE_PRECONDITIONS[failure_reason])
         edge_id = "edge_" + self._hash([from_node, to_node, action.label()])
         edge = self.store.edges.get(edge_id)
@@ -184,3 +202,4 @@ class GraphOrganizer:
         if old is None or count <= 1:
             return new
         return ((old * (count - 1)) + new) / count
+

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import random
 
 from experience_graph.core.conditions import missing_conditions
 from experience_graph.core.models import CandidatePathView, Condition, ExperienceView, Observation, TaskSpec
@@ -8,12 +9,27 @@ from experience_graph.graph.store import JsonGraphStore
 
 
 class GraphRetriever:
-    def __init__(self, store: JsonGraphStore, token_budget: int = 1000, top_k: int = 5):
+    def __init__(
+        self,
+        store: JsonGraphStore,
+        token_budget: int = 1000,
+        top_k: int = 5,
+        include_statistics: bool = True,
+        ranking_mode: str = "score",
+        random_seed: int = 0,
+    ):
         self.store = store
         self.token_budget = token_budget
         self.top_k = top_k
+        self.include_statistics = include_statistics
+        self.ranking_mode = ranking_mode
+        self.random = random.Random(random_seed)
 
     def retrieve(self, task: TaskSpec, observation: Observation, current_conditions: list[Condition]) -> ExperienceView:
+        view_id = "view_" + hashlib.sha1(f"{task.id}:{observation.case_id}:{observation.step_count}".encode()).hexdigest()[:12]
+        if self.top_k <= 0:
+            return ExperienceView(view_id=view_id, relevant_conditions=current_conditions, token_estimate=0)
+
         state = observation.state
         candidates: list[CandidatePathView] = []
         for path in self.store.paths.values():
@@ -38,7 +54,11 @@ class GraphRetriever:
                     blocked = True
             applicability = "blocked" if blocked else "needs_info" if needs_info else "available"
             attempts = path.stats.attempts
-            success_rate = (path.stats.successes + 1) / (attempts + 2) if attempts else None
+            success_rate = None
+            evidence = "statistics hidden"
+            if self.include_statistics:
+                success_rate = (path.stats.successes + 1) / (attempts + 2) if attempts else None
+                evidence = f"{path.stats.successes}/{path.stats.attempts} successes"
             candidates.append(
                 CandidatePathView(
                     path_id=path.id,
@@ -47,15 +67,18 @@ class GraphRetriever:
                     missing_conditions=missing,
                     actions_preview=actions[:5],
                     success_rate=success_rate,
-                    attempts=attempts,
-                    avg_steps=path.stats.avg_steps,
-                    evidence=f"{path.stats.successes}/{path.stats.attempts} successes",
+                    attempts=attempts if self.include_statistics else 0,
+                    avg_steps=path.stats.avg_steps if self.include_statistics else None,
+                    evidence=evidence,
                 )
             )
-        candidates.sort(key=lambda c: (c.applicability != "available", -(c.success_rate or 0), c.avg_steps or 999))
+        if self.ranking_mode == "random":
+            self.random.shuffle(candidates)
+        else:
+            candidates.sort(key=lambda c: (c.applicability != "available", -(c.success_rate or 0), c.avg_steps or 999))
         candidates = candidates[: self.top_k]
         view = ExperienceView(
-            view_id="view_" + hashlib.sha1(f"{task.id}:{observation.case_id}:{observation.step_count}".encode()).hexdigest()[:12],
+            view_id=view_id,
             relevant_conditions=current_conditions,
             candidate_paths=candidates,
             token_estimate=self._estimate_tokens(candidates),
@@ -67,6 +90,4 @@ class GraphRetriever:
 
     def _estimate_tokens(self, candidates: list[CandidatePathView]) -> int:
         text = " ".join(candidate.label + " " + candidate.evidence for candidate in candidates)
-        return max(1, len(text) // 4)
-
-
+        return max(1, len(text) // 4) if text else 0
