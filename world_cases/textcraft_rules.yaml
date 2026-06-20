@@ -1,0 +1,297 @@
+version: 0.1
+world: textcraft_mc
+description: >
+  Symbolic Minecraft-inspired rules for TextCraft-MC. These rules are intentionally
+  compact and deterministic in v0.1 so they can be used by unit tests and an oracle planner.
+
+item_groups:
+  pickaxe_levels:
+    none: 0
+    wooden: 1
+    stone: 2
+    iron: 3
+    diamond: 4
+    netherite: 5
+  armor_pieces:
+    - diamond_helmet
+    - diamond_chestplate
+    - diamond_leggings
+    - diamond_boots
+
+tasks:
+  diamond_set:
+    success_conditions:
+      inventory.diamond_helmet: true
+      inventory.diamond_chestplate: true
+      inventory.diamond_leggings: true
+      inventory.diamond_boots: true
+    equivalent_conditions:
+      inventory.diamond: ">=24"
+      inventory.crafting_table: true
+
+rules:
+  - id: R001
+    name: full_diamond_armor_material_cost
+    type: hard
+    statement: Full diamond armor requires 24 diamonds if crafted directly.
+    preconditions:
+      inventory.diamond: ">=24"
+      inventory.crafting_table: true
+    effects:
+      inventory.diamond: "-24"
+      inventory.diamond_helmet: true
+      inventory.diamond_chestplate: true
+      inventory.diamond_leggings: true
+      inventory.diamond_boots: true
+
+  - id: R002
+    name: craft_diamond_helmet
+    type: hard
+    action:
+      name: craft
+      args:
+        item: diamond_helmet
+    preconditions:
+      inventory.diamond: ">=5"
+      inventory.crafting_table: true
+    effects:
+      inventory.diamond: "-5"
+      inventory.diamond_helmet: true
+
+  - id: R003
+    name: craft_diamond_chestplate
+    type: hard
+    action:
+      name: craft
+      args:
+        item: diamond_chestplate
+    preconditions:
+      inventory.diamond: ">=8"
+      inventory.crafting_table: true
+    effects:
+      inventory.diamond: "-8"
+      inventory.diamond_chestplate: true
+
+  - id: R004
+    name: craft_diamond_leggings
+    type: hard
+    action:
+      name: craft
+      args:
+        item: diamond_leggings
+    preconditions:
+      inventory.diamond: ">=7"
+      inventory.crafting_table: true
+    effects:
+      inventory.diamond: "-7"
+      inventory.diamond_leggings: true
+
+  - id: R005
+    name: craft_diamond_boots
+    type: hard
+    action:
+      name: craft
+      args:
+        item: diamond_boots
+    preconditions:
+      inventory.diamond: ">=4"
+      inventory.crafting_table: true
+    effects:
+      inventory.diamond: "-4"
+      inventory.diamond_boots: true
+
+  - id: R006
+    name: craft_crafting_table
+    type: hard
+    action:
+      name: craft
+      args:
+        item: crafting_table
+    preconditions:
+      inventory.wood: ">=4"
+    effects:
+      inventory.wood: "-4"
+      inventory.crafting_table: true
+
+  - id: R007
+    name: gather_wood
+    type: hard
+    action:
+      name: gather
+      args:
+        resource: wood
+    preconditions:
+      environment.biome: ["forest", "plains"]
+    effects:
+      inventory.wood: "+4"
+
+  - id: R008
+    name: mine_diamond_requires_mine_and_pickaxe
+    type: hard
+    action:
+      name: mine
+      args:
+        resource: diamond
+    preconditions:
+      environment.nearby_mine: true
+      tool.pickaxe_level: ">=3"
+    effects:
+      inventory.diamond: "+8"
+    failure_reasons:
+      missing_required_pickaxe:
+        learned_precondition:
+          tool.pickaxe_level: ">=3"
+      mine_not_discovered:
+        learned_precondition:
+          environment.nearby_mine: true
+
+  - id: R009
+    name: move_to_mine
+    type: hard
+    action:
+      name: move_to
+      args:
+        location: mine
+    preconditions:
+      environment.nearby_mine: true
+    effects:
+      location: mine
+
+  - id: R010
+    name: move_to_village
+    type: hard
+    action:
+      name: move_to
+      args:
+        location: village
+    preconditions:
+      environment.nearby_village: true
+    effects:
+      location: village
+
+  - id: R011
+    name: inspect_village_reveals_armorer
+    type: hidden
+    action:
+      name: inspect
+      args:
+        target: village
+    preconditions:
+      environment.nearby_village: true
+    reveals:
+      - environment.village_has_armorer
+
+  - id: R012
+    name: inspect_mine_reveals_depth
+    type: hidden
+    action:
+      name: inspect
+      args:
+        target: mine
+    preconditions:
+      environment.nearby_mine: true
+    reveals:
+      - environment.mine_depth
+
+  - id: R013
+    name: trade_diamond_piece_requires_armorer
+    type: hard
+    action:
+      name: trade
+      args:
+        villager: armorer
+        want: diamond_armor_piece
+    preconditions:
+      location: village
+      environment.village_has_armorer: true
+      inventory.emerald: ">=10"
+    effects:
+      inventory.emerald: "-10"
+      inventory.random_missing_diamond_piece: true
+    failure_reasons:
+      armorer_unknown:
+        learned_precondition:
+          environment.village_has_armorer: "known"
+      no_armorer:
+        learned_precondition:
+          environment.village_has_armorer: true
+      not_enough_emeralds:
+        learned_precondition:
+          inventory.emerald: ">=10"
+
+  - id: R014
+    name: trade_full_diamond_set_requires_armorer_and_emeralds
+    type: hard
+    action:
+      name: trade
+      args:
+        villager: armorer
+        want: diamond_set
+    preconditions:
+      location: village
+      environment.village_has_armorer: true
+      inventory.emerald: ">=40"
+    effects:
+      inventory.emerald: "-40"
+      inventory.diamond_helmet: true
+      inventory.diamond_chestplate: true
+      inventory.diamond_leggings: true
+      inventory.diamond_boots: true
+
+  - id: R015
+    name: explore_can_find_mine
+    type: hidden
+    action:
+      name: explore
+      args:
+        target: mine
+    preconditions:
+      environment.mine_search_available: true
+    reveals:
+      - environment.nearby_mine
+
+  - id: R016
+    name: explore_can_find_village
+    type: hidden
+    action:
+      name: explore
+      args:
+        target: village
+    preconditions:
+      environment.village_search_available: true
+    reveals:
+      - environment.nearby_village
+
+  - id: R017
+    name: mine_depth_affects_diamond_yield
+    type: soft
+    statement: Deep mines are usually better for diamond mining than shallow mines.
+    preferred_condition:
+      environment.mine_depth: deep
+
+  - id: R018
+    name: trading_is_short_when_armorer_known
+    type: soft
+    statement: Trading is usually shorter than mining when an armorer is known and enough emeralds are available.
+    preferred_conditions:
+      environment.village_has_armorer: true
+      inventory.emerald: ">=40"
+
+  - id: R019
+    name: inspect_before_trade_when_armorer_unknown
+    type: soft
+    statement: If village_has_armorer is unknown, inspect the village before selecting the trading path.
+    preferred_action:
+      name: inspect
+      args:
+        target: village
+
+  - id: R020
+    name: impossible_without_resource_access
+    type: hard
+    statement: Diamond set is impossible if no mine, no village, and no exploration source can reveal either.
+    impossible_when:
+      environment.nearby_mine: false
+      environment.nearby_village: false
+      environment.mine_search_available: false
+      environment.village_search_available: false
