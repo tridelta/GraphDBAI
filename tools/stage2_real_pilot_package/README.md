@@ -46,27 +46,23 @@ $env:EG_OUTPUT_PRICE_PER_M_RMB = "3.0"
 ## Run Everything
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\stage2_real_pilot_package\run_stage2_real_pilot.ps1
-```
-
-PowerShell 7 also works:
-
-```powershell
-pwsh -ExecutionPolicy Bypass -File tools\stage2_real_pilot_package\run_stage2_real_pilot.ps1
+python -B tools\stage2_real_pilot_package\run_stage2_real_pilot.py
 ```
 
 To run independent conditions concurrently:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\stage2_real_pilot_package\run_stage2_real_pilot.ps1 -Parallel -MaxWorkers 3
+python -B tools\stage2_real_pilot_package\run_stage2_real_pilot.py --parallel --max-workers 3
 ```
+
+The older PowerShell runner is still present, but the Python runner is preferred because it handles child-process exit codes more reliably on Windows.
 
 Do not use episode-level parallelism for the main learning runs. `graph`, `reflexion`, `vector_trajectory`, and `skill_library` intentionally update state after each episode, so parallel episodes inside one run would change the experiment definition.
 
 ## Useful Overrides
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\stage2_real_pilot_package\run_stage2_real_pilot.ps1 -MaxBudgetRmb 100 -LlmMaxTokens 4096 -LlmRetryMaxTokens 8192 -LlmRetries 1
+python -B tools\stage2_real_pilot_package\run_stage2_real_pilot.py --max-budget-rmb 100 --llm-max-tokens 4096 --llm-retry-max-tokens 8192 --llm-retries 1
 ```
 
 ## Analyze Only
@@ -74,7 +70,7 @@ powershell -ExecutionPolicy Bypass -File tools\stage2_real_pilot_package\run_sta
 If all six real runs already finished and you only want to rebuild CSVs, PNGs, and the report:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\stage2_real_pilot_package\run_stage2_real_pilot.ps1 -AnalyzeOnly
+python -B tools\stage2_real_pilot_package\run_stage2_real_pilot.py --analyze-only
 ```
 
 ## Outputs

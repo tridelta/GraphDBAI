@@ -91,46 +91,61 @@ function Invoke-Stage2Run {
     }
 }
 
-function Wait-ForJobSlot {
-    param([int]$Limit)
-    while (@(Get-Job -State Running).Count -ge $Limit) {
+function Wait-ForProcessSlot {
+    param([array]$Records, [int]$Limit)
+    while (@($Records | Where-Object { -not $_.Process.HasExited }).Count -ge $Limit) {
         Start-Sleep -Seconds 1
+    }
+}
+
+function Write-ProcessLog {
+    param([hashtable]$Record)
+    if (Test-Path $Record.Stdout) {
+        Write-Host "--- stdout: $($Record.Label) ---"
+        Get-Content -Path $Record.Stdout
+    }
+    if (Test-Path $Record.Stderr) {
+        $ErrText = Get-Content -Path $Record.Stderr
+        if ($ErrText) {
+            Write-Host "--- stderr: $($Record.Label) ---"
+            $ErrText
+        }
     }
 }
 
 if (-not $AnalyzeOnly) {
     if ($Parallel) {
+        $ProcessLogDir = Join-Path $RunDir "${Prefix}process_logs"
+        New-Item -ItemType Directory -Force -Path $ProcessLogDir | Out-Null
+        $Records = @()
         foreach ($Condition in $Conditions) {
-            Wait-ForJobSlot -Limit $MaxWorkers
+            Wait-ForProcessSlot -Records $Records -Limit $MaxWorkers
             $Args = New-Stage2Args -Condition $Condition
-            Start-Job -Name "stage2-$($Condition.Label)" -ArgumentList $RepoRoot,$Args,$env:DEEPSEEK_API_KEY,$Model,$LlmMaxTokens,$LlmRetryMaxTokens,$LlmRetries -ScriptBlock {
-                param($RepoRoot, $Args, $ApiKey, $Model, $LlmMaxTokens, $LlmRetryMaxTokens, $LlmRetries)
-                Set-Location $RepoRoot
-                $env:PYTHONPATH = "src"
-                $env:EXPERIENCE_GRAPH_LLM_PROVIDER = "deepseek"
-                $env:DEEPSEEK_API_KEY = $ApiKey
-                $env:DEEPSEEK_MODEL = $Model
-                $env:EG_LLM_MAX_TOKENS = "$LlmMaxTokens"
-                $env:EG_LLM_RETRY_MAX_TOKENS = "$LlmRetryMaxTokens"
-                $env:EG_LLM_RETRIES = "$LlmRetries"
-                & python @Args
-                if ($LASTEXITCODE -ne 0) {
-                    throw "python exited with code $LASTEXITCODE"
-                }
-            } | Out-Null
+            $Stdout = Join-Path $ProcessLogDir "$($Condition.Label).out.log"
+            $Stderr = Join-Path $ProcessLogDir "$($Condition.Label).err.log"
+            Write-Host "Launching process: $($Condition.Label)"
+            $Process = Start-Process -FilePath "python" -ArgumentList $Args -WorkingDirectory $RepoRoot -RedirectStandardOutput $Stdout -RedirectStandardError $Stderr -WindowStyle Hidden -PassThru
+            $Records += @{ Label = $Condition.Label; Process = $Process; Stdout = $Stdout; Stderr = $Stderr }
         }
         $Failed = $false
-        foreach ($Job in @(Get-Job | Where-Object { $_.Name -like "stage2-*" })) {
-            Wait-Job $Job | Out-Null
-            Receive-Job $Job
-            if ($Job.State -ne "Completed") {
-                $Failed = $true
-                Write-Error "Job $($Job.Name) ended with state $($Job.State)"
+        foreach ($Record in $Records) {
+            Wait-Process -Id $Record.Process.Id
+            $ExitedProcess = Get-Process -Id $Record.Process.Id -ErrorAction SilentlyContinue
+            if ($null -eq $ExitedProcess) {
+                $Record.Process.Refresh()
             }
-            Remove-Job $Job
+            Write-ProcessLog -Record $Record
+            $ExitCode = $Record.Process.ExitCode
+            if ($null -eq $ExitCode) {
+                $ExitCode = 0
+            }
+            if ($ExitCode -ne 0) {
+                $Failed = $true
+                Write-Error "Process $($Record.Label) exited with code $ExitCode"
+            }
         }
         if ($Failed) {
-            throw "One or more parallel Stage 2 runs failed."
+            throw "One or more parallel Stage 2 runs failed. See $ProcessLogDir for logs."
         }
     } else {
         foreach ($Condition in $Conditions) {

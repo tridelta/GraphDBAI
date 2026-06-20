@@ -19,3 +19,21 @@
 可以写成方法设计里的版本：
 
 > To improve retrieval beyond exact condition matching, we propose augmenting each graph node and path with a semantic embedding. For a node, the embedding is computed from its normalized conditions, label, suggested natural-language hints, and local graph context. For a path, the embedding summarizes the start conditions, action sequence, terminal condition, and accumulated outcome statistics. At retrieval time, the current observation and condition set are encoded into the same embedding space, and the retriever performs nearest-neighbor search over stored node/path embeddings. The top semantic matches are then filtered by hard preconditions and ranked by both similarity and success statistics. This allows ExperienceGraph to retrieve experiences that are not structurally identical to the current state but are semantically relevant, enabling reuse across paraphrased conditions, partially overlapping states, and similar strategy contexts.
+## Multi-task case suite implementation risk
+
+The planned final-stage case suite should cover multiple task families, but the current active TextCraft implementation is still mostly centered on `diamond_set`.
+
+Observed implementation gaps:
+
+- `TextCraftAdapter.is_success()` currently checks the four diamond armor pieces rather than reading `tasks.<task_id>.success_conditions` from `textcraft_rules.yaml`.
+- `TextCraftAdapter.step()` computes `done` using `TaskSpec(id="diamond_set")`, so non-`diamond_set` tasks may not terminate correctly even if their goal state is reached.
+- `available_actions()` and `TEXTCRAFT_ACTION_GUIDE` are still diamond armor oriented. New tasks such as `golden_apple`, `nether_portal`, `enchant_pickaxe`, and `fire_resistance_potion` will need task-relevant actions and task-local prompt manuals.
+- `report_impossible()` and `_has_viable_completion_route()` encode diamond armor routes, so impossible-case behavior for other task families would be unreliable unless this logic becomes task-aware.
+- `run_experiment.py` filters by one `--task-id`; this is fine for per-task runs, but a mixed-task final suite needs either repeated per-task runs or an explicit multi-task schedule mode.
+
+Recommended handling:
+
+- Keep the current `world_cases/textcraft_cases.yaml` as the active diamond-set suite until the environment is task-aware.
+- Put new multi-task cases in a draft file first, then promote them after oracle execution passes for every reference plan.
+- Before real LLM calls, run scripted or fake-provider smoke runs for each new task family and verify that prompts expose only the selected task's visible manual, never unrelated task recipes or hidden facts.
+- Treat simplified Minecraft rules as TextCraft rules and mark any deviation from real Minecraft mechanics in rule notes, especially villager trading and route shortcuts.
