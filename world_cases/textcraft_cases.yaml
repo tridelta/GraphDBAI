@@ -1,0 +1,632 @@
+version: 0.1
+world: textcraft_mc
+cases:
+  - id: TC_CRAFT_001
+    title: Craft full diamond set from existing materials.
+    difficulty: easy
+    task:
+      id: diamond_set
+    initial_state:
+      inventory:
+        diamond: 24
+        emerald: 0
+        wood: 0
+        crafting_table: true
+        pickaxe: none
+        diamond_helmet: false
+        diamond_chestplate: false
+        diamond_leggings: false
+        diamond_boots: false
+      environment:
+        nearby_village: false
+        nearby_mine: false
+        mine_search_available: false
+        village_search_available: false
+        biome: plains
+      ambiguous: {}
+      location: base
+    oracle:
+      solvable: true
+      reference_plan:
+        - craft(diamond_helmet)
+        - craft(diamond_chestplate)
+        - craft(diamond_leggings)
+        - craft(diamond_boots)
+      min_steps: 4
+      expected_strategy: crafting
+    expected_experience:
+      path_type: crafting
+      graph_nodes:
+        - has_enough_diamonds
+        - has_crafting_table
+        - diamond_set_obtained
+      graph_edges:
+        - action: craft(diamond_armor_pieces)
+          result: success
+      learned_preconditions: []
+    notes: Baseline success case for direct crafting.
+
+  - id: TC_CRAFT_002
+    title: Crafting is blocked without crafting table, but table can be crafted from wood.
+    difficulty: easy
+    task:
+      id: diamond_set
+    initial_state:
+      inventory:
+        diamond: 24
+        emerald: 0
+        wood: 4
+        crafting_table: false
+        pickaxe: none
+        diamond_helmet: false
+        diamond_chestplate: false
+        diamond_leggings: false
+        diamond_boots: false
+      environment:
+        nearby_village: false
+        nearby_mine: false
+        mine_search_available: false
+        village_search_available: false
+        biome: plains
+      ambiguous: {}
+      location: base
+    oracle:
+      solvable: true
+      reference_plan:
+        - craft(crafting_table)
+        - craft(diamond_helmet)
+        - craft(diamond_chestplate)
+        - craft(diamond_leggings)
+        - craft(diamond_boots)
+      min_steps: 5
+      expected_strategy: crafting
+    expected_experience:
+      path_type: crafting
+      graph_nodes:
+        - has_enough_diamonds
+        - needs_crafting_table
+        - has_crafting_table
+        - diamond_set_obtained
+      graph_edges:
+        - action: craft(crafting_table)
+          result: success
+        - action: craft(diamond_armor_pieces)
+          result: success
+      learned_preconditions:
+        - action: craft(diamond_armor_pieces)
+          requires:
+            inventory.crafting_table: true
+    notes: Teaches that enough diamonds alone are not sufficient.
+
+  - id: TC_CRAFT_003
+    title: Direct crafting blocked by insufficient diamonds.
+    difficulty: easy
+    task:
+      id: diamond_set
+    initial_state:
+      inventory:
+        diamond: 12
+        emerald: 0
+        wood: 4
+        crafting_table: true
+        pickaxe: none
+        diamond_helmet: false
+        diamond_chestplate: false
+        diamond_leggings: false
+        diamond_boots: false
+      environment:
+        nearby_village: false
+        nearby_mine: false
+        mine_search_available: false
+        village_search_available: false
+        biome: plains
+      ambiguous: {}
+      location: base
+    oracle:
+      solvable: false
+      reference_plan: []
+      min_steps: null
+      expected_strategy: impossible
+      failure_reason: insufficient_diamonds_and_no_resource_access
+    expected_experience:
+      path_type: blocked_crafting
+      graph_nodes:
+        - needs_more_diamonds
+      graph_edges:
+        - action: craft(diamond_set)
+          result: blocked
+          failure_reason: insufficient_diamonds
+      learned_preconditions:
+        - action: craft(diamond_set)
+          requires:
+            inventory.diamond: ">=24"
+    notes: Negative crafting case for precondition learning.
+
+  - id: TC_MINE_001
+    title: Mining path succeeds with nearby mine and iron pickaxe.
+    difficulty: medium
+    task:
+      id: diamond_set
+    initial_state:
+      inventory:
+        diamond: 0
+        emerald: 0
+        wood: 4
+        crafting_table: true
+        pickaxe: iron
+        diamond_helmet: false
+        diamond_chestplate: false
+        diamond_leggings: false
+        diamond_boots: false
+      environment:
+        nearby_village: false
+        nearby_mine: true
+        mine_depth: deep
+        mine_search_available: false
+        village_search_available: false
+        biome: plains
+      ambiguous: {}
+      location: base
+    oracle:
+      solvable: true
+      reference_plan:
+        - move_to(mine)
+        - mine(diamond)
+        - mine(diamond)
+        - mine(diamond)
+        - craft(diamond_helmet)
+        - craft(diamond_chestplate)
+        - craft(diamond_leggings)
+        - craft(diamond_boots)
+      min_steps: 8
+      expected_strategy: mining
+    expected_experience:
+      path_type: mining
+      graph_nodes:
+        - has_iron_pickaxe
+        - mine_available
+        - has_enough_diamonds
+        - diamond_set_obtained
+      graph_edges:
+        - action: mine(diamond)
+          result: success
+      learned_preconditions:
+        - action: mine(diamond)
+          requires:
+            environment.nearby_mine: true
+            tool.pickaxe_level: ">=3"
+    notes: Main positive mining case.
+
+  - id: TC_MINE_002
+    title: Mining is blocked without iron-level pickaxe.
+    difficulty: medium
+    task:
+      id: diamond_set
+    initial_state:
+      inventory:
+        diamond: 0
+        emerald: 0
+        wood: 4
+        crafting_table: true
+        pickaxe: stone
+        diamond_helmet: false
+        diamond_chestplate: false
+        diamond_leggings: false
+        diamond_boots: false
+      environment:
+        nearby_village: false
+        nearby_mine: true
+        mine_depth: deep
+        mine_search_available: false
+        village_search_available: false
+        biome: plains
+      ambiguous: {}
+      location: base
+    oracle:
+      solvable: false
+      reference_plan: []
+      min_steps: null
+      expected_strategy: impossible
+      failure_reason: missing_required_pickaxe
+    expected_experience:
+      path_type: blocked_mining
+      graph_nodes:
+        - mine_available
+        - needs_iron_pickaxe
+      graph_edges:
+        - action: mine(diamond)
+          result: blocked
+          failure_reason: missing_required_pickaxe
+      learned_preconditions:
+        - action: mine(diamond)
+          requires:
+            tool.pickaxe_level: ">=3"
+    notes: Core failure case for hard precondition extraction.
+
+  - id: TC_MINE_003
+    title: Mine is unknown and should be discovered before mining.
+    difficulty: medium
+    task:
+      id: diamond_set
+    initial_state:
+      inventory:
+        diamond: 0
+        emerald: 0
+        wood: 4
+        crafting_table: true
+        pickaxe: iron
+        diamond_helmet: false
+        diamond_chestplate: false
+        diamond_leggings: false
+        diamond_boots: false
+      environment:
+        nearby_village: false
+        nearby_mine: unknown
+        mine_search_available: true
+        village_search_available: false
+        biome: plains
+      hidden_facts:
+        nearby_mine: true
+        mine_depth: deep
+      ambiguous:
+        nearby_mine: unknown
+      location: base
+    oracle:
+      solvable: true
+      reference_plan:
+        - explore(mine)
+        - move_to(mine)
+        - mine(diamond)
+        - mine(diamond)
+        - mine(diamond)
+        - craft(diamond_helmet)
+        - craft(diamond_chestplate)
+        - craft(diamond_leggings)
+        - craft(diamond_boots)
+      min_steps: 9
+      expected_strategy: inspect_then_mine
+    expected_experience:
+      path_type: mining_with_discovery
+      graph_nodes:
+        - mine_status_unknown
+        - mine_available
+        - has_iron_pickaxe
+        - has_enough_diamonds
+      graph_edges:
+        - action: explore(mine)
+          result: reveals
+          revealed:
+            environment.nearby_mine: true
+        - action: mine(diamond)
+          result: success
+      learned_preconditions:
+        - action: mine(diamond)
+          requires:
+            environment.nearby_mine: true
+    notes: Tests needs_info path behavior.
+
+  - id: TC_TRADE_001
+    title: Trading path succeeds when armorer is known and emeralds are enough.
+    difficulty: medium
+    task:
+      id: diamond_set
+    initial_state:
+      inventory:
+        diamond: 0
+        emerald: 40
+        wood: 0
+        crafting_table: false
+        pickaxe: none
+        diamond_helmet: false
+        diamond_chestplate: false
+        diamond_leggings: false
+        diamond_boots: false
+      environment:
+        nearby_village: true
+        village_has_armorer: true
+        nearby_mine: false
+        mine_search_available: false
+        village_search_available: false
+        biome: plains
+      ambiguous: {}
+      location: base
+    oracle:
+      solvable: true
+      reference_plan:
+        - move_to(village)
+        - trade(armorer, emerald, diamond_set)
+      min_steps: 2
+      expected_strategy: trading
+    expected_experience:
+      path_type: trading
+      graph_nodes:
+        - village_available
+        - armorer_available
+        - has_enough_emeralds
+        - diamond_set_obtained
+      graph_edges:
+        - action: trade(armorer, emerald, diamond_set)
+          result: success
+      learned_preconditions:
+        - action: trade(armorer, emerald, diamond_set)
+          requires:
+            environment.village_has_armorer: true
+            inventory.emerald: ">=40"
+    notes: Main positive trading case.
+
+  - id: TC_TRADE_002
+    title: Village exists but armorer is unknown, so inspect should come before trading.
+    difficulty: medium
+    task:
+      id: diamond_set
+    initial_state:
+      inventory:
+        diamond: 0
+        emerald: 40
+        wood: 0
+        crafting_table: false
+        pickaxe: none
+        diamond_helmet: false
+        diamond_chestplate: false
+        diamond_leggings: false
+        diamond_boots: false
+      environment:
+        nearby_village: true
+        village_has_armorer: unknown
+        nearby_mine: false
+        mine_search_available: false
+        village_search_available: false
+        biome: plains
+      hidden_facts:
+        village_has_armorer: true
+      ambiguous:
+        village_has_armorer: unknown
+      location: base
+    oracle:
+      solvable: true
+      reference_plan:
+        - move_to(village)
+        - inspect(village)
+        - trade(armorer, emerald, diamond_set)
+      min_steps: 3
+      expected_strategy: inspect_then_trade
+    expected_experience:
+      path_type: trading_with_discovery
+      graph_nodes:
+        - armorer_status_unknown
+        - armorer_available
+        - has_enough_emeralds
+      graph_edges:
+        - action: inspect(village)
+          result: reveals
+          revealed:
+            environment.village_has_armorer: true
+        - action: trade(armorer, emerald, diamond_set)
+          result: success
+      learned_preconditions:
+        - action: trade(armorer, emerald, diamond_set)
+          requires:
+            environment.village_has_armorer: true
+    notes: Retriever should mark trading as needs_info before inspect.
+
+  - id: TC_TRADE_003
+    title: Village has no armorer, so trading path should be rejected.
+    difficulty: medium
+    task:
+      id: diamond_set
+    initial_state:
+      inventory:
+        diamond: 0
+        emerald: 40
+        wood: 0
+        crafting_table: false
+        pickaxe: none
+        diamond_helmet: false
+        diamond_chestplate: false
+        diamond_leggings: false
+        diamond_boots: false
+      environment:
+        nearby_village: true
+        village_has_armorer: unknown
+        nearby_mine: false
+        mine_search_available: false
+        village_search_available: false
+        biome: plains
+      hidden_facts:
+        village_has_armorer: false
+      ambiguous:
+        village_has_armorer: unknown
+      location: base
+    oracle:
+      solvable: false
+      reference_plan:
+        - move_to(village)
+        - inspect(village)
+      min_steps: null
+      expected_strategy: impossible_after_inspect
+      failure_reason: no_armorer_and_no_mine
+    expected_experience:
+      path_type: blocked_trading
+      graph_nodes:
+        - armorer_status_unknown
+        - no_armorer
+      graph_edges:
+        - action: inspect(village)
+          result: reveals
+          revealed:
+            environment.village_has_armorer: false
+        - action: trade(armorer, emerald, diamond_set)
+          result: blocked
+          failure_reason: no_armorer
+      learned_preconditions:
+        - action: trade(armorer, emerald, diamond_set)
+          requires:
+            environment.village_has_armorer: true
+    notes: Negative hidden-information trading case.
+
+  - id: TC_MIXED_001
+    title: Trade one piece, then mine enough diamonds for the rest.
+    difficulty: hard
+    task:
+      id: diamond_set
+    initial_state:
+      inventory:
+        diamond: 0
+        emerald: 10
+        wood: 4
+        crafting_table: true
+        pickaxe: iron
+        diamond_helmet: false
+        diamond_chestplate: false
+        diamond_leggings: false
+        diamond_boots: false
+      environment:
+        nearby_village: true
+        village_has_armorer: true
+        nearby_mine: true
+        mine_depth: shallow
+        mine_search_available: false
+        village_search_available: false
+        biome: plains
+      ambiguous: {}
+      location: base
+    oracle:
+      solvable: true
+      reference_plan:
+        - move_to(village)
+        - trade(armorer, emerald, diamond_boots)
+        - move_to(mine)
+        - mine(diamond)
+        - mine(diamond)
+        - mine(diamond)
+        - craft(diamond_helmet)
+        - craft(diamond_chestplate)
+        - craft(diamond_leggings)
+      min_steps: 9
+      expected_strategy: mixed_trade_then_mine
+    expected_experience:
+      path_type: mixed
+      graph_nodes:
+        - partial_armor_from_trade
+        - mine_available
+        - has_iron_pickaxe
+        - enough_diamonds_for_remaining_pieces
+      graph_edges:
+        - action: trade(armorer, emerald, diamond_boots)
+          result: success
+        - action: mine(diamond)
+          result: success
+        - action: craft(remaining_diamond_armor)
+          result: success
+      learned_preconditions:
+        - action: craft(remaining_diamond_armor)
+          requires:
+            inventory.crafting_table: true
+    notes: Tests whether graph can represent mixed strategy, not only pure mining or pure trading.
+
+  - id: TC_MIXED_002
+    title: Mining yield is insufficient, then trading fills the missing pieces.
+    difficulty: hard
+    task:
+      id: diamond_set
+    initial_state:
+      inventory:
+        diamond: 0
+        emerald: 20
+        wood: 4
+        crafting_table: true
+        pickaxe: iron
+        diamond_helmet: false
+        diamond_chestplate: false
+        diamond_leggings: false
+        diamond_boots: false
+      environment:
+        nearby_village: true
+        village_has_armorer: true
+        nearby_mine: true
+        mine_depth: shallow
+        mine_diamond_capacity: 16
+        mine_search_available: false
+        village_search_available: false
+        biome: plains
+      ambiguous: {}
+      location: base
+    oracle:
+      solvable: true
+      reference_plan:
+        - move_to(mine)
+        - mine(diamond)
+        - mine(diamond)
+        - move_to(village)
+        - trade(armorer, emerald, diamond_chestplate)
+        - trade(armorer, emerald, diamond_boots)
+        - craft(diamond_helmet)
+        - craft(diamond_leggings)
+      min_steps: 8
+      expected_strategy: mixed_mine_then_trade
+    expected_experience:
+      path_type: mixed
+      graph_nodes:
+        - mine_available
+        - mine_capacity_limited
+        - armorer_available
+        - partial_crafting_possible
+      graph_edges:
+        - action: mine(diamond)
+          result: partial_success
+          revealed:
+            environment.mine_diamond_capacity: 16
+        - action: trade(armorer, emerald, diamond_armor_piece)
+          result: success
+      learned_preconditions:
+        - action: pure_mining_path
+          blocked_by:
+            environment.mine_diamond_capacity: "<24"
+    notes: Tests path switching after discovering resource limits.
+
+  - id: TC_IMPOSSIBLE_001
+    title: No mine, no village, and no exploration source.
+    difficulty: impossible
+    task:
+      id: diamond_set
+    initial_state:
+      inventory:
+        diamond: 0
+        emerald: 0
+        wood: 4
+        crafting_table: true
+        pickaxe: iron
+        diamond_helmet: false
+        diamond_chestplate: false
+        diamond_leggings: false
+        diamond_boots: false
+      environment:
+        nearby_village: false
+        nearby_mine: false
+        mine_search_available: false
+        village_search_available: false
+        biome: plains
+      ambiguous: {}
+      location: base
+    oracle:
+      solvable: false
+      reference_plan: []
+      min_steps: null
+      expected_strategy: impossible
+      failure_reason: no_resource_access
+    expected_experience:
+      path_type: impossible
+      graph_nodes:
+        - no_mine
+        - no_village
+        - no_exploration_source
+      graph_edges: []
+      learned_preconditions:
+        - task: diamond_set
+          requires_any:
+            - inventory.diamond: ">=24"
+            - environment.nearby_mine: true
+            - environment.village_has_armorer: true
+            - environment.mine_search_available: true
+            - environment.village_search_available: true
+    notes: Oracle sanity case. Agent should stop or report impossible within step budget.
