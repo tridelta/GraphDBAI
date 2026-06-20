@@ -1,0 +1,1375 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ExperienceGraph 路径图查看器</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f8fa;
+      --panel: #ffffff;
+      --text: #172033;
+      --muted: #647084;
+      --line: #d9dee7;
+      --line-strong: #b7c0ce;
+      --blue: #3267d6;
+      --green: #15945b;
+      --amber: #b7791f;
+      --red: #c2413d;
+      --purple: #7c4dcc;
+      --shadow: 0 10px 28px rgba(31, 42, 68, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+      line-height: 1.45;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 330px minmax(0, 1fr) 360px;
+      min-height: 100vh;
+    }
+
+    aside,
+    main {
+      min-width: 0;
+    }
+
+    .sidebar,
+    .details {
+      background: var(--panel);
+      border-right: 1px solid var(--line);
+      padding: 18px;
+      overflow: auto;
+      max-height: 100vh;
+    }
+
+    .details {
+      border-right: 0;
+      border-left: 1px solid var(--line);
+    }
+
+    h1 {
+      font-size: 20px;
+      margin: 0 0 6px;
+    }
+
+    h2 {
+      font-size: 15px;
+      margin: 22px 0 10px;
+    }
+
+    p {
+      margin: 0 0 12px;
+      color: var(--muted);
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    input[type="file"],
+    input[type="search"],
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text);
+      padding: 9px 10px;
+      font: inherit;
+    }
+
+    input[type="file"] {
+      padding: 8px;
+    }
+
+    .field {
+      margin: 14px 0;
+    }
+
+    .dropzone {
+      border: 1.5px dashed var(--line-strong);
+      border-radius: 8px;
+      background: #fbfcfe;
+      padding: 16px;
+      margin: 14px 0;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .dropzone.dragging {
+      border-color: var(--blue);
+      background: #eef4ff;
+    }
+
+    .dropzone strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .recognized-files {
+      display: grid;
+      gap: 6px;
+      margin: 10px 0 2px;
+      font-size: 12px;
+      color: var(--muted);
+      text-align: left;
+    }
+
+    .recognized-files div {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 7px 8px;
+      background: #fff;
+    }
+
+    .recognized-files b {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .recognized-files .missing {
+      color: var(--red);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    button {
+      border: 1px solid var(--line-strong);
+      background: #fff;
+      color: var(--text);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button.primary {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fbfcfe;
+    }
+
+    .stat b {
+      display: block;
+      font-size: 20px;
+      margin-bottom: 2px;
+    }
+
+    .stat span {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .legend {
+      display: grid;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+      border: 1px solid rgba(0, 0, 0, 0.16);
+    }
+
+    .canvas-wrap {
+      position: relative;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .toolbar {
+      position: absolute;
+      z-index: 2;
+      top: 14px;
+      left: 14px;
+      right: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      pointer-events: none;
+    }
+
+    .toolbar .pill {
+      pointer-events: auto;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 8px 12px;
+      box-shadow: var(--shadow);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .toolbar .controls {
+      pointer-events: auto;
+      display: flex;
+      gap: 8px;
+    }
+
+    svg {
+      width: 100%;
+      height: 100vh;
+      display: block;
+      background:
+        linear-gradient(rgba(38, 50, 72, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(38, 50, 72, 0.04) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+
+    .link {
+      fill: none;
+      stroke: #93a3bc;
+      stroke-opacity: 0.56;
+      cursor: pointer;
+    }
+
+    .link.selected {
+      stroke: var(--blue);
+      stroke-opacity: 1;
+    }
+
+    .link.focused {
+      stroke: var(--red);
+      stroke-opacity: 1;
+    }
+
+    .node circle {
+      stroke: #fff;
+      stroke-width: 2;
+      cursor: pointer;
+    }
+
+    .node.selected circle {
+      stroke: #111827;
+      stroke-width: 3;
+    }
+
+    .node.dim,
+    .link.dim {
+      opacity: 0.16;
+    }
+
+    .node text {
+      font-size: 11px;
+      fill: #1f2937;
+      paint-order: stroke;
+      stroke: rgba(255, 255, 255, 0.86);
+      stroke-width: 4px;
+      pointer-events: none;
+    }
+
+    .empty {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fbfcfe;
+      margin-bottom: 12px;
+    }
+
+    .kv {
+      display: grid;
+      grid-template-columns: 110px minmax(0, 1fr);
+      gap: 8px;
+      margin: 7px 0;
+      font-size: 13px;
+    }
+
+    .kv .k {
+      color: var(--muted);
+    }
+
+    code,
+    pre {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #f0f3f8;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      max-height: 260px;
+      overflow: auto;
+    }
+
+    .list {
+      display: grid;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .list button {
+      text-align: left;
+      padding: 10px;
+      border-color: var(--line);
+    }
+
+    .small {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .edge-sequence {
+      display: grid;
+      gap: 10px;
+    }
+
+    .edge-item {
+      width: 100%;
+      text-align: left;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 10px;
+      cursor: pointer;
+    }
+
+    .edge-item:hover,
+    .edge-item.focused {
+      border-color: var(--red);
+      box-shadow: 0 0 0 2px rgba(194, 65, 61, 0.12);
+    }
+
+    .edge-item-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .edge-item-title {
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .edge-item-meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .edge-item-grid {
+      display: grid;
+      grid-template-columns: 72px minmax(0, 1fr);
+      gap: 5px 8px;
+      font-size: 12px;
+    }
+
+    .edge-item-grid .k {
+      color: var(--muted);
+    }
+
+    .notice {
+      margin-top: 12px;
+      border: 1px solid #efd58f;
+      background: #fff8df;
+      color: #73510c;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 13px;
+    }
+
+    @media (max-width: 1100px) {
+      .app {
+        grid-template-columns: 300px minmax(0, 1fr);
+      }
+
+      .details {
+        display: none;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        max-height: none;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      svg {
+        height: 70vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <h1>ExperienceGraph 路径图查看器</h1>
+      <p>上传 `graph_nodes.jsonl`、`graph_edges.jsonl` 和 `path_records.jsonl` 后，查看完整节点、真实边和路径序列。</p>
+
+      <div id="dropZone" class="dropzone">
+        <strong>把一批日志文件拖到这里</strong>
+        <span class="small">或点击选择多个文件，页面会按文件名自动识别三个关键 JSONL</span>
+        <input id="bulkFiles" type="file" accept=".jsonl,.json,application/json,text/plain" multiple hidden>
+        <div id="recognizedFiles" class="recognized-files"></div>
+      </div>
+
+      <div class="field">
+        <label for="nodesFile">graph_nodes.jsonl</label>
+        <input id="nodesFile" type="file" accept=".jsonl,.json,application/json,text/plain">
+      </div>
+
+      <div class="field">
+        <label for="edgesFile">graph_edges.jsonl</label>
+        <input id="edgesFile" type="file" accept=".jsonl,.json,application/json,text/plain">
+      </div>
+
+      <div class="field">
+        <label for="pathsFile">path_records.jsonl</label>
+        <input id="pathsFile" type="file" accept=".jsonl,.json,application/json,text/plain">
+      </div>
+
+      <div class="button-row">
+        <button id="loadBtn" class="primary">生成图</button>
+        <button id="resetBtn">重置视图</button>
+      </div>
+
+      <div class="notice">
+        主图现在使用 `graph_edges.jsonl` 的真实 `from_node -> to_node` 绘制。点击路径列表会高亮该 path 中包含的 edge 序列。
+      </div>
+
+      <h2>过滤</h2>
+      <div class="field">
+        <label for="searchInput">搜索节点、路径、条件</label>
+        <input id="searchInput" type="search" placeholder="例如 armorer / TC_TRADE_001 / path_...">
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="typeFilter">节点类型</label>
+          <select id="typeFilter">
+            <option value="all">全部</option>
+            <option value="start">start</option>
+            <option value="checkpoint">checkpoint</option>
+            <option value="observation">observation</option>
+            <option value="goal">goal</option>
+            <option value="virtual_start">路径起点</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="pathFilter">路径结果</label>
+          <select id="pathFilter">
+            <option value="all">全部</option>
+            <option value="success">成功过</option>
+            <option value="failed">未成功</option>
+          </select>
+        </div>
+      </div>
+
+      <h2>统计</h2>
+      <div class="stats">
+        <div class="stat"><b id="nodeCount">0</b><span>节点</span></div>
+        <div class="stat"><b id="edgeCount">0</b><span>边</span></div>
+        <div class="stat"><b id="pathCount">0</b><span>路径</span></div>
+        <div class="stat"><b id="successAvg">0%</b><span>平均成功率</span></div>
+      </div>
+
+      <h2>图例</h2>
+      <div class="legend">
+        <div class="legend-item"><span class="dot" style="background:#3267d6"></span> start 节点</div>
+        <div class="legend-item"><span class="dot" style="background:#15945b"></span> checkpoint 节点</div>
+        <div class="legend-item"><span class="dot" style="background:#7c4dcc"></span> goal 节点</div>
+        <div class="legend-item"><span class="dot" style="background:#b7791f"></span> 缺失/虚拟节点</div>
+        <div class="legend-item"><span class="dot" style="background:#c2413d"></span> observation / 其他</div>
+      </div>
+
+      <h2>路径列表</h2>
+      <div id="pathList" class="list"></div>
+    </aside>
+
+    <main class="canvas-wrap">
+      <div class="toolbar">
+        <div id="statusPill" class="pill">等待上传文件</div>
+        <div class="controls">
+          <button id="zoomInBtn">放大</button>
+          <button id="zoomOutBtn">缩小</button>
+          <button id="fitBtn">适配</button>
+        </div>
+      </div>
+      <svg id="graphSvg" role="img" aria-label="ExperienceGraph 可视化">
+        <defs>
+          <marker id="arrowRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#c2413d"></path>
+          </marker>
+        </defs>
+        <g id="viewport">
+          <g id="linksLayer"></g>
+          <g id="nodesLayer"></g>
+        </g>
+      </svg>
+      <div id="emptyState" class="empty">
+        <div>
+          <h2>上传三个 JSONL 文件开始查看</h2>
+          <p>图中圆点是节点，连线是真实 edge。点击节点、边或路径列表可以查看详情。</p>
+        </div>
+      </div>
+    </main>
+
+    <aside class="details">
+      <h2>详情</h2>
+      <div id="detailsPane">
+        <p>点击图中的节点或路径查看详情。</p>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    const state = {
+      nodes: [],
+      edges: [],
+      paths: [],
+      graphNodes: [],
+      links: [],
+      edgeById: new Map(),
+      selectedFiles: {
+        nodes: null,
+        edges: null,
+        paths: null
+      },
+      selected: null,
+      selectedType: null,
+      focusedEdgeId: null,
+      scale: 1,
+      tx: 0,
+      ty: 0,
+      simulationTimer: null
+    };
+
+    const els = {
+      dropZone: document.getElementById("dropZone"),
+      bulkFiles: document.getElementById("bulkFiles"),
+      recognizedFiles: document.getElementById("recognizedFiles"),
+      nodesFile: document.getElementById("nodesFile"),
+      edgesFile: document.getElementById("edgesFile"),
+      pathsFile: document.getElementById("pathsFile"),
+      loadBtn: document.getElementById("loadBtn"),
+      resetBtn: document.getElementById("resetBtn"),
+      searchInput: document.getElementById("searchInput"),
+      typeFilter: document.getElementById("typeFilter"),
+      pathFilter: document.getElementById("pathFilter"),
+      nodeCount: document.getElementById("nodeCount"),
+      edgeCount: document.getElementById("edgeCount"),
+      pathCount: document.getElementById("pathCount"),
+      successAvg: document.getElementById("successAvg"),
+      pathList: document.getElementById("pathList"),
+      statusPill: document.getElementById("statusPill"),
+      svg: document.getElementById("graphSvg"),
+      viewport: document.getElementById("viewport"),
+      linksLayer: document.getElementById("linksLayer"),
+      nodesLayer: document.getElementById("nodesLayer"),
+      emptyState: document.getElementById("emptyState"),
+      detailsPane: document.getElementById("detailsPane"),
+      zoomInBtn: document.getElementById("zoomInBtn"),
+      zoomOutBtn: document.getElementById("zoomOutBtn"),
+      fitBtn: document.getElementById("fitBtn")
+    };
+
+    updateRecognizedFiles();
+
+    els.loadBtn.addEventListener("click", loadFiles);
+    els.resetBtn.addEventListener("click", resetView);
+    els.dropZone.addEventListener("click", () => els.bulkFiles.click());
+    els.bulkFiles.addEventListener("change", event => handleBulkFiles(event.target.files));
+    els.nodesFile.addEventListener("change", event => setManualFile("nodes", event.target.files[0]));
+    els.edgesFile.addEventListener("change", event => setManualFile("edges", event.target.files[0]));
+    els.pathsFile.addEventListener("change", event => setManualFile("paths", event.target.files[0]));
+    els.searchInput.addEventListener("input", applyFilters);
+    els.typeFilter.addEventListener("change", applyFilters);
+    els.pathFilter.addEventListener("change", applyFilters);
+    els.zoomInBtn.addEventListener("click", () => zoomBy(1.2));
+    els.zoomOutBtn.addEventListener("click", () => zoomBy(0.84));
+    els.fitBtn.addEventListener("click", fitGraph);
+
+    els.svg.addEventListener("wheel", event => {
+      event.preventDefault();
+      zoomBy(event.deltaY < 0 ? 1.08 : 0.92, event.offsetX, event.offsetY);
+    }, { passive: false });
+
+    ["dragenter", "dragover"].forEach(name => {
+      els.dropZone.addEventListener(name, event => {
+        event.preventDefault();
+        els.dropZone.classList.add("dragging");
+      });
+    });
+
+    ["dragleave", "drop"].forEach(name => {
+      els.dropZone.addEventListener(name, event => {
+        event.preventDefault();
+        els.dropZone.classList.remove("dragging");
+      });
+    });
+
+    els.dropZone.addEventListener("drop", event => {
+      handleBulkFiles(event.dataTransfer.files);
+    });
+
+    let dragMode = null;
+    els.svg.addEventListener("pointerdown", event => {
+      if (event.target.closest(".node")) return;
+      dragMode = { x: event.clientX, y: event.clientY, tx: state.tx, ty: state.ty };
+      els.svg.setPointerCapture(event.pointerId);
+    });
+    els.svg.addEventListener("pointermove", event => {
+      if (!dragMode) return;
+      state.tx = dragMode.tx + event.clientX - dragMode.x;
+      state.ty = dragMode.ty + event.clientY - dragMode.y;
+      updateTransform();
+    });
+    els.svg.addEventListener("pointerup", () => {
+      dragMode = null;
+    });
+
+    async function loadFiles() {
+      const nodesFile = getSelectedFile("nodes");
+      const edgesFile = getSelectedFile("edges");
+      const pathsFile = getSelectedFile("paths");
+      if (!nodesFile || !edgesFile || !pathsFile) {
+        setStatus("请先拖入或选择 graph_nodes、graph_edges、path_records 三个文件");
+        return;
+      }
+
+      try {
+        const [nodeText, edgeText, pathText] = await Promise.all([nodesFile.text(), edgesFile.text(), pathsFile.text()]);
+        state.nodes = parseJsonl(nodeText, "graph_nodes.jsonl");
+        state.edges = parseJsonl(edgeText, "graph_edges.jsonl");
+        state.paths = parseJsonl(pathText, "path_records.jsonl");
+        buildGraph();
+        render();
+        fitGraph();
+        setStatus(`已加载 ${state.nodes.length} 个节点，${state.edges.length} 条边，${state.paths.length} 条路径`);
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message || "文件解析失败");
+      }
+    }
+
+    function handleBulkFiles(fileList) {
+      const files = Array.from(fileList || []);
+      if (!files.length) return;
+
+      let recognized = 0;
+      files.forEach(file => {
+        const kind = recognizeFile(file.name);
+        if (!kind) return;
+        state.selectedFiles[kind] = file;
+        setInputFile(kind, file);
+        recognized += 1;
+      });
+
+      updateRecognizedFiles();
+      if (recognized) {
+        setStatus(`已识别 ${recognized} 个关键文件`);
+      } else {
+        setStatus("没有识别到 graph_nodes、graph_edges 或 path_records 文件");
+      }
+    }
+
+    function recognizeFile(name) {
+      const normalized = String(name || "").toLowerCase();
+      if (normalized.includes("graph_nodes") && normalized.endsWith(".jsonl")) return "nodes";
+      if (normalized.includes("graph_edges") && normalized.endsWith(".jsonl")) return "edges";
+      if (normalized.includes("path_records") && normalized.endsWith(".jsonl")) return "paths";
+      return null;
+    }
+
+    function setManualFile(kind, file) {
+      if (!file) return;
+      state.selectedFiles[kind] = file;
+      updateRecognizedFiles();
+      setStatus(`已选择 ${file.name}`);
+    }
+
+    function getSelectedFile(kind) {
+      if (state.selectedFiles[kind]) return state.selectedFiles[kind];
+      if (kind === "nodes") return els.nodesFile.files[0] || null;
+      if (kind === "edges") return els.edgesFile.files[0] || null;
+      if (kind === "paths") return els.pathsFile.files[0] || null;
+      return null;
+    }
+
+    function setInputFile(kind, file) {
+      const input = kind === "nodes" ? els.nodesFile : kind === "edges" ? els.edgesFile : els.pathsFile;
+      if (!window.DataTransfer || !input) return;
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      input.files = dataTransfer.files;
+    }
+
+    function updateRecognizedFiles() {
+      const rows = [
+        ["nodes", "graph_nodes.jsonl"],
+        ["edges", "graph_edges.jsonl"],
+        ["paths", "path_records.jsonl"]
+      ];
+      els.recognizedFiles.innerHTML = rows.map(([kind, label]) => {
+        const file = getSelectedFile(kind);
+        const value = file ? escapeHtml(file.name) : `<span class="missing">未识别</span>`;
+        return `<div><b>${label}</b><span>${value}</span></div>`;
+      }).join("");
+    }
+
+    function parseJsonl(text, name) {
+      const rows = [];
+      const lines = text.split(/\r?\n/);
+      lines.forEach((line, index) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+        try {
+          rows.push(JSON.parse(trimmed));
+        } catch (error) {
+          throw new Error(`${name} 第 ${index + 1} 行不是合法 JSON`);
+        }
+      });
+      return rows;
+    }
+
+    function buildGraph() {
+      const nodeById = new Map();
+      const labelToNode = new Map();
+      const graphNodes = [];
+
+      state.nodes.forEach((node, index) => {
+        const graphNode = {
+          id: node.id,
+          label: node.label || node.id,
+          type: node.node_type || "unknown",
+          raw: node,
+          x: 120 + (index % 8) * 130,
+          y: 120 + Math.floor(index / 8) * 95,
+          degree: 0,
+          visible: true,
+          virtual: false
+        };
+        graphNodes.push(graphNode);
+        nodeById.set(graphNode.id, graphNode);
+        if (graphNode.label) labelToNode.set(graphNode.label, graphNode);
+      });
+
+      const links = [];
+      const edgeById = new Map();
+
+      state.edges.forEach((edge, index) => {
+        const source = nodeById.get(edge.from_node) || getOrCreateMissingNode(edge.from_node || `missing_from_${index}`, graphNodes, nodeById);
+        const target = nodeById.get(edge.to_node) || getOrCreateMissingNode(edge.to_node || `missing_to_${index}`, graphNodes, nodeById);
+        source.degree += 1;
+        target.degree += 1;
+        const link = {
+          id: edge.id || `edge_${index}`,
+          source,
+          target,
+          raw: edge,
+          visible: true
+        };
+        links.push(link);
+        edgeById.set(link.id, link);
+      });
+
+      state.graphNodes = graphNodes;
+      state.links = links;
+      state.edgeById = edgeById;
+      layoutByColumns();
+      runSimulation();
+    }
+
+    function getOrCreateStartNode(signature, index, graphNodes, labelToNode, virtualStarts) {
+      if (labelToNode.has(signature)) return labelToNode.get(signature);
+      if (virtualStarts.has(signature)) return virtualStarts.get(signature);
+
+      const node = {
+        id: `virtual_start:${signature}`,
+        label: signature,
+        type: "virtual_start",
+        raw: { id: signature, label: signature, node_type: "virtual_start" },
+        x: 80,
+        y: 100 + index * 70,
+        degree: 0,
+        visible: true,
+        virtual: true
+      };
+      graphNodes.push(node);
+      virtualStarts.set(signature, node);
+      return node;
+    }
+
+    function getOrCreateMissingNode(id, graphNodes, nodeById) {
+      const node = {
+        id,
+        label: id,
+        type: "missing",
+        raw: { id, label: id, node_type: "missing" },
+        x: 760,
+        y: 180 + graphNodes.length * 24,
+        degree: 0,
+        visible: true,
+        virtual: true
+      };
+      graphNodes.push(node);
+      nodeById.set(id, node);
+      return node;
+    }
+
+    function layoutByColumns() {
+      const width = els.svg.clientWidth || 900;
+      const height = els.svg.clientHeight || 700;
+      const columns = {
+        virtual_start: width * 0.12,
+        start: width * 0.2,
+        checkpoint: width * 0.52,
+        observation: width * 0.52,
+        goal: width * 0.82,
+        missing: width * 0.82,
+        unknown: width * 0.52
+      };
+      const groups = new Map();
+      state.graphNodes.forEach(node => {
+        const key = columns[node.type] === undefined ? "unknown" : node.type;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(node);
+      });
+      groups.forEach((nodes, key) => {
+        nodes.forEach((node, index) => {
+          node.x = columns[key] || width * 0.52;
+          node.y = 90 + index * Math.max(42, Math.min(85, (height - 160) / Math.max(1, nodes.length - 1)));
+        });
+      });
+    }
+
+    function runSimulation() {
+      if (state.simulationTimer) clearInterval(state.simulationTimer);
+      let ticks = 0;
+      state.simulationTimer = setInterval(() => {
+        ticks += 1;
+        tickLayout();
+        drawGraph();
+        if (ticks > 120) {
+          clearInterval(state.simulationTimer);
+          state.simulationTimer = null;
+        }
+      }, 16);
+    }
+
+    function tickLayout() {
+      const nodes = state.graphNodes.filter(node => node.visible);
+      const links = state.links.filter(link => link.visible);
+
+      links.forEach(link => {
+        const dx = link.target.x - link.source.x;
+        const dy = link.target.y - link.source.y;
+        const dist = Math.max(1, Math.hypot(dx, dy));
+        const desired = 260;
+        const force = (dist - desired) * 0.004;
+        const fx = dx / dist * force;
+        const fy = dy / dist * force;
+        if (!isPinnedType(link.source.type)) {
+          link.source.x += fx;
+          link.source.y += fy;
+        }
+        if (!isPinnedType(link.target.type)) {
+          link.target.x -= fx;
+          link.target.y -= fy;
+        }
+      });
+
+      for (let i = 0; i < nodes.length; i += 1) {
+        for (let j = i + 1; j < nodes.length; j += 1) {
+          const a = nodes[i];
+          const b = nodes[j];
+          const dx = b.x - a.x || 0.1;
+          const dy = b.y - a.y || 0.1;
+          const distSq = Math.max(100, dx * dx + dy * dy);
+          const force = Math.min(2.2, 2600 / distSq);
+          const dist = Math.sqrt(distSq);
+          const fx = dx / dist * force;
+          const fy = dy / dist * force;
+          if (!isPinnedType(a.type)) {
+            a.x -= fx;
+            a.y -= fy;
+          }
+          if (!isPinnedType(b.type)) {
+            b.x += fx;
+            b.y += fy;
+          }
+        }
+      }
+    }
+
+    function isPinnedType(type) {
+      return type === "virtual_start" || type === "start" || type === "goal" || type === "missing";
+    }
+
+    function render() {
+      updateStats();
+      updatePathList();
+      drawGraph();
+      applyFilters();
+      els.emptyState.style.display = state.graphNodes.length ? "none" : "flex";
+    }
+
+    function drawGraph() {
+      const links = state.links;
+      const nodes = state.graphNodes;
+
+      els.linksLayer.innerHTML = "";
+      els.nodesLayer.innerHTML = "";
+
+      links.forEach(link => {
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        const focused = isLinkFocused(link);
+        path.setAttribute("class", `link${isLinkSelected(link) ? " selected" : ""}${focused ? " focused" : ""}${link.visible ? "" : " dim"}`);
+        path.setAttribute("d", curvedPath(link.source, link.target));
+        path.setAttribute("stroke-width", String(linkWidth(link.raw)));
+        path.setAttribute("stroke-dasharray", link.raw.status === "dormant" ? "7 5" : "");
+        if (focused) {
+          path.setAttribute("marker-end", "url(#arrowRed)");
+        }
+        path.addEventListener("click", event => {
+          event.stopPropagation();
+          selectItem(link, "edge");
+        });
+        const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+        title.textContent = `${link.raw.id || "edge"}: ${actionLabel(link.raw.action_template)}`;
+        path.appendChild(title);
+        els.linksLayer.appendChild(path);
+      });
+
+      nodes.forEach(node => {
+        const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        g.setAttribute("class", `node${state.selected === node && state.selectedType === "node" ? " selected" : ""}${node.visible ? "" : " dim"}`);
+        g.setAttribute("transform", `translate(${node.x},${node.y})`);
+        g.addEventListener("click", event => {
+          event.stopPropagation();
+          selectItem(node, "node");
+        });
+
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("r", String(nodeRadius(node)));
+        circle.setAttribute("fill", colorForType(node.type));
+
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute("x", String(nodeRadius(node) + 6));
+        text.setAttribute("y", "4");
+        text.textContent = trimLabel(node.label, 34);
+
+        g.appendChild(circle);
+        g.appendChild(text);
+        els.nodesLayer.appendChild(g);
+      });
+    }
+
+    function curvedPath(source, target) {
+      if (source === target) {
+        const r = 42;
+        return `M ${source.x} ${source.y - 8} C ${source.x + r} ${source.y - r}, ${source.x + r} ${source.y + r}, ${source.x} ${source.y + 8}`;
+      }
+      const dx = target.x - source.x;
+      const curve = Math.max(40, Math.abs(dx) * 0.35);
+      const c1x = source.x + curve;
+      const c2x = target.x - curve;
+      return `M ${source.x} ${source.y} C ${c1x} ${source.y}, ${c2x} ${target.y}, ${target.x} ${target.y}`;
+    }
+
+    function linkWidth(path) {
+      const attempts = Number(path?.stats?.attempts || 1);
+      return Math.max(1.5, Math.min(7, 1.5 + Math.log2(attempts + 1)));
+    }
+
+    function isLinkSelected(link) {
+      if (state.selectedType === "edge") return state.selected === link;
+      if (state.selectedType === "path") {
+        return new Set(state.selected?.edge_ids || []).has(link.id);
+      }
+      return false;
+    }
+
+    function isLinkFocused(link) {
+      return state.focusedEdgeId === link.id || (state.selectedType === "edge" && state.selected === link);
+    }
+
+    function nodeRadius(node) {
+      return Math.max(8, Math.min(22, 8 + Math.sqrt(node.degree || 0) * 3));
+    }
+
+    function colorForType(type) {
+      if (type === "start") return "#3267d6";
+      if (type === "checkpoint") return "#15945b";
+      if (type === "goal") return "#7c4dcc";
+      if (type === "virtual_start") return "#b7791f";
+      return "#c2413d";
+    }
+
+    function applyFilters() {
+      const query = els.searchInput.value.trim().toLowerCase();
+      const typeFilter = els.typeFilter.value;
+      const pathFilter = els.pathFilter.value;
+
+      state.graphNodes.forEach(node => {
+        const typeOk = nodePassesType(node, typeFilter);
+        const textOk = !query || JSON.stringify(node.raw).toLowerCase().includes(query);
+        node.visible = typeOk && textOk;
+      });
+
+      state.links.forEach(link => {
+        const stats = link.raw.stats || {};
+        const successRate = stats.attempts ? (stats.successes || 0) / stats.attempts : 0;
+        const pathOk = pathFilter === "all"
+          || (pathFilter === "success" && successRate > 0)
+          || (pathFilter === "failed" && successRate === 0);
+        const textOk = !query || JSON.stringify(link.raw).toLowerCase().includes(query)
+          || JSON.stringify(link.source.raw).toLowerCase().includes(query)
+          || JSON.stringify(link.target.raw).toLowerCase().includes(query);
+        const sourceTypeOk = nodePassesType(link.source, typeFilter);
+        const targetTypeOk = nodePassesType(link.target, typeFilter);
+        link.visible = pathOk && textOk && sourceTypeOk && targetTypeOk;
+        if (link.visible) {
+          link.source.visible = link.source.visible || textOk;
+          link.target.visible = link.target.visible || textOk;
+        }
+      });
+
+      drawGraph();
+      updatePathList();
+    }
+
+    function nodePassesType(node, typeFilter) {
+      return typeFilter === "all" || node.type === typeFilter;
+    }
+
+    function updateStats() {
+      els.nodeCount.textContent = String(state.nodes.length);
+      els.edgeCount.textContent = String(state.edges.length);
+      els.pathCount.textContent = String(state.paths.length);
+      const rates = state.paths
+        .map(path => path.stats?.attempts ? (path.stats.successes || 0) / path.stats.attempts : null)
+        .filter(value => value !== null);
+      const avg = rates.length ? rates.reduce((a, b) => a + b, 0) / rates.length : 0;
+      els.successAvg.textContent = `${Math.round(avg * 100)}%`;
+    }
+
+    function updatePathList() {
+      els.pathList.innerHTML = "";
+      const visiblePaths = state.paths.filter(pathMatchesFilters).slice(0, 60);
+      if (!visiblePaths.length) {
+        els.pathList.innerHTML = `<p class="small">没有匹配的路径。</p>`;
+        return;
+      }
+      visiblePaths.forEach(path => {
+        const button = document.createElement("button");
+        const stats = path.stats || {};
+        const rate = pathSuccessRate(path);
+        const edgeCount = Array.isArray(path.edge_ids) ? path.edge_ids.length : 0;
+        button.innerHTML = `<strong>${escapeHtml(path.id || "path")}</strong><br><span class="small">${escapeHtml(path.start_signature || "-")} -> ${escapeHtml(path.goal_node || "-")} · ${Math.round(rate * 100)}% · ${stats.attempts || 0} attempts · ${edgeCount} edges</span>`;
+        button.addEventListener("click", () => selectItem(path, "path"));
+        els.pathList.appendChild(button);
+      });
+    }
+
+    function pathMatchesFilters(path) {
+      const query = els.searchInput.value.trim().toLowerCase();
+      const pathFilter = els.pathFilter.value;
+      const rate = pathSuccessRate(path);
+      const resultOk = pathFilter === "all"
+        || (pathFilter === "success" && rate > 0)
+        || (pathFilter === "failed" && rate === 0);
+      const textOk = !query || JSON.stringify(path).toLowerCase().includes(query);
+      return resultOk && textOk;
+    }
+
+    function pathSuccessRate(path) {
+      const stats = path.stats || {};
+      return stats.attempts ? (stats.successes || 0) / stats.attempts : 0;
+    }
+
+    function selectItem(item, type) {
+      state.selected = item;
+      state.selectedType = type;
+      state.focusedEdgeId = type === "edge" ? item.id : null;
+      if (type === "node") renderNodeDetails(item);
+      else if (type === "edge") renderEdgeDetails(item);
+      else renderPathDetails(item);
+      drawGraph();
+    }
+
+    function renderNodeDetails(node) {
+      const stats = node.raw.stats || {};
+      els.detailsPane.innerHTML = `
+        <div class="card">
+          <div class="kv"><div class="k">类型</div><div>${escapeHtml(node.type)}</div></div>
+          <div class="kv"><div class="k">ID</div><div><code>${escapeHtml(node.id)}</code></div></div>
+          <div class="kv"><div class="k">Label</div><div>${escapeHtml(node.label)}</div></div>
+          <div class="kv"><div class="k">Degree</div><div>${node.degree || 0}</div></div>
+          <div class="kv"><div class="k">Attempts</div><div>${stats.attempts ?? "-"}</div></div>
+          <div class="kv"><div class="k">Successes</div><div>${stats.successes ?? "-"}</div></div>
+        </div>
+        <h2>Required Conditions</h2>
+        <pre>${escapeHtml(formatJson(node.raw.required || []))}</pre>
+        <h2>原始节点</h2>
+        <pre>${escapeHtml(formatJson(node.raw))}</pre>
+      `;
+    }
+
+    function renderEdgeDetails(link) {
+      const edge = link.raw;
+      const stats = edge.stats || {};
+      const rate = stats.attempts ? (stats.successes || 0) / stats.attempts : 0;
+      els.detailsPane.innerHTML = `
+        <div class="card">
+          <div class="kv"><div class="k">Edge ID</div><div><code>${escapeHtml(edge.id || "")}</code></div></div>
+          <div class="kv"><div class="k">Action</div><div>${escapeHtml(actionLabel(edge.action_template))}</div></div>
+          <div class="kv"><div class="k">From</div><div><code>${escapeHtml(edge.from_node || "-")}</code></div></div>
+          <div class="kv"><div class="k">To</div><div><code>${escapeHtml(edge.to_node || "-")}</code></div></div>
+          <div class="kv"><div class="k">Status</div><div>${escapeHtml(edge.status || "-")}</div></div>
+          <div class="kv"><div class="k">成功率</div><div>${Math.round(rate * 100)}%</div></div>
+          <div class="kv"><div class="k">Attempts</div><div>${stats.attempts ?? 0}</div></div>
+          <div class="kv"><div class="k">Successes</div><div>${stats.successes ?? 0}</div></div>
+        </div>
+        <h2>Hard Preconditions</h2>
+        <pre>${escapeHtml(formatJson(edge.hard_preconditions || []))}</pre>
+        <h2>Effects</h2>
+        <pre>${escapeHtml(formatJson(edge.effects || []))}</pre>
+        <h2>Failure Reasons</h2>
+        <pre>${escapeHtml(formatJson(stats.failure_reasons || {}))}</pre>
+        <h2>原始边</h2>
+        <pre>${escapeHtml(formatJson(edge))}</pre>
+      `;
+    }
+
+    function renderPathDetails(path) {
+      const stats = path.stats || {};
+      const rate = stats.attempts ? (stats.successes || 0) / stats.attempts : 0;
+      els.detailsPane.innerHTML = `
+        <div class="card">
+          <div class="kv"><div class="k">Path ID</div><div><code>${escapeHtml(path.id || "")}</code></div></div>
+          <div class="kv"><div class="k">Task</div><div>${escapeHtml(path.task_id || "-")}</div></div>
+          <div class="kv"><div class="k">起点</div><div>${escapeHtml(path.start_signature || "-")}</div></div>
+          <div class="kv"><div class="k">目标节点</div><div><code>${escapeHtml(path.goal_node || "-")}</code></div></div>
+          <div class="kv"><div class="k">成功率</div><div>${Math.round(rate * 100)}%</div></div>
+          <div class="kv"><div class="k">Attempts</div><div>${stats.attempts ?? 0}</div></div>
+          <div class="kv"><div class="k">Successes</div><div>${stats.successes ?? 0}</div></div>
+          <div class="kv"><div class="k">Avg steps</div><div>${stats.avg_steps ?? "-"}</div></div>
+        </div>
+        <h2>Edge 序列</h2>
+        <div class="edge-sequence">
+          ${renderEdgeSequenceItems(path)}
+        </div>
+        <h2>原始路径</h2>
+        <pre>${escapeHtml(formatJson(path))}</pre>
+      `;
+      bindEdgeSequenceItems();
+    }
+
+    function renderEdgeSequenceItems(path) {
+      const edgeIds = path.edge_ids || [];
+      if (!edgeIds.length) {
+        return `<p class="small">这条 path 没有 edge_ids。</p>`;
+      }
+      return edgeIds.map((edgeId, index) => {
+        const link = state.edgeById.get(edgeId);
+        if (!link) {
+          return `
+            <button class="edge-item" type="button" data-edge-id="${escapeHtml(edgeId)}" disabled>
+              <div class="edge-item-header">
+                <span class="edge-item-title">#${index + 1} ${escapeHtml(edgeId)}</span>
+                <span class="edge-item-meta">edge missing</span>
+              </div>
+              <div class="edge-item-grid">
+                <span class="k">状态</span><span>graph_edges.jsonl 中没有找到这条 edge</span>
+              </div>
+            </button>
+          `;
+        }
+        const edge = link.raw;
+        const stats = edge.stats || {};
+        const rate = stats.attempts ? Math.round((stats.successes || 0) / stats.attempts * 100) : 0;
+        return `
+          <button class="edge-item${state.focusedEdgeId === edgeId ? " focused" : ""}" type="button" data-edge-id="${escapeHtml(edgeId)}">
+            <div class="edge-item-header">
+              <span class="edge-item-title">#${index + 1} ${escapeHtml(actionLabel(edge.action_template))}</span>
+              <span class="edge-item-meta">${escapeHtml(edge.status || "unknown")} · ${rate}%</span>
+            </div>
+            <div class="edge-item-grid">
+              <span class="k">Edge ID</span><span><code>${escapeHtml(edge.id || edgeId)}</code></span>
+              <span class="k">From</span><span><code>${escapeHtml(edge.from_node || "-")}</code></span>
+              <span class="k">To</span><span><code>${escapeHtml(edge.to_node || "-")}</code></span>
+              <span class="k">Attempts</span><span>${stats.attempts ?? 0}, successes ${stats.successes ?? 0}</span>
+              <span class="k">Hard</span><span>${escapeHtml(compactConditions(edge.hard_preconditions || []))}</span>
+              <span class="k">Effects</span><span>${escapeHtml(compactConditions(edge.effects || []))}</span>
+            </div>
+          </button>
+        `;
+      }).join("");
+    }
+
+    function bindEdgeSequenceItems() {
+      els.detailsPane.querySelectorAll(".edge-item[data-edge-id]").forEach(item => {
+        item.addEventListener("click", () => {
+          const edgeId = item.getAttribute("data-edge-id");
+          if (!edgeId || !state.edgeById.has(edgeId)) return;
+          state.focusedEdgeId = edgeId;
+          drawGraph();
+          renderPathDetails(state.selected);
+        });
+      });
+    }
+
+    function resetView() {
+      state.selected = null;
+      state.selectedType = null;
+      els.searchInput.value = "";
+      els.typeFilter.value = "all";
+      els.pathFilter.value = "all";
+      layoutByColumns();
+      runSimulation();
+      applyFilters();
+      fitGraph();
+      els.detailsPane.innerHTML = "<p>点击图中的节点或路径查看详情。</p>";
+    }
+
+    function fitGraph() {
+      const visibleNodes = state.graphNodes.filter(node => node.visible);
+      if (!visibleNodes.length) return;
+      const minX = Math.min(...visibleNodes.map(node => node.x));
+      const maxX = Math.max(...visibleNodes.map(node => node.x));
+      const minY = Math.min(...visibleNodes.map(node => node.y));
+      const maxY = Math.max(...visibleNodes.map(node => node.y));
+      const width = els.svg.clientWidth || 900;
+      const height = els.svg.clientHeight || 700;
+      const graphWidth = Math.max(1, maxX - minX + 160);
+      const graphHeight = Math.max(1, maxY - minY + 160);
+      state.scale = Math.min(1.3, Math.max(0.3, Math.min(width / graphWidth, height / graphHeight)));
+      state.tx = (width - (minX + maxX) * state.scale) / 2;
+      state.ty = (height - (minY + maxY) * state.scale) / 2;
+      updateTransform();
+    }
+
+    function zoomBy(factor, cx, cy) {
+      const width = els.svg.clientWidth || 900;
+      const height = els.svg.clientHeight || 700;
+      const centerX = cx ?? width / 2;
+      const centerY = cy ?? height / 2;
+      const oldScale = state.scale;
+      const newScale = Math.max(0.18, Math.min(3.5, oldScale * factor));
+      state.tx = centerX - (centerX - state.tx) * (newScale / oldScale);
+      state.ty = centerY - (centerY - state.ty) * (newScale / oldScale);
+      state.scale = newScale;
+      updateTransform();
+    }
+
+    function updateTransform() {
+      els.viewport.setAttribute("transform", `translate(${state.tx},${state.ty}) scale(${state.scale})`);
+    }
+
+    function setStatus(text) {
+      els.statusPill.textContent = text;
+    }
+
+    function trimLabel(text, max) {
+      const value = String(text || "");
+      return value.length > max ? value.slice(0, max - 3) + "..." : value;
+    }
+
+    function actionLabel(action) {
+      if (!action || !action.name) return "";
+      const args = action.args || {};
+      const values = Object.values(args);
+      return values.length ? `${action.name}(${values.join(", ")})` : action.name;
+    }
+
+    function compactConditions(conditions) {
+      if (!conditions || !conditions.length) return "-";
+      return conditions.map(condition => {
+        const value = typeof condition.value === "string" ? condition.value : JSON.stringify(condition.value);
+        return `${condition.key} ${condition.operator} ${value}`;
+      }).join("; ");
+    }
+
+    function formatJson(value) {
+      return JSON.stringify(value, null, 2);
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+  </script>
+</body>
+</html>
