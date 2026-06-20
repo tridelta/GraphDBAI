@@ -49,11 +49,18 @@ class ExperienceGraphAgent(ReActAgent):
                                 "path_id": c.path_id,
                                 "label": c.label,
                                 "applicability": c.applicability,
+                                "route_type": c.route_type,
                                 "success_rate": c.success_rate,
                                 "attempts": c.attempts,
                                 "avg_steps": c.avg_steps,
                                 "evidence": c.evidence,
+                                "state_similarity": c.state_similarity,
+                                "retrieval_score": c.retrieval_score,
+                                "retrieval_reason": c.retrieval_reason,
+                                "matched_conditions": [m.__dict__ for m in c.matched_conditions],
                                 "missing_conditions": [m.__dict__ for m in c.missing_conditions],
+                                "suggested_probe_actions": [a.label() for a in c.suggested_probe_actions],
+                                "common_failures": c.common_failures,
                                 "actions_preview": [a.label() for a in c.actions_preview],
                             }
                             for c in view.candidate_paths
@@ -78,3 +85,4 @@ class ExperienceGraphAgent(ReActAgent):
             elif isinstance(item, str):
                 plan.append(Action.parse(item))
         return plan or None
+

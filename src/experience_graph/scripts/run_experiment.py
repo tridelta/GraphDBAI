@@ -101,7 +101,14 @@ def main() -> None:
     if args.resume and config_path.exists():
         existing = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
         validate_resume_config(existing, config, args.allow_config_mismatch)
-        case_ids = list(existing.get("case_ids", case_ids))
+        existing_case_ids = list(existing.get("case_ids", []))
+        if args.episodes > len(existing_case_ids):
+            case_ids = case_ids[: args.episodes]
+            existing["episodes"] = args.episodes
+            existing["case_ids"] = case_ids
+            config_path.write_text(yaml.safe_dump(existing, sort_keys=False, allow_unicode=True), encoding="utf-8")
+        else:
+            case_ids = existing_case_ids[: args.episodes]
         config = existing
     elif config_path.exists() and not args.resume:
         raise FileExistsError(f"Run directory already has config.yaml. Use --resume or choose another --run-id: {run_dir}")
@@ -353,3 +360,4 @@ def build_agent(
 
 if __name__ == "__main__":
     main()
+

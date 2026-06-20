@@ -14,6 +14,7 @@ from experience_graph.core.models import (
     NodeStats,
     PathRecord,
     PathStats,
+    get_path,
 )
 from experience_graph.graph.merge import NodeMerger
 from experience_graph.graph.store import JsonGraphStore
@@ -22,6 +23,7 @@ from experience_graph.graph.store import JsonGraphStore
 FAILURE_PRECONDITIONS = {
     "missing_required_pickaxe": Condition("tool.pickaxe_level", ">=", 3, source="rule"),
     "mine_not_discovered": Condition("environment.nearby_mine", "==", True, source="rule"),
+    "village_not_discovered": Condition("environment.nearby_village", "==", True, source="rule"),
     "armorer_unknown": Condition("environment.village_has_armorer", "unknown", True, source="rule"),
     "no_armorer": Condition("environment.village_has_armorer", "==", True, source="rule"),
     "not_enough_emeralds": Condition("inventory.emerald", ">=", 10, source="rule"),
@@ -71,7 +73,8 @@ class GraphOrganizer:
                 record,
                 summary,
             )
-            edge = self._upsert_edge(previous_node.id, target_node.id, step.action, target_conditions, step.result.ok, step.result.failure_reason, summary)
+            edge_preconditions = self._action_preconditions(step.action, step.observation_before.state, step.result.ok, step.result.failure_reason)
+            edge = self._upsert_edge(previous_node.id, target_node.id, step.action, target_conditions, step.result.ok, step.result.failure_reason, summary, edge_preconditions)
             edge_ids.append(edge.id)
             previous_node = target_node
 
@@ -153,8 +156,9 @@ class GraphOrganizer:
         ok: bool,
         failure_reason: str | None,
         summary: GraphUpdateSummary,
+        inferred_preconditions: list[Condition] | None = None,
     ) -> GraphEdge:
-        preconditions = []
+        preconditions = list(inferred_preconditions or [])
         if self.learn_failure_preconditions and failure_reason and failure_reason in FAILURE_PRECONDITIONS:
             preconditions.append(FAILURE_PRECONDITIONS[failure_reason])
         edge_id = "edge_" + self._hash([from_node, to_node, action.label()])
@@ -186,6 +190,67 @@ class GraphOrganizer:
         self.store.upsert_edge(edge)
         return edge
 
+
+    def _action_preconditions(self, action: Action, state: dict, ok: bool, failure_reason: str | None) -> list[Condition]:
+        if not ok:
+            return []
+        conditions: list[Condition] = []
+        if action.name == "craft":
+            item = action.args.get("item")
+            if item == "crafting_table":
+                conditions.append(Condition("inventory.wood", ">=", 4, source="rule"))
+            elif item:
+                if item == "diamond_set":
+                    conditions.append(Condition("inventory.diamond", ">=", 24, source="rule"))
+                else:
+                    diamond_costs = {"diamond_helmet": 5, "diamond_chestplate": 8, "diamond_leggings": 7, "diamond_boots": 4}
+                    if item in diamond_costs:
+                        conditions.append(Condition("inventory.diamond", ">=", diamond_costs[item], source="rule"))
+                conditions.append(Condition("inventory.crafting_table", "==", True, source="rule"))
+        elif action.name == "mine" and action.args.get("resource") == "diamond":
+            conditions.append(Condition("environment.nearby_mine", "==", True, source="rule"))
+            conditions.append(Condition("tool.pickaxe_level", ">=", 3, source="rule"))
+        elif action.name == "move_to":
+            location = action.args.get("location")
+            if location == "mine":
+                conditions.append(Condition("environment.nearby_mine", "==", True, source="rule"))
+            elif location == "village":
+                conditions.append(Condition("environment.nearby_village", "==", True, source="rule"))
+        elif action.name == "inspect":
+            target = action.args.get("target")
+            if target == "village":
+                conditions.append(Condition("environment.nearby_village", "==", True, source="rule"))
+            elif target == "mine":
+                conditions.append(Condition("environment.nearby_mine", "==", True, source="rule"))
+        elif action.name == "explore":
+            target = action.args.get("target")
+            if target == "village":
+                conditions.append(Condition("environment.village_search_available", "==", True, source="rule"))
+            elif target == "mine":
+                conditions.append(Condition("environment.mine_search_available", "==", True, source="rule"))
+        elif action.name == "trade":
+            want = action.args.get("want")
+            conditions.append(Condition("location", "==", "village", source="rule"))
+            conditions.append(Condition("environment.village_has_armorer", "==", True, source="rule"))
+            if want == "diamond_set":
+                conditions.append(Condition("inventory.emerald", ">=", 40, source="rule"))
+            else:
+                conditions.append(Condition("inventory.emerald", ">=", 10, source="rule"))
+        elif action.name == "gather" and action.args.get("resource") == "wood":
+            biome = get_path(state, "environment.biome", None)
+            if biome is not None:
+                conditions.append(Condition("environment.biome", "in", ["forest", "plains"], source="rule"))
+        return self._dedupe_conditions(conditions)
+
+    def _dedupe_conditions(self, conditions: list[Condition]) -> list[Condition]:
+        deduped: list[Condition] = []
+        seen: set[str] = set()
+        for condition in conditions:
+            signature = condition.signature()
+            if signature not in seen:
+                deduped.append(condition)
+                seen.add(signature)
+        return deduped
     def _node_from_conditions(self, node_type: str, label: str, conditions: list[Condition]) -> GraphNode:
         node_id = "node_" + self._hash([node_type, label, canonical_signature(conditions)])
         return GraphNode(id=node_id, label=label, node_type=node_type, required=conditions, stats=NodeStats())
@@ -202,4 +267,7 @@ class GraphOrganizer:
         if old is None or count <= 1:
             return new
         return ((old * (count - 1)) + new) / count
+
+
+
 

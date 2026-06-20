@@ -16,6 +16,7 @@ dependencies = [
 [project.scripts]
 eg-run-experiment = "experience_graph.scripts.run_experiment:main"
 eg-panel = "experience_graph.panel.app:main"
+eg-analyze-results = "experience_graph.scripts.analyze_results:main"
 
 [dependency-groups]
 dev = [
@@ -29,3 +30,4 @@ pythonpath = ["src"]
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+

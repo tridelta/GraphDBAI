@@ -226,6 +226,13 @@ class CandidatePathView:
     attempts: int = 0
     avg_steps: float | None = None
     evidence: str = ""
+    route_type: str = "unknown"
+    matched_conditions: list[Condition] = field(default_factory=list)
+    suggested_probe_actions: list[Action] = field(default_factory=list)
+    state_similarity: float = 0.0
+    retrieval_score: float = 0.0
+    retrieval_reason: str = ""
+    common_failures: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -320,3 +327,4 @@ def stable_value(value: Any) -> str:
     if isinstance(value, dict):
         return "{" + ",".join(f"{k}:{stable_value(v)}" for k, v in sorted(value.items())) + "}"
     return str(value)
+
