@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import random
 import time
@@ -12,7 +13,10 @@ from dotenv import load_dotenv
 
 from experience_graph.agents.experience_graph_agent import ExperienceGraphAgent
 from experience_graph.agents.react import ReActAgent
+from experience_graph.agents.reflexion import ReflexionAgent
 from experience_graph.agents.scripted import ScriptedAgent
+from experience_graph.agents.skill_library import SkillLibraryAgent
+from experience_graph.agents.vector_trajectory import VectorTrajectoryAgent
 from experience_graph.envs.textcraft import TextCraftAdapter
 from experience_graph.evaluation.logger import EvaluationLogger
 from experience_graph.graph.organizer import GraphOrganizer
@@ -22,20 +26,41 @@ from experience_graph.llm.client import build_llm_client
 from experience_graph.runners.episode_runner import EpisodeRunner, RunContext
 
 
+AGENTS = ["scripted", "react", "reflexion", "vector_trajectory", "skill_library", "graph"]
 VARIANTS = {
     "full",
+    "no_exploration",
     "no_statistics",
     "random_retrieval",
     "no_node_merging",
     "no_failure_preconditions",
     "no_graph_context",
 }
+CONFIG_COMPARE_KEYS = [
+    "agent",
+    "variant",
+    "cases",
+    "rules",
+    "seed",
+    "difficulty",
+    "task_id",
+    "case_schedule",
+    "max_steps",
+    "llm_provider",
+    "llm_model",
+]
+
+
+def append_jsonl(path: Path, row: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
 def main() -> None:
     load_dotenv()
     parser = argparse.ArgumentParser(description="Run ExperienceGraph experiments.")
-    parser.add_argument("--agent", choices=["scripted", "react", "graph"], default="scripted")
+    parser.add_argument("--agent", choices=AGENTS, default="scripted")
     parser.add_argument("--variant", choices=sorted(VARIANTS), default="full")
     parser.add_argument("--cases", default="world_cases/textcraft_cases.yaml")
     parser.add_argument("--rules", default="world_cases/textcraft_rules.yaml")
@@ -50,6 +75,12 @@ def main() -> None:
     parser.add_argument("--min-attempts-for-dormant", type=int, default=5)
     parser.add_argument("--dormant-success-threshold", type=float, default=0.1)
     parser.add_argument("--llm-provider", default=None)
+    parser.add_argument("--llm-model", default=None)
+    parser.add_argument("--max-budget-rmb", type=float, default=None)
+    parser.add_argument("--input-price-per-million-rmb", type=float, default=float(os.getenv("EG_INPUT_PRICE_PER_M_RMB", "1.0")))
+    parser.add_argument("--output-price-per-million-rmb", type=float, default=float(os.getenv("EG_OUTPUT_PRICE_PER_M_RMB", "3.0")))
+    parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--allow-config-mismatch", action="store_true")
     parser.add_argument("--run-dir", default=os.getenv("EXPERIENCE_GRAPH_RUN_DIR", "runs"))
     parser.add_argument("--run-id", default=None)
     args = parser.parse_args()
@@ -58,14 +89,28 @@ def main() -> None:
     run_dir = Path(args.run_dir) / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
+    effective_llm_provider = "none" if args.agent == "scripted" else (args.llm_provider or os.getenv("EXPERIENCE_GRAPH_LLM_PROVIDER", "openai"))
+    effective_llm_model = resolve_model(effective_llm_provider, args.llm_model)
+
     env = TextCraftAdapter(args.cases, args.rules)
     selected_cases = filter_cases(env.cases, args.difficulty, args.task_id)
     case_ids = build_case_schedule(selected_cases, args.episodes, args.seed, args.case_schedule)
-    plans = {case_id: env.cases[case_id]["oracle"].get("reference_plan", []) for case_id in env.cases}
-    agent = build_agent(args.agent, plans, args.llm_provider)
-    effective_llm_provider = "none" if args.agent == "scripted" else (args.llm_provider or os.getenv("EXPERIENCE_GRAPH_LLM_PROVIDER", "openai"))
-    store = JsonGraphStore(run_dir)
     variant_config = build_variant_config(args.variant, args.top_k)
+    config = build_config(args, run_id, case_ids, variant_config, effective_llm_provider, effective_llm_model)
+    config_path = run_dir / "config.yaml"
+    if args.resume and config_path.exists():
+        existing = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+        validate_resume_config(existing, config, args.allow_config_mismatch)
+        case_ids = list(existing.get("case_ids", case_ids))
+        config = existing
+    elif config_path.exists() and not args.resume:
+        raise FileExistsError(f"Run directory already has config.yaml. Use --resume or choose another --run-id: {run_dir}")
+    else:
+        config_path.write_text(yaml.safe_dump(config, sort_keys=False, allow_unicode=True), encoding="utf-8")
+
+    plans = {case_id: env.cases[case_id]["oracle"].get("reference_plan", []) for case_id in env.cases}
+    agent = build_agent(args.agent, plans, run_dir, effective_llm_provider, effective_llm_model, variant_config)
+    store = JsonGraphStore(run_dir, load_existing=args.resume)
     organizer = GraphOrganizer(
         store,
         min_attempts_for_dormant=args.min_attempts_for_dormant,
@@ -91,36 +136,21 @@ def main() -> None:
             "task_id": args.task_id,
             "case_schedule_mode": args.case_schedule,
             "llm_provider": effective_llm_provider,
+            "llm_model": effective_llm_model,
         },
     )
     runner = EpisodeRunner(env, agent, organizer, retriever, logger, max_steps=args.max_steps, run_context=run_context)
 
-    config = {
-        "run_id": run_id,
-        "agent": args.agent,
-        "variant": args.variant,
-        "cases": args.cases,
-        "rules": args.rules,
-        "episodes": args.episodes,
-        "max_steps": args.max_steps,
-        "seed": args.seed,
-        "difficulty": args.difficulty,
-        "task_id": args.task_id,
-        "case_schedule": args.case_schedule,
-        "case_ids": case_ids,
-        "top_k": variant_config["top_k"],
-        "requested_top_k": args.top_k,
-        "token_budget": args.token_budget,
-        "min_attempts_for_dormant": args.min_attempts_for_dormant,
-        "dormant_success_threshold": args.dormant_success_threshold,
-        "variant_config": variant_config,
-        "llm_provider": effective_llm_provider,
-        "supported_agents": ["scripted", "react", "graph"],
-        "planned_baselines_not_implemented": ["reflexion", "vector_trajectory", "skill_library"],
-    }
-    (run_dir / "config.yaml").write_text(yaml.safe_dump(config, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    completed = count_completed_episodes(run_dir / "metrics.jsonl") if args.resume else 0
+    if completed:
+        print(f"Resuming {run_id}: {completed} completed episodes found.")
+    budget = BudgetTracker(
+        max_budget_rmb=args.max_budget_rmb,
+        input_price_per_million=args.input_price_per_million_rmb,
+        output_price_per_million=args.output_price_per_million_rmb,
+    )
 
-    for index, case_id in enumerate(case_ids):
+    for index, case_id in enumerate(case_ids[completed:], start=completed):
         episode_seed = args.seed + index
         result = runner.run_episode(
             episode_id=f"ep_{index:04d}",
@@ -128,14 +158,50 @@ def main() -> None:
             seed=episode_seed,
             context={"episode_index": index},
         )
+        cost = budget.estimate(result.metrics.get("llm_usage_cumulative", {}))
+        append_jsonl(
+            run_dir / "budget_progress.jsonl",
+            {
+                "run_id": run_id,
+                "episode_id": result.metrics["episode_id"],
+                "episode_index": index,
+                "case_id": case_id,
+                "estimated_cost_rmb": cost,
+                "max_budget_rmb": args.max_budget_rmb,
+                "llm_usage_cumulative": result.metrics.get("llm_usage_cumulative", {}),
+            },
+        )
         status = "success" if result.metrics["success"] else f"failed:{result.metrics['failure_reason']}"
-        print(f"{case_id}: {status} steps={result.metrics['steps']} seed={episode_seed}")
+        print(f"{case_id}: {status} steps={result.metrics['steps']} seed={episode_seed} cost≈{cost:.4f} RMB")
+        if budget.should_stop(cost):
+            stop_payload = {
+                "run_id": run_id,
+                "episode_index": index,
+                "estimated_cost_rmb": cost,
+                "max_budget_rmb": args.max_budget_rmb,
+                "reason": "budget_limit_reached",
+            }
+            (run_dir / "budget_stop.json").write_text(json.dumps(stop_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            print(f"Budget stop written to {run_dir / 'budget_stop.json'}")
+            break
     print(f"Run written to {run_dir}")
 
 
 def build_run_id(args: argparse.Namespace) -> str:
     timestamp = time.strftime("run_%Y%m%d_%H%M%S")
     return f"{timestamp}_{args.agent}_{args.variant}_seed{args.seed}"
+
+
+def resolve_model(provider: str, requested_model: str | None) -> str:
+    if requested_model:
+        return requested_model
+    if provider == "deepseek":
+        return os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash")
+    if provider == "openai":
+        return os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+    if provider == "fake":
+        return "fake"
+    return "none"
 
 
 def filter_cases(cases: dict[str, dict[str, Any]], difficulty: str, task_id: str) -> list[str]:
@@ -175,9 +241,12 @@ def build_variant_config(variant: str, top_k: int) -> dict[str, Any]:
         "ranking_mode": "score",
         "enable_node_merging": True,
         "learn_failure_preconditions": True,
+        "propose_new_path": True,
         "top_k": top_k,
     }
-    if variant == "no_statistics":
+    if variant == "no_exploration":
+        config["propose_new_path"] = False
+    elif variant == "no_statistics":
         config["include_statistics"] = False
     elif variant == "random_retrieval":
         config["ranking_mode"] = "random"
@@ -192,18 +261,95 @@ def build_variant_config(variant: str, top_k: int) -> dict[str, Any]:
     return config
 
 
-def build_agent(agent_type: str, plans: dict[str, list[str]], llm_provider: str | None = None):
+def build_config(args: argparse.Namespace, run_id: str, case_ids: list[str], variant_config: dict[str, Any], llm_provider: str, llm_model: str) -> dict[str, Any]:
+    return {
+        "run_id": run_id,
+        "agent": args.agent,
+        "variant": args.variant,
+        "cases": args.cases,
+        "rules": args.rules,
+        "episodes": args.episodes,
+        "max_steps": args.max_steps,
+        "seed": args.seed,
+        "difficulty": args.difficulty,
+        "task_id": args.task_id,
+        "case_schedule": args.case_schedule,
+        "case_ids": case_ids,
+        "top_k": variant_config["top_k"],
+        "requested_top_k": args.top_k,
+        "token_budget": args.token_budget,
+        "min_attempts_for_dormant": args.min_attempts_for_dormant,
+        "dormant_success_threshold": args.dormant_success_threshold,
+        "variant_config": variant_config,
+        "llm_provider": llm_provider,
+        "llm_model": llm_model,
+        "max_budget_rmb": args.max_budget_rmb,
+        "input_price_per_million_rmb": args.input_price_per_million_rmb,
+        "output_price_per_million_rmb": args.output_price_per_million_rmb,
+        "supported_agents": AGENTS,
+    }
+
+
+def validate_resume_config(existing: dict[str, Any], current: dict[str, Any], allow_mismatch: bool) -> None:
+    if allow_mismatch:
+        return
+    mismatches = []
+    for key in CONFIG_COMPARE_KEYS:
+        if existing.get(key) != current.get(key):
+            mismatches.append(f"{key}: existing={existing.get(key)!r}, current={current.get(key)!r}")
+    if mismatches:
+        raise ValueError("Config mismatch during resume. " + "; ".join(mismatches))
+
+
+def count_completed_episodes(metrics_path: Path) -> int:
+    if not metrics_path.exists():
+        return 0
+    count = 0
+    with metrics_path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            if line.strip():
+                count += 1
+    return count
+
+
+class BudgetTracker:
+    def __init__(self, max_budget_rmb: float | None, input_price_per_million: float, output_price_per_million: float):
+        self.max_budget_rmb = max_budget_rmb
+        self.input_price_per_million = input_price_per_million
+        self.output_price_per_million = output_price_per_million
+
+    def estimate(self, usage: dict[str, Any]) -> float:
+        prompt_tokens = int(usage.get("prompt_tokens") or usage.get("estimated_prompt_tokens") or 0)
+        completion_tokens = int(usage.get("completion_tokens") or usage.get("estimated_completion_tokens") or 0)
+        return (prompt_tokens / 1_000_000 * self.input_price_per_million) + (completion_tokens / 1_000_000 * self.output_price_per_million)
+
+    def should_stop(self, cost_rmb: float) -> bool:
+        return self.max_budget_rmb is not None and cost_rmb >= self.max_budget_rmb
+
+
+def build_agent(
+    agent_type: str,
+    plans: dict[str, list[str]],
+    run_dir: Path,
+    llm_provider: str,
+    llm_model: str,
+    variant_config: dict[str, Any],
+):
     if agent_type == "scripted":
         return ScriptedAgent(plans)
-    llm = build_llm_client(llm_provider)
+    llm = build_llm_client(llm_provider, model=llm_model)
     if agent_type == "react":
         return ReActAgent(llm)
+    if agent_type == "reflexion":
+        return ReflexionAgent(llm, run_dir / "agent_memory_reflexion.jsonl")
+    if agent_type == "vector_trajectory":
+        return VectorTrajectoryAgent(llm, run_dir / "agent_memory_vector_trajectory.jsonl")
+    if agent_type == "skill_library":
+        return SkillLibraryAgent(llm, run_dir / "agent_memory_skill_library.jsonl")
     if agent_type == "graph":
-        return ExperienceGraphAgent(llm)
+        return ExperienceGraphAgent(llm, propose_new_path=variant_config["propose_new_path"])
     raise ValueError(f"Unsupported agent: {agent_type}")
 
 
 if __name__ == "__main__":
     main()
-
-

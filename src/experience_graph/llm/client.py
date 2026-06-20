@@ -171,13 +171,14 @@ def normalize_deepseek_model(model: str) -> str:
     return normalized
 
 
-def build_llm_client(provider: str | None = None) -> LLMClient:
+def build_llm_client(provider: str | None = None, model: str | None = None) -> LLMClient:
     load_dotenv()
     selected = (provider or os.getenv("EXPERIENCE_GRAPH_LLM_PROVIDER", "openai")).lower()
     if selected == "openai":
-        return OpenAILLMClient()
+        return OpenAILLMClient(model=model)
     if selected == "deepseek":
-        return DeepSeekLLMClient()
+        return DeepSeekLLMClient(model=model)
     if selected == "fake":
         return FakeLLMClient()
     raise ValueError(f"Unsupported LLM provider: {selected}")
+

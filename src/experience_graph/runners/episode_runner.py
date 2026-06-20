@@ -75,6 +75,7 @@ class EpisodeRunner:
         initial = self.env.reset(seed=episode_seed or 0, task=task, case_id=case_id)
         observation = initial
         trajectory: list[StepRecord] = []
+        proposed_plan = None
         success = False
         failure_reason = None
         episode_context = self._episode_context(case, episode_seed, context)
@@ -95,6 +96,8 @@ class EpisodeRunner:
             output = self.agent.act(agent_input)
             usage_after = self._usage_snapshot()
             llm_step_usage = usage_delta(usage_before, usage_after)
+            if output.plan is not None:
+                proposed_plan = output.plan
             if output.action is None:
                 failure_reason = case.get("oracle", {}).get("failure_reason") or output.rationale or "no_action"
                 self.logger.write_jsonl(
@@ -165,7 +168,7 @@ class EpisodeRunner:
         if not success and failure_reason is None:
             failure_reason = "step_budget_exhausted"
 
-        experience = self.builder.build(episode_id, task.id, initial, trajectory, success)
+        experience = self.builder.build(episode_id, task.id, initial, trajectory, success, proposed_plan=proposed_plan)
         if failure_reason and not experience.failure_reason:
             experience.failure_reason = failure_reason
             experience.metrics["failure_reason"] = failure_reason
@@ -228,3 +231,5 @@ class EpisodeRunner:
     def _stable_hash(self, payload: Any) -> str:
         text = json.dumps(to_jsonable(payload), ensure_ascii=False, sort_keys=True)
         return hashlib.sha1(text.encode("utf-8")).hexdigest()[:12]
+
+
