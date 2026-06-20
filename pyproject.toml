@@ -1,0 +1,31 @@
+[project]
+name = "experience-graph"
+version = "0.1.0"
+description = "ExperienceGraph: structured cross-episode experience for LLM agents."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "networkx>=3.4",
+    "openai>=1.59.0",
+    "python-dotenv>=1.0.1",
+    "pyyaml>=6.0.2",
+    "uvicorn>=0.34.0",
+]
+
+[project.scripts]
+eg-run-experiment = "experience_graph.scripts.run_experiment:main"
+eg-panel = "experience_graph.panel.app:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
