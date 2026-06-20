@@ -18,6 +18,8 @@ CONDITIONS = [
     ("graph_full", "graph", "full"),
     ("graph_no_graph_context", "graph", "no_graph_context"),
 ]
+WARM_START_CONDITIONS = [condition for condition in CONDITIONS if condition[1] != "react"]
+
 REQUIRED_FILES = [
     "config.yaml",
     "metrics.jsonl",
@@ -33,6 +35,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run Stage 2 real pilot conditions and build analysis artifacts.")
     parser.add_argument("--run-dir", default="runs")
     parser.add_argument("--prefix", default="stage2_pilot_real_s2e_")
+    parser.add_argument("--warm-start-from-prefix", default=None, help="Seed non-ReAct runs from matching runs with this prefix.")
+    parser.add_argument("--analysis-prefix", default=None, help="Analyze runs by this prefix; useful for cold+warm comparisons.")
     parser.add_argument("--seed", type=int, default=2501)
     parser.add_argument("--episodes", type=int, default=5)
     parser.add_argument("--max-steps", type=int, default=12)
@@ -69,6 +73,16 @@ def build_env(args: argparse.Namespace) -> dict[str, str]:
 def run_id(args: argparse.Namespace, label: str) -> str:
     return f"{args.prefix}{label}_{args.difficulty}_seed{args.seed}"
 
+
+
+def active_conditions(args: argparse.Namespace) -> list[tuple[str, str, str]]:
+    return WARM_START_CONDITIONS if args.warm_start_from_prefix else CONDITIONS
+
+
+def warm_start_run_id(args: argparse.Namespace, label: str) -> str | None:
+    if not args.warm_start_from_prefix:
+        return None
+    return f"{args.warm_start_from_prefix}{label}_{args.difficulty}_seed{args.seed}"
 
 def count_jsonl_rows(path: Path) -> int:
     if not path.exists():
@@ -121,6 +135,9 @@ def build_command(args: argparse.Namespace, label: str, agent: str, variant: str
         "--run-id",
         rid,
     ]
+    warm_source = warm_start_run_id(args, label)
+    if warm_source and not (run_path / "config.yaml").exists():
+        command.extend(["--warm-start-run", str(Path(args.run_dir) / warm_source)])
     if (run_path / "config.yaml").exists():
         print(f"Resuming existing run: {rid}")
         command.append("--resume")
@@ -155,7 +172,7 @@ def run_condition(args: argparse.Namespace, condition: tuple[str, str, str], env
 
 
 def run_parallel(args: argparse.Namespace, env: dict[str, str], log_dir: Path) -> None:
-    pending = list(CONDITIONS)
+    pending = list(active_conditions(args))
     running: list[dict[str, Any]] = []
     failed = False
     while pending or running:
@@ -189,7 +206,8 @@ def run_parallel(args: argparse.Namespace, env: dict[str, str], log_dir: Path) -
 
 
 def run_analysis(args: argparse.Namespace, env: dict[str, str]) -> Path:
-    analysis_dir = Path(args.run_dir) / f"{args.prefix}analysis"
+    analysis_prefix = args.analysis_prefix or args.prefix
+    analysis_dir = Path(args.run_dir) / f"{analysis_prefix}analysis"
     command = [
         sys.executable,
         "-B",
@@ -197,7 +215,7 @@ def run_analysis(args: argparse.Namespace, env: dict[str, str]) -> Path:
         "--run-dir",
         args.run_dir,
         "--prefix",
-        args.prefix,
+        analysis_prefix,
         "--output-dir",
         str(analysis_dir),
         "--window",
@@ -229,7 +247,7 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
 def validate(args: argparse.Namespace) -> None:
     errors = []
     run_dir = Path(args.run_dir)
-    for label, agent, variant in CONDITIONS:
+    for label, agent, variant in active_conditions(args):
         rid = run_id(args, label)
         run_path = run_dir / rid
         missing = [name for name in REQUIRED_FILES if not (run_path / name).exists()]
@@ -253,7 +271,8 @@ def validate(args: argparse.Namespace) -> None:
             errors.append(f"{rid}: expected {args.episodes} metrics rows, got {len(metrics)}")
         if hidden:
             errors.append(f"{rid}: prompt_hidden_facts count is {hidden}")
-    fig_dir = run_dir / f"{args.prefix}analysis" / "figures"
+    analysis_prefix = args.analysis_prefix or args.prefix
+    fig_dir = run_dir / f"{analysis_prefix}analysis" / "figures"
     for name in ["learning_curve_medium.png", "graph_growth.png", "token_cost.png"]:
         path = fig_dir / name
         if not path.exists():
@@ -283,7 +302,7 @@ def main() -> None:
             run_parallel(args, env, log_dir)
         else:
             failed = False
-            for condition in CONDITIONS:
+            for condition in active_conditions(args):
                 failed = run_condition(args, condition, env, log_dir) != 0 or failed
             if failed:
                 raise SystemExit(f"One or more Stage 2 runs failed. See {log_dir} for logs.")
@@ -291,9 +310,11 @@ def main() -> None:
     if not args.skip_validation:
         validate(args)
     print("Stage 2 real pilot package completed.")
-    print(f"Analysis directory: {Path(args.run_dir) / f'{args.prefix}analysis'}")
+    analysis_prefix = args.analysis_prefix or args.prefix
+    print(f"Analysis directory: {Path(args.run_dir) / f'{analysis_prefix}analysis'}")
     print(f"Report: {report_path}")
 
 
 if __name__ == "__main__":
     main()
+

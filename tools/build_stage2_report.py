@@ -246,6 +246,7 @@ def main() -> None:
         "",
         f"- Main table: `{analysis_dir / 'main_comparison.csv'}`",
         f"- Token cost table: `{analysis_dir / 'token_cost.csv'}`",
+        f"- Analysis summary JSON: `{analysis_dir / 'analysis_summary.json'}`",
         f"- Graph growth table: `{analysis_dir / 'graph_growth.csv'}`",
         f"- Learning curve: `{analysis_dir / 'figures' / 'learning_curve_medium.png'}`",
         f"- Graph growth figure: `{analysis_dir / 'figures' / 'graph_growth.png'}`",
@@ -276,3 +277,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

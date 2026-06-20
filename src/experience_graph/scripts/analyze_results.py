@@ -40,6 +40,7 @@ def main() -> None:
     write_learning_curve_png(output_dir / "figures" / "learning_curve_medium.png", build_learning_curve(runs, args.window, difficulty="medium"))
     write_graph_growth_png(output_dir / "figures" / "graph_growth.png", build_graph_growth(runs))
     write_token_cost_png(output_dir / "figures" / "token_cost.png", summary_rows)
+    write_analysis_summary_json(output_dir / "analysis_summary.json", output_dir, runs, summary_rows)
     print(f"Analysis written to {output_dir}")
 
 
@@ -89,6 +90,8 @@ def build_main_summary(runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "variant": config.get("variant"),
                 "difficulty": config.get("difficulty"),
                 "seed": config.get("seed"),
+                "warm_start_run": config.get("warm_start_run"),
+                "run_group": "warm_start" if config.get("warm_start_run") else "cold_start",
                 "episodes_requested": config.get("episodes"),
                 "episodes_completed": len(metrics),
                 "success_rate": safe_div(len(successes), len(metrics)),
@@ -187,6 +190,71 @@ def build_ablation(summary_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         output.append({**row, "delta_vs_full": delta})
     return output
 
+
+
+def write_analysis_summary_json(path: Path, output_dir: Path, runs: list[dict[str, Any]], summary_rows: list[dict[str, Any]]) -> None:
+    figures = [
+        {"name": "learning_curve_medium", "path": root_relative(output_dir / "figures" / "learning_curve_medium.png")},
+        {"name": "graph_growth", "path": root_relative(output_dir / "figures" / "graph_growth.png")},
+        {"name": "token_cost", "path": root_relative(output_dir / "figures" / "token_cost.png")},
+    ]
+    artifacts = {
+        "main_comparison": root_relative(output_dir / "main_comparison.csv"),
+        "token_cost": root_relative(output_dir / "token_cost.csv"),
+        "graph_growth": root_relative(output_dir / "graph_growth.csv"),
+        "learning_curve_medium": root_relative(output_dir / "learning_curve_medium.csv"),
+        "ablation": root_relative(output_dir / "ablation.csv"),
+        "report": root_relative(output_dir / "stage2_pilot_report.md"),
+    }
+    payload = {
+        "kind": "stage2_analysis_summary",
+        "analysis_dir": root_relative(output_dir),
+        "runs_analyzed": len(runs),
+        "main_comparison": summary_rows,
+        "run_diagnostics": [build_run_diagnostics(run) for run in runs],
+        "figures": figures,
+        "artifacts": artifacts,
+    }
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def build_run_diagnostics(run: dict[str, Any]) -> dict[str, Any]:
+    config = run["config"]
+    metrics = run["metrics"]
+    steps = run["steps"]
+    failed_metrics = [row for row in metrics if not row.get("success")]
+    return {
+        "run_id": config.get("run_id"),
+        "agent": config.get("agent"),
+        "variant": config.get("variant"),
+        "warm_start_run": config.get("warm_start_run"),
+        "run_group": "warm_start" if config.get("warm_start_run") else "cold_start",
+        "episodes": len(metrics),
+        "successes": sum(1 for row in metrics if row.get("success")),
+        "failures": [{"episode_id": row.get("episode_id"), "case_id": row.get("case_id"), "failure_reason": row.get("failure_reason"), "steps": row.get("steps")} for row in failed_metrics],
+        "step_failures": count_by(steps, "failure_reason", lambda row: row.get("ok") is False and row.get("failure_reason")),
+        "hidden_fact_prompts": sum(1 for row in steps if (row.get("prompt_diagnostics") or {}).get("prompt_hidden_facts")),
+        "llm_parse_errors": sum(1 for row in steps if row.get("llm_parse_error")),
+        "llm_retries": sum(int(row.get("llm_retry_count") or 0) for row in steps),
+        "repeated_action_alerts": sum(1 for row in steps if int(row.get("repeated_action_count") or 0) >= 3),
+        "terminal_step_mismatches": sum(1 for row in steps if row.get("episode_done") is True and row.get("done") is False),
+        "run_path": root_relative(run["run_path"]),
+    }
+
+
+def count_by(rows: list[dict[str, Any]], key: str, predicate) -> dict[str, int]:
+    counts: dict[str, int] = defaultdict(int)
+    for row in rows:
+        if predicate(row):
+            counts[str(row.get(key))] += 1
+    return dict(sorted(counts.items()))
+
+
+def root_relative(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(Path.cwd().resolve())).replace("\\", "/")
+    except ValueError:
+        return str(path).replace("\\", "/")
 
 def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)

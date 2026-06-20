@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
+  <base href="../">
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ExperienceGraph Step 解读器</title>
   <style>
@@ -208,6 +209,15 @@
     .pill.bad { background: var(--bad-soft); color: var(--bad); }
     .pill.warn { background: var(--warn-soft); color: var(--warn); }
     .pill.info { background: var(--info-soft); color: var(--info); }
+    .analysis-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .analysis-card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+    .analysis-card b { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .analysis-card span { font-size: 20px; font-weight: 700; }
+    .figure-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 14px 0; }
+    .figure-grid img { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--panel); }
+    th, td { border: 1px solid var(--line); padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; color: #475467; }
     @media (max-width: 900px) {
       header { align-items: flex-start; flex-wrap: wrap; }
       .file-pill { max-width: 100%; }
@@ -249,6 +259,7 @@ const detail = document.querySelector('#detail');
 const summary = document.querySelector('#summary');
 let rows = [];
 let selected = 0;
+let analysisSummary = null;
 
 const ACTION_ZH = {
   craft: '合成',
@@ -257,7 +268,8 @@ const ACTION_ZH = {
   move_to: '移动',
   inspect: '检查',
   explore: '探索',
-  trade: '交易'
+  trade: '交易',
+  report_impossible: '报告不可解'
 };
 
 const FAILURE_ZH = {
@@ -270,8 +282,22 @@ const FAILURE_ZH = {
   missing_precondition: '动作前置条件不满足',
   insufficient_resource: '资源不足',
   invalid_action: '动作不在环境可接受范围内',
-  malformed_action: '动作格式不符合 schema'
+  malformed_action: '动作格式不符合 schema',
+  village_search_unavailable: '村庄搜索不可用',
+  not_at_village: '当前位置不在村庄',
+  premature_impossible_report: '过早报告不可解',
+  incorrect_impossible_report: '错误报告不可解',
+  step_budget_exhausted: '用完 step 预算仍未完成',
+  no_action: '模型没有给出动作'
 };
+
+const TERMINAL_FAILURE_REASONS = new Set([
+  'unknown_action',
+  'premature_impossible_report',
+  'incorrect_impossible_report',
+  'no_action',
+  'invalid_llm_output'
+]);
 
 drop.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', event => loadFile(event.target.files[0]));
@@ -292,11 +318,21 @@ drop.addEventListener('drop', event => loadFile(event.dataTransfer.files[0]));
 async function loadFile(file) {
   if (!file) return;
   const text = await file.text();
-  rows = parseRows(text)
+  const parsed = parseRows(text);
+  fileName.textContent = file.name;
+  const maybeAnalysis = parsed.length === 1 ? parsed[0] : null;
+  if (maybeAnalysis?.kind === 'stage2_analysis_summary') {
+    analysisSummary = maybeAnalysis;
+    rows = [];
+    selected = 0;
+    renderAnalysis(maybeAnalysis);
+    return;
+  }
+  analysisSummary = null;
+  rows = parsed
     .filter(row => row && (row.step_index !== undefined || row.llm_input_messages || row.action))
     .map((row, index) => ({ ...row, __order: index }));
   rows.sort(compareRows);
-  fileName.textContent = file.name;
   selected = 0;
   render();
 }
@@ -319,6 +355,99 @@ function compareRows(a, b) {
     || Number(a.__order ?? 0) - Number(b.__order ?? 0);
 }
 
+function renderAnalysis(payload) {
+  const runs = payload.main_comparison || [];
+  const diagnostics = payload.run_diagnostics || [];
+  const figures = payload.figures || [];
+  const artifacts = payload.artifacts || {};
+  const successValues = runs.map(row => Number(row.success_rate || 0));
+  const avgSuccess = successValues.length ? successValues.reduce((a, b) => a + b, 0) / successValues.length : 0;
+  const failures = diagnostics.reduce((sum, row) => sum + (row.failures || []).length, 0);
+  const repeated = diagnostics.reduce((sum, row) => sum + Number(row.repeated_action_alerts || 0), 0);
+  summary.innerHTML = `
+    <b>${escapeHtml(payload.analysis_dir || 'analysis')}</b><br>
+    ${runs.length} 个 run · 平均成功率 ${(avgSuccess * 100).toFixed(1)}%
+    <div class="legend">
+      ${statusPill('失败 episode', failures, failures ? 'bad' : 'ok')}
+      ${statusPill('重复动作警告', repeated, repeated ? 'warn' : 'ok')}
+      ${statusPill('分析 JSON', 1, 'info')}
+    </div>
+  `;
+  timeline.innerHTML = diagnostics.map((row, index) => {
+    const failed = (row.failures || []).length;
+    const tone = failed ? 'failed' : '';
+    return `
+      <button class="step ${tone}" data-run-index="${index}">
+        <div class="badge">${index + 1}</div>
+        <div>
+          <div class="step-title">${escapeHtml(row.agent || '')}/${escapeHtml(row.variant || '')}</div>
+          <div class="step-meta">${escapeHtml(row.run_group || 'cold_start')} · ${row.successes || 0}/${row.episodes || 0} 成功 · ${failed} 失败</div>
+          <div class="status-row">${pill(failed ? '有失败' : '无失败', failed ? 'bad' : 'ok')}${pill(`重复 ${row.repeated_action_alerts || 0}`, row.repeated_action_alerts ? 'warn' : 'info')}</div>
+        </div>
+      </button>
+    `;
+  }).join('');
+  timeline.querySelectorAll('[data-run-index]').forEach(button => {
+    button.addEventListener('click', () => renderAnalysisRun(payload, Number(button.dataset.runIndex)));
+  });
+  detail.innerHTML = `
+    <div class="topline">
+      <div>
+        <h2>Stage 2 分析汇总</h2>
+        <p>${escapeHtml(payload.analysis_dir || '')}</p>
+      </div>
+    </div>
+    <div class="analysis-grid">
+      ${analysisCard('Runs', runs.length)}
+      ${analysisCard('平均成功率', `${(avgSuccess * 100).toFixed(1)}%`)}
+      ${analysisCard('失败 episode', failures)}
+    </div>
+    <article class="interpretation">
+      <h3>图表</h3>
+      <div class="figure-grid">
+        ${figures.map(fig => `<figure><img src="${escapeHtml(fig.path)}" alt="${escapeHtml(fig.name)}"><figcaption>${escapeHtml(fig.name)} · ${escapeHtml(fig.path)}</figcaption></figure>`).join('')}
+      </div>
+    </article>
+    ${tableBlock('主结果', runs, ['agent', 'variant', 'run_group', 'episodes_completed', 'success_rate', 'avg_steps_success', 'tokens_per_episode'])}
+    ${tableBlock('运行诊断', diagnostics, ['agent', 'variant', 'run_group', 'successes', 'episodes', 'repeated_action_alerts', 'llm_retries', 'hidden_fact_prompts'])}
+    ${block('Artifacts', artifacts, true)}
+    ${block('完整分析 JSON', payload, false)}
+  `;
+}
+
+function renderAnalysisRun(payload, index) {
+  const row = (payload.run_diagnostics || [])[index];
+  if (!row) return;
+  detail.innerHTML = `
+    <div class="topline">
+      <div>
+        <h2>${escapeHtml(row.agent || '')}/${escapeHtml(row.variant || '')}</h2>
+        <p>${escapeHtml(row.run_id || '')}</p>
+      </div>
+      <div class="status-row">${pill(`${row.successes || 0}/${row.episodes || 0} 成功`, (row.failures || []).length ? 'warn' : 'ok')}</div>
+    </div>
+    <div class="analysis-grid">
+      ${analysisCard('Run group', row.run_group || 'cold_start')}
+      ${analysisCard('重复动作警告', row.repeated_action_alerts || 0)}
+      ${analysisCard('LLM retries', row.llm_retries || 0)}
+    </div>
+    ${tableBlock('失败 episode', row.failures || [], ['episode_id', 'case_id', 'failure_reason', 'steps'])}
+    ${block('Step failures', row.step_failures || {}, true)}
+    ${block('Run diagnostic JSON', row, false)}
+  `;
+}
+
+function analysisCard(label, value) {
+  return `<div class="analysis-card"><b>${escapeHtml(label)}</b><span>${escapeHtml(formatInline(value))}</span></div>`;
+}
+
+function tableBlock(title, data, keys) {
+  const rows = Array.isArray(data) ? data : [];
+  const body = rows.length
+    ? rows.map(row => `<tr>${keys.map(key => `<td>${escapeHtml(formatInline(row[key]))}</td>`).join('')}</tr>`).join('')
+    : `<tr><td colspan="${keys.length}">无记录</td></tr>`;
+  return `<details open><summary>${escapeHtml(title)}</summary><table><thead><tr>${keys.map(key => `<th>${escapeHtml(key)}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></details>`;
+}
 function render() {
   if (!rows.length) {
     summary.innerHTML = '没有识别到 step 记录。请确认文件是 <code>steps.jsonl</code> 或包含 step 对象的 JSON。';
@@ -336,7 +465,8 @@ function render() {
       ${statusPill('成功', stats.done, 'ok')}
       ${statusPill('有效推进', stats.progress, 'info')}
       ${statusPill('无明显推进', stats.stalled, 'warn')}
-      ${statusPill('失败', stats.failed, 'bad')}
+      ${statusPill('终止失败', stats.failed, 'bad')}
+      ${statusPill('可恢复失败', stats.recoverable, 'warn')}
     </div>
   `;
   timeline.innerHTML = '';
@@ -410,7 +540,7 @@ function renderDetail(row, index) {
     ${block('LLM 输入消息', row.llm_input_messages, true)}
     ${block('LLM 解析后输出', row.llm_output, true)}
     ${block('LLM 原始响应', row.llm_raw_response, false)}
-    ${block('动作执行结果', pick(row, ['ok', 'done', 'reward', 'cost', 'failure_reason', 'state_delta', 'revealed_conditions']), true)}
+    ${block('动作执行结果', pick(row, ['ok', 'done', 'episode_done', 'episode_success', 'episode_terminal_reason', 'reward', 'cost', 'failure_reason', 'state_delta', 'revealed_conditions']), true)}
     ${block('完整 step 原始记录', row, false)}
   `;
 }
@@ -465,6 +595,25 @@ function interpretStep(row, allRows, index) {
   };
 }
 
+function isEpisodeTerminal(row) {
+  if (row.episode_done === true) return true;
+  if (row.done === true) return true;
+  return row.ok === false && TERMINAL_FAILURE_REASONS.has(row.failure_reason || row.agent_rationale || '');
+}
+
+function isEpisodeFailure(row) {
+  return isEpisodeTerminal(row) && row.episode_success !== true && row.done !== true;
+}
+
+function isImpossibleAction(row) {
+  return row.action?.name === 'report_impossible';
+}
+
+function impossibleFailureText(reason) {
+  if (reason === 'premature_impossible_report') return '过早 impossible';
+  if (reason === 'incorrect_impossible_report') return '误报 impossible';
+  return translateFailure(reason);
+}
 function buildWhat(row, parsedPrompt, action) {
   const step = row.step_index ?? '?';
   const task = row.task || row.task_id || '未知任务';
@@ -476,16 +625,21 @@ function buildWhat(row, parsedPrompt, action) {
 }
 
 function buildJudgement(row, progress, repeated, env, location) {
+  if (row.done && isImpossibleAction(row)) return '这是正确的不可解报告；环境接受该动作并结束 episode。';
   if (row.done) return '这是终止成功 step，任务已经完成。';
-  if (row.ok === false) return `动作没有被环境接受，因此这一手不对。失败信息是：${translateFailure(row.failure_reason)}。`;
+  if (isEpisodeFailure(row) && isImpossibleAction(row)) return `episode 在这里终止失败：${impossibleFailureText(row.failure_reason)}。这不是环境路线不可行，而是 agent 对当前 case 的判断不对。`;
+  if (isEpisodeFailure(row)) return `episode 在这里终止失败。失败信息是：${translateFailure(row.episode_terminal_reason || row.failure_reason)}。`;
+  if (row.ok === false) return `动作没有被环境接受，但 runner 允许后续 step 修正。失败信息是：${translateFailure(row.failure_reason)}。`;
   if (progress.kind === 'progress') return '动作被环境接受，并且带来了状态变化或新信息，可以算作有效推进。';
-  if (progress.kind === 'stalled' && repeated) return '动作合法，但没有带来新状态；而且它重复了上一步，通常说明 agent 没有利用已经揭示的信息。';
-  if (row.action?.name === 'inspect' && env.village_has_armorer === false) return '动作合法，但村庄是否有 armorer 已经是 false，再检查村庄通常没有意义。';
+  if (progress.kind === 'stalled' && repeated) return '动作合法，但没有带来新状态；而且它重复了上一步，需要关注 agent 是否在重复尝试。';
+  if (row.action?.name === 'inspect' && env.village_has_armorer === false) return '动作合法，但村庄是否有 armorer 已经是 false，再检查村庄通常没有新信息。';
   if (row.action?.name === 'trade' && (location !== 'village' || env.village_has_armorer === false)) return '交易动作看起来不合适：交易需要在 village 且 village_has_armorer=true。';
   return '动作被环境接受，但日志里没有明显状态变化；需要结合后续 step 判断它是否只是中间动作。';
 }
 
 function buildWhy(row, parsedPrompt, failure, repeated) {
+  if (row.done && isImpossibleAction(row)) return '该 case 的 oracle 标记为不可解，report_impossible 是正确终止动作。';
+  if (isEpisodeFailure(row) && isImpossibleAction(row)) return `agent 选择了 report_impossible，但 oracle/环境判定当前任务仍有可行路线，返回 ${failure}。`;
   if (row.ok === false) return `环境根据前置条件拒绝了这个动作。常见原因是位置、资源、工具、hidden fact 或 JSON schema 不满足要求；本条记录给出的原因是 ${failure}。`;
   if (row.done) return '环境把 done 标记为 true，说明这个动作让任务目标达成。';
   if (repeated) return 'LLM 的 prompt 中仍有相同动作可选，但它没有把上一轮揭示的信息转化为停止、换路线或承认不可解。';
@@ -495,7 +649,9 @@ function buildWhy(row, parsedPrompt, failure, repeated) {
 }
 
 function buildNext(row, progress, env, actionName) {
+  if (row.done && isImpossibleAction(row)) return '后续可以检查 agent 是否在更少步数内完成不可解识别，以及这条经验是否进入 memory。';
   if (row.done) return '后续可以检查完整 episode 是否用较少步数完成，以及这个成功路径是否进入 graph 或 baseline memory。';
+  if (isEpisodeFailure(row)) return '这个 step 已经结束 episode；后续重点看 prompt、retrieved memory 和当时 observation，判断为什么 agent 过早停止。';
   if (row.ok === false) return '后续重点看 agent 是否会修正路线；如果下一步仍重复同类失败，说明 prompt 或 memory 没有帮助它理解前置条件。';
   if (row.oracle_solvable === false && env.village_has_armorer === false) return '这个 case 已经显示交易路线不可行。理想表现是停止无效尝试，或明确没有可行路线；若继续 inspect 或 trade，就属于策略层面的失败信号。';
   if (progress.kind === 'stalled') return '后续可以看是否继续选择同一动作；连续无推进 step 会消耗预算，并降低 episode 成功率。';
@@ -504,15 +660,20 @@ function buildNext(row, progress, env, actionName) {
 }
 
 function classifyStatus(row) {
+  if (row.done && isImpossibleAction(row)) return { text: '正确不可解', tone: 'ok', cssClass: 'done' };
   if (row.done) return { text: '任务成功', tone: 'ok', cssClass: 'done' };
-  if (row.ok === false) return { text: '动作失败', tone: 'bad', cssClass: 'failed' };
+  if (isEpisodeFailure(row)) return { text: '任务失败', tone: 'bad', cssClass: 'failed' };
+  if (row.ok === false) return { text: '动作失败', tone: 'warn', cssClass: 'stalled' };
   if (row.ok === true) return { text: '动作合法', tone: 'info', cssClass: '' };
   return { text: '结果未知', tone: 'warn', cssClass: 'stalled' };
 }
 
 function classifyProgress(row, previous, parsedPrompt) {
+  if (row.done && isImpossibleAction(row)) return { kind: 'done', text: '识别不可解', short: '正确 impossible', tone: 'ok', cssClass: 'done' };
   if (row.done) return { kind: 'done', text: '已完成', short: '任务完成', tone: 'ok', cssClass: 'done' };
-  if (row.ok === false) return { kind: 'failed', text: '无推进', short: translateFailure(row.failure_reason), tone: 'bad', cssClass: 'failed' };
+  if (isEpisodeFailure(row) && isImpossibleAction(row)) return { kind: 'terminal_failed', text: impossibleFailureText(row.failure_reason), short: translateFailure(row.failure_reason), tone: 'bad', cssClass: 'failed' };
+  if (isEpisodeFailure(row)) return { kind: 'terminal_failed', text: '终止失败', short: translateFailure(row.episode_terminal_reason || row.failure_reason), tone: 'bad', cssClass: 'failed' };
+  if (row.ok === false) return { kind: 'recoverable_failed', text: '可恢复失败', short: translateFailure(row.failure_reason), tone: 'warn', cssClass: 'stalled' };
   const hasDelta = row.state_delta && Object.keys(row.state_delta).length > 0;
   const hasReveal = Array.isArray(row.revealed_conditions) && row.revealed_conditions.length > 0;
   if (hasDelta || hasReveal) return { kind: 'progress', text: '有效推进', short: hasReveal ? '揭示新条件' : '状态变化', tone: 'info', cssClass: '' };
@@ -549,11 +710,12 @@ function countStatuses(items) {
   return items.reduce((acc, row, index) => {
     const progress = classifyProgress(row, previousComparableStep(row, items, index), parsePrompt(row));
     if (row.done) acc.done += 1;
-    else if (row.ok === false) acc.failed += 1;
+    else if (isEpisodeFailure(row)) acc.failed += 1;
+    else if (row.ok === false) acc.recoverable += 1;
     else if (progress.kind === 'progress') acc.progress += 1;
     else if (progress.kind === 'stalled') acc.stalled += 1;
     return acc;
-  }, { done: 0, progress: 0, stalled: 0, failed: 0 });
+  }, { done: 0, progress: 0, stalled: 0, failed: 0, recoverable: 0 });
 }
 
 function metric(label, value) {
@@ -583,8 +745,10 @@ function formatInline(value) {
 }
 
 function resultLabel(row) {
+  if (row.done && isImpossibleAction(row)) return '正确报告不可解';
   if (row.done) return '任务完成';
-  if (row.ok === false) return `失败：${translateFailure(row.failure_reason)}`;
+  if (isEpisodeFailure(row)) return `终止失败：${translateFailure(row.episode_terminal_reason || row.failure_reason)}`;
+  if (row.ok === false) return `可恢复失败：${translateFailure(row.failure_reason)}`;
   if (row.ok) return '动作被接受';
   return '未知';
 }
@@ -642,3 +806,4 @@ function escapeHtml(value) {
 </script>
 </body>
 </html>
+

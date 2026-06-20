@@ -1,0 +1,218 @@
+version: 0.2-draft
+world: textcraft_mc
+status: draft_not_active
+family: diamond_set
+goal: Obtain a full diamond armor set.
+visible_manual_refs:
+  - diamond_armor_crafting
+  - crafting_table
+  - diamond_mining
+  - armorer_trade
+  - exploration_basics
+required_engine_actions:
+  - craft
+  - gather
+  - mine
+  - move_to
+  - inspect
+  - explore
+  - trade
+  - report_impossible
+minecraft_alignment:
+  - Full diamond armor costs 24 diamonds: helmet 5, chestplate 8, leggings 7, boots 4.
+  - Armorer trade is a deterministic TextCraft simplification, not vanilla trade-table behavior.
+cases:
+  - id: DS_001
+    title: Craft full diamond set from existing materials.
+    difficulty: easy
+    characteristic: direct_success
+    initial_state:
+      inventory: {diamond: 24, emerald: 0, wood: 0, crafting_table: true, pickaxe: none, diamond_helmet: false, diamond_chestplate: false, diamond_leggings: false, diamond_boots: false}
+      environment: {nearby_village: false, nearby_mine: false, mine_search_available: false, village_search_available: false, biome: plains}
+      ambiguous: {}
+      location: base
+    oracle:
+      solvable: true
+      reference_plan: [craft(diamond_helmet), craft(diamond_chestplate), craft(diamond_leggings), craft(diamond_boots)]
+      min_steps: 4
+      expected_strategy: direct_crafting
+    expected_experience: {path_type: crafting, learn: [diamond_set_requires_24_diamonds_and_table]}
+
+  - id: DS_002
+    title: Craft table first, then craft armor.
+    difficulty: easy
+    characteristic: one_missing_prerequisite
+    initial_state:
+      inventory: {diamond: 24, emerald: 0, wood: 4, crafting_table: false, pickaxe: none, diamond_helmet: false, diamond_chestplate: false, diamond_leggings: false, diamond_boots: false}
+      environment: {nearby_village: false, nearby_mine: false, mine_search_available: false, village_search_available: false, biome: plains}
+      ambiguous: {}
+      location: base
+    oracle:
+      solvable: true
+      reference_plan: [craft(crafting_table), craft(diamond_helmet), craft(diamond_chestplate), craft(diamond_leggings), craft(diamond_boots)]
+      min_steps: 5
+      expected_strategy: prerequisite_then_crafting
+    expected_experience: {path_type: crafting, learn: [crafting_table_is_hard_precondition]}
+
+  - id: DS_003
+    title: Not enough diamonds and no resource route.
+    difficulty: easy
+    characteristic: blocked_material
+    initial_state:
+      inventory: {diamond: 12, emerald: 0, wood: 4, crafting_table: true, pickaxe: none, diamond_helmet: false, diamond_chestplate: false, diamond_leggings: false, diamond_boots: false}
+      environment: {nearby_village: false, nearby_mine: false, mine_search_available: false, village_search_available: false, biome: plains}
+      ambiguous: {}
+      location: base
+    oracle:
+      solvable: false
+      reference_plan: [report_impossible(no_resource_access)]
+      expected_failure: insufficient_diamonds_and_no_resource_access
+      expected_strategy: report_impossible_after_visible_routes_checked
+    expected_experience: {path_type: blocked_crafting, learn: [diamond_set_requires_24_diamonds_or_resource_route]}
+
+  - id: DS_004
+    title: Mine diamonds with iron pickaxe, then craft armor.
+    difficulty: medium
+    characteristic: mining_route
+    initial_state:
+      inventory: {diamond: 0, emerald: 0, wood: 4, crafting_table: true, pickaxe: iron, diamond_helmet: false, diamond_chestplate: false, diamond_leggings: false, diamond_boots: false}
+      environment: {nearby_village: false, nearby_mine: true, mine_depth: deep, mine_search_available: false, village_search_available: false, biome: plains}
+      ambiguous: {}
+      location: base
+    oracle:
+      solvable: true
+      reference_plan: [move_to(mine), mine(diamond), mine(diamond), mine(diamond), craft(diamond_helmet), craft(diamond_chestplate), craft(diamond_leggings), craft(diamond_boots)]
+      min_steps: 8
+      expected_strategy: mining
+    expected_experience: {path_type: mining, learn: [mine_diamond_requires_mine_and_iron_pickaxe]}
+
+  - id: DS_005
+    title: Mining route blocked by weak pickaxe.
+    difficulty: medium
+    characteristic: mining_blocked
+    initial_state:
+      inventory: {diamond: 0, emerald: 0, wood: 4, crafting_table: true, pickaxe: stone, diamond_helmet: false, diamond_chestplate: false, diamond_leggings: false, diamond_boots: false}
+      environment: {nearby_village: false, nearby_mine: true, mine_depth: deep, mine_search_available: false, village_search_available: false, biome: plains}
+      ambiguous: {}
+      location: base
+    oracle:
+      solvable: false
+      reference_plan: [report_impossible(missing_required_pickaxe)]
+      expected_failure: missing_required_pickaxe
+      expected_strategy: reject_mining_without_iron_pickaxe
+    expected_experience: {path_type: blocked_mining, learn: [tool.pickaxe_level_gte_iron]}
+
+  - id: DS_006
+    title: Discover hidden mine before mining.
+    difficulty: medium
+    characteristic: hidden_info
+    initial_state:
+      inventory: {diamond: 0, emerald: 0, wood: 4, crafting_table: true, pickaxe: iron, diamond_helmet: false, diamond_chestplate: false, diamond_leggings: false, diamond_boots: false}
+      environment: {nearby_village: false, nearby_mine: unknown, mine_search_available: true, village_search_available: false, biome: plains}
+      hidden_facts: {nearby_mine: true, mine_depth: deep}
+      ambiguous: {nearby_mine: unknown}
+      location: base
+    oracle:
+      solvable: true
+      reference_plan: [explore(mine), move_to(mine), mine(diamond), mine(diamond), mine(diamond), craft(diamond_helmet), craft(diamond_chestplate), craft(diamond_leggings), craft(diamond_boots)]
+      min_steps: 9
+      expected_strategy: explore_then_mine
+    expected_experience: {path_type: mining_with_discovery, learn: [unknown_mine_should_be_explored_before_move_or_mine]}
+
+  - id: DS_007
+    title: Trade full set from known armorer.
+    difficulty: medium
+    characteristic: trading_route
+    initial_state:
+      inventory: {diamond: 0, emerald: 40, wood: 0, crafting_table: false, pickaxe: none, diamond_helmet: false, diamond_chestplate: false, diamond_leggings: false, diamond_boots: false}
+      environment: {nearby_village: true, village_has_armorer: true, nearby_mine: false, mine_search_available: false, village_search_available: false, biome: plains}
+      ambiguous: {}
+      location: base
+    oracle:
+      solvable: true
+      reference_plan: [move_to(village), trade(armorer, emerald, diamond_set)]
+      min_steps: 2
+      expected_strategy: trading
+    expected_experience: {path_type: trading, learn: [armorer_trade_requires_village_armorer_and_40_emeralds]}
+
+  - id: DS_008
+    title: Inspect village before trading when armorer is unknown.
+    difficulty: medium
+    characteristic: inspect_then_trade
+    initial_state:
+      inventory: {diamond: 0, emerald: 40, wood: 0, crafting_table: false, pickaxe: none, diamond_helmet: false, diamond_chestplate: false, diamond_leggings: false, diamond_boots: false}
+      environment: {nearby_village: true, village_has_armorer: unknown, nearby_mine: false, mine_search_available: false, village_search_available: false, biome: plains}
+      hidden_facts: {village_has_armorer: true}
+      ambiguous: {village_has_armorer: unknown}
+      location: base
+    oracle:
+      solvable: true
+      reference_plan: [move_to(village), inspect(village), trade(armorer, emerald, diamond_set)]
+      min_steps: 3
+      expected_strategy: inspect_then_trade
+    expected_experience: {path_type: trading_with_discovery, learn: [unknown_armorer_status_needs_inspection]}
+
+  - id: DS_009
+    title: Inspect village and learn trading is impossible.
+    difficulty: medium
+    characteristic: hidden_negative
+    initial_state:
+      inventory: {diamond: 0, emerald: 40, wood: 0, crafting_table: false, pickaxe: none, diamond_helmet: false, diamond_chestplate: false, diamond_leggings: false, diamond_boots: false}
+      environment: {nearby_village: true, village_has_armorer: unknown, nearby_mine: false, mine_search_available: false, village_search_available: false, biome: plains}
+      hidden_facts: {village_has_armorer: false}
+      ambiguous: {village_has_armorer: unknown}
+      location: base
+    oracle:
+      solvable: false
+      reference_plan: [move_to(village), inspect(village), report_impossible(no_armorer_and_no_mine)]
+      expected_failure: no_armorer_and_no_mine
+      expected_strategy: inspect_then_report
+    expected_experience: {path_type: blocked_trading, learn: [no_armorer_blocks_trading_route]}
+
+  - id: DS_010
+    title: Trade one piece, then mine diamonds for remaining pieces.
+    difficulty: hard
+    characteristic: mixed_trade_then_mine
+    initial_state:
+      inventory: {diamond: 0, emerald: 10, wood: 4, crafting_table: true, pickaxe: iron, diamond_helmet: false, diamond_chestplate: false, diamond_leggings: false, diamond_boots: false}
+      environment: {nearby_village: true, village_has_armorer: true, nearby_mine: true, mine_depth: shallow, mine_search_available: false, village_search_available: false, biome: plains}
+      ambiguous: {}
+      location: base
+    oracle:
+      solvable: true
+      reference_plan: [move_to(village), trade(armorer, emerald, diamond_boots), move_to(mine), mine(diamond), mine(diamond), mine(diamond), craft(diamond_helmet), craft(diamond_chestplate), craft(diamond_leggings)]
+      min_steps: 9
+      expected_strategy: mixed_trade_then_mine
+    expected_experience: {path_type: mixed, learn: [partial_trade_can_reduce_diamond_requirement]}
+
+  - id: DS_011
+    title: Mine is capacity-limited, then trade missing pieces.
+    difficulty: hard
+    characteristic: mixed_mine_then_trade
+    initial_state:
+      inventory: {diamond: 0, emerald: 20, wood: 4, crafting_table: true, pickaxe: iron, diamond_helmet: false, diamond_chestplate: false, diamond_leggings: false, diamond_boots: false}
+      environment: {nearby_village: true, village_has_armorer: true, nearby_mine: true, mine_depth: shallow, mine_diamond_capacity: 16, mine_search_available: false, village_search_available: false, biome: plains}
+      ambiguous: {}
+      location: base
+    oracle:
+      solvable: true
+      reference_plan: [move_to(mine), mine(diamond), mine(diamond), move_to(village), trade(armorer, emerald, diamond_chestplate), trade(armorer, emerald, diamond_boots), craft(diamond_helmet), craft(diamond_leggings)]
+      min_steps: 8
+      expected_strategy: mixed_mine_then_trade
+    expected_experience: {path_type: mixed, learn: [capacity_limited_mine_should_trigger_path_switch]}
+
+  - id: DS_012
+    title: No diamond armor route exists.
+    difficulty: impossible
+    characteristic: no_viable_route
+    initial_state:
+      inventory: {diamond: 0, emerald: 0, wood: 4, crafting_table: true, pickaxe: iron, diamond_helmet: false, diamond_chestplate: false, diamond_leggings: false, diamond_boots: false}
+      environment: {nearby_village: false, nearby_mine: false, mine_search_available: false, village_search_available: false, biome: plains}
+      ambiguous: {}
+      location: base
+    oracle:
+      solvable: false
+      reference_plan: [report_impossible(no_viable_plan)]
+      expected_failure: no_resource_access
+      expected_strategy: report_impossible
+    expected_experience: {path_type: impossible, learn: [no_resource_route_for_diamond_set]}

@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import random
+import shutil
 import time
 from pathlib import Path
 from typing import Any
@@ -53,6 +54,7 @@ CONFIG_COMPARE_KEYS = [
     "llm_retries",
     "continue_after_env_failure",
     "cross_task_mode",
+    "warm_start_run",
 ]
 EPISODE_SCOPED_LOGS = (
     "steps.jsonl",
@@ -133,6 +135,7 @@ def main() -> None:
     parser.add_argument("--allow-config-mismatch", action="store_true")
     parser.add_argument("--run-dir", default=os.getenv("EXPERIENCE_GRAPH_RUN_DIR", "runs"))
     parser.add_argument("--run-id", default=None)
+    parser.add_argument("--warm-start-run", default=None, help="Existing run id or path whose graph/memory files seed this new run.")
     args = parser.parse_args()
 
     run_id = args.run_id or build_run_id(args)
@@ -165,9 +168,12 @@ def main() -> None:
     else:
         config_path.write_text(yaml.safe_dump(config, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
+    if args.warm_start_run and not args.resume:
+        copy_warm_start_files(resolve_warm_start_path(args.warm_start_run, Path(args.run_dir)), run_dir)
+
     plans = {case_id: env.cases[case_id]["oracle"].get("reference_plan", []) for case_id in env.cases}
     agent = build_agent(args.agent, plans, run_dir, effective_llm_provider, effective_llm_model, variant_config, args.llm_max_tokens, args.llm_retry_max_tokens, args.llm_retries)
-    store = JsonGraphStore(run_dir, load_existing=args.resume)
+    store = JsonGraphStore(run_dir, load_existing=args.resume or bool(args.warm_start_run))
     organizer = GraphOrganizer(
         store,
         min_attempts_for_dormant=args.min_attempts_for_dormant,
@@ -263,6 +269,37 @@ def main() -> None:
             break
     print(f"Run written to {run_dir}")
 
+
+
+
+def resolve_warm_start_path(value: str, run_dir: Path) -> Path:
+    path = Path(value)
+    if not path.exists():
+        path = run_dir / value
+    if not path.exists() or not path.is_dir():
+        raise FileNotFoundError(f"Warm-start run not found: {value}")
+    return path
+
+
+def copy_warm_start_files(source_run: Path, target_run: Path) -> None:
+    names = [
+        "graph_nodes.jsonl",
+        "graph_edges.jsonl",
+        "path_records.jsonl",
+        "merge_decisions.jsonl",
+        "agent_memory_reflexion.jsonl",
+        "agent_memory_skill_library.jsonl",
+        "agent_memory_vector_trajectory.jsonl",
+    ]
+    copied = []
+    for name in names:
+        source = source_run / name
+        target = target_run / name
+        if not source.exists() or target.exists():
+            continue
+        shutil.copyfile(source, target)
+        copied.append(name)
+    print(f"Warm-started {target_run.name} from {source_run}: {copied or 'no reusable files found'}")
 
 def build_run_id(args: argparse.Namespace) -> str:
     timestamp = time.strftime("run_%Y%m%d_%H%M%S")
@@ -369,6 +406,7 @@ def build_config(args: argparse.Namespace, run_id: str, case_ids: list[str], var
         "input_price_per_million_rmb": args.input_price_per_million_rmb,
         "output_price_per_million_rmb": args.output_price_per_million_rmb,
         "supported_agents": AGENTS,
+        "warm_start_run": args.warm_start_run,
     }
 
 

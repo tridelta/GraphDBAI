@@ -122,6 +122,9 @@ class EpisodeRunner:
                         "agent_confidence": output.confidence,
                         "ok": False,
                         "done": False,
+                        "episode_done": True,
+                        "episode_success": False,
+                        "episode_terminal_reason": failure_reason,
                         "failure_reason": failure_reason,
                         "oracle_failure_reason": oracle_failure_reason,
                         "repeated_action_count": 0,
@@ -145,6 +148,12 @@ class EpisodeRunner:
             action_history.append(action_label)
             before = observation
             result = self.env.step(output.action)
+            episode_terminal = result.done or step_index >= self.max_steps - 1 or (
+                not result.ok and not self._should_continue_after_failure(result.failure_reason, step_index)
+            )
+            episode_terminal_reason = None
+            if episode_terminal and not result.done:
+                episode_terminal_reason = result.failure_reason or "step_budget_exhausted"
             observation = result.observation
             trajectory.append(
                 StepRecord(
@@ -173,6 +182,9 @@ class EpisodeRunner:
                     "agent_confidence": output.confidence,
                     "ok": result.ok,
                     "done": result.done,
+                    "episode_done": episode_terminal,
+                    "episode_success": bool(result.done),
+                    "episode_terminal_reason": episode_terminal_reason,
                     "reward": result.reward,
                     "cost": result.cost,
                     "failure_reason": result.failure_reason,
@@ -200,7 +212,7 @@ class EpisodeRunner:
                 break
             if not result.ok:
                 failure_reason = result.failure_reason
-                if self._should_continue_after_failure(result.failure_reason, step_index):
+                if not episode_terminal:
                     continue
                 break
         if not success and failure_reason is None:
@@ -365,3 +377,4 @@ class EpisodeRunner:
     def _stable_hash(self, payload: Any) -> str:
         text = json.dumps(to_jsonable(payload), ensure_ascii=False, sort_keys=True)
         return hashlib.sha1(text.encode("utf-8")).hexdigest()[:12]
+

@@ -1,0 +1,95 @@
+version: 0.2-draft
+world: textcraft_mc
+status: draft_not_active
+family: eye_of_ender
+goal: Craft an eye of ender.
+visible_manual_refs: [eye_of_ender_crafting, ender_pearl, blaze_powder, nether_fortress, villager_trade]
+required_engine_actions: [craft, fight, trade, move_to, explore, inspect, loot, wait, report_impossible]
+minecraft_alignment:
+  - Vanilla eye of ender uses ender pearl and blaze powder.
+  - TextCraft simplifies mob encounters and villager offers into deterministic action outcomes.
+cases:
+  - id: EO_001
+    title: Craft eye from existing components.
+    difficulty: easy
+    characteristic: direct_success
+    initial_state: {inventory: {ender_pearl: 1, blaze_powder: 1, blaze_rod: 0, emerald: 0, eye_of_ender: false}, environment: {nearby_fortress: false, nearby_village: false, enderman_route_available: false}, ambiguous: {}, location: base}
+    oracle: {solvable: true, reference_plan: [craft(eye_of_ender)], min_steps: 1, expected_strategy: direct_crafting}
+    expected_experience: {path_type: crafting, learn: [eye_of_ender_requires_pearl_and_blaze_powder]}
+  - id: EO_002
+    title: Craft blaze powder from blaze rod.
+    difficulty: easy
+    characteristic: craft_blaze_powder
+    initial_state: {inventory: {ender_pearl: 1, blaze_powder: 0, blaze_rod: 1, emerald: 0, eye_of_ender: false}, environment: {nearby_fortress: false, nearby_village: false}, ambiguous: {}, location: base}
+    oracle: {solvable: true, reference_plan: [craft(blaze_powder), craft(eye_of_ender)], min_steps: 2, expected_strategy: craft_component_then_eye}
+    expected_experience: {path_type: component_crafting, learn: [blaze_rod_can_be_crafted_to_blaze_powder]}
+  - id: EO_003
+    title: Trade pearl from cleric.
+    difficulty: easy
+    characteristic: trade_pearl
+    initial_state: {inventory: {ender_pearl: 0, blaze_powder: 1, emerald: 5, eye_of_ender: false}, environment: {nearby_village: true, village_has_cleric: true, nearby_fortress: false}, ambiguous: {}, location: base}
+    oracle: {solvable: true, reference_plan: [move_to(village), trade(cleric, emerald, ender_pearl), craft(eye_of_ender)], min_steps: 3, expected_strategy: trade_then_craft}
+    expected_experience: {path_type: trading_crafting, learn: [cleric_can_supply_ender_pearl_in_textcraft]}
+  - id: EO_004
+    title: Fight enderman for pearl.
+    difficulty: medium
+    characteristic: fight_enderman
+    initial_state: {inventory: {ender_pearl: 0, blaze_powder: 1, emerald: 0, eye_of_ender: false}, environment: {enderman_route_available: true, nighttime: true, nearby_village: false, nearby_fortress: false}, ambiguous: {}, location: base}
+    oracle: {solvable: true, reference_plan: [fight(enderman), craft(eye_of_ender)], min_steps: 2, expected_strategy: combat_for_pearl}
+    expected_experience: {path_type: combat_crafting, learn: [ender_pearl_can_come_from_enderman_route]}
+  - id: EO_005
+    title: Get blaze powder from fortress.
+    difficulty: medium
+    characteristic: get_blaze_powder
+    initial_state: {inventory: {ender_pearl: 1, blaze_powder: 0, blaze_rod: 0, eye_of_ender: false}, environment: {nearby_fortress: true, fortress_has_blaze: true, nearby_village: false}, ambiguous: {}, location: base}
+    oracle: {solvable: true, reference_plan: [move_to(fortress), fight(blaze), craft(blaze_powder), craft(eye_of_ender)], min_steps: 4, expected_strategy: fortress_blaze_route}
+    expected_experience: {path_type: combat_crafting, learn: [blaze_powder_route_requires_fortress_or_blaze_source]}
+  - id: EO_006
+    title: Discover hidden fortress for blaze powder.
+    difficulty: medium
+    characteristic: hidden_fortress
+    initial_state: {inventory: {ender_pearl: 1, blaze_powder: 0, blaze_rod: 0, eye_of_ender: false}, environment: {nearby_fortress: unknown, nether_search_available: true, nearby_village: false}, hidden_facts: {nearby_fortress: true, fortress_has_blaze: true}, ambiguous: {nearby_fortress: unknown}, location: base}
+    oracle: {solvable: true, reference_plan: [explore(fortress), move_to(fortress), fight(blaze), craft(blaze_powder), craft(eye_of_ender)], min_steps: 5, expected_strategy: explore_then_blaze}
+    expected_experience: {path_type: discovery_combat_crafting, learn: [unknown_fortress_should_be_explored_when_blaze_powder_missing]}
+  - id: EO_007
+    title: Inspect village for cleric trade.
+    difficulty: medium
+    characteristic: hidden_cleric
+    initial_state: {inventory: {ender_pearl: 0, blaze_powder: 1, emerald: 5, eye_of_ender: false}, environment: {nearby_village: true, village_has_cleric: unknown, nearby_fortress: false}, hidden_facts: {village_has_cleric: true}, ambiguous: {village_has_cleric: unknown}, location: base}
+    oracle: {solvable: true, reference_plan: [move_to(village), inspect(village), trade(cleric, emerald, ender_pearl), craft(eye_of_ender)], min_steps: 4, expected_strategy: inspect_then_trade}
+    expected_experience: {path_type: trading_with_discovery, learn: [unknown_cleric_status_needs_inspection]}
+  - id: EO_008
+    title: No pearl route exists.
+    difficulty: medium
+    characteristic: no_pearl
+    initial_state: {inventory: {ender_pearl: 0, blaze_powder: 1, emerald: 0, eye_of_ender: false}, environment: {enderman_route_available: false, nearby_village: false, pearl_loot_available: false}, ambiguous: {}, location: base}
+    oracle: {solvable: false, reference_plan: [report_impossible(no_ender_pearl_source)], expected_failure: missing_ender_pearl, expected_strategy: report_impossible}
+    expected_experience: {path_type: blocked_crafting, learn: [blaze_powder_alone_is_insufficient]}
+  - id: EO_009
+    title: Combine fortress and enderman routes.
+    difficulty: hard
+    characteristic: mixed_fortress_and_enderman
+    initial_state: {inventory: {ender_pearl: 0, blaze_powder: 0, blaze_rod: 0, eye_of_ender: false}, environment: {nearby_fortress: true, fortress_has_blaze: true, enderman_route_available: true, nighttime: false}, ambiguous: {}, location: base}
+    oracle: {solvable: true, reference_plan: [move_to(fortress), fight(blaze), craft(blaze_powder), wait(night), fight(enderman), craft(eye_of_ender)], min_steps: 6, expected_strategy: mixed_combat_routes}
+    expected_experience: {path_type: mixed, learn: [eye_task_can_require_two_independent_mob_routes]}
+  - id: EO_010
+    title: Cleric absent, switch to enderman route.
+    difficulty: hard
+    characteristic: deceptive_village
+    initial_state: {inventory: {ender_pearl: 0, blaze_powder: 1, emerald: 5, eye_of_ender: false}, environment: {nearby_village: true, village_has_cleric: unknown, enderman_route_available: true, nighttime: false}, hidden_facts: {village_has_cleric: false}, ambiguous: {village_has_cleric: unknown}, location: base}
+    oracle: {solvable: true, reference_plan: [move_to(village), inspect(village), wait(night), fight(enderman), craft(eye_of_ender)], min_steps: 5, expected_strategy: switch_trade_to_combat}
+    expected_experience: {path_type: path_switching, learn: [failed_cleric_route_should_trigger_enderman_route]}
+  - id: EO_011
+    title: Hidden routes are both unavailable.
+    difficulty: hard
+    characteristic: hidden_negative
+    initial_state: {inventory: {ender_pearl: 0, blaze_powder: 0, emerald: 5, eye_of_ender: false}, environment: {nearby_fortress: unknown, nether_search_available: true, nearby_village: true, village_has_cleric: unknown, enderman_route_available: false}, hidden_facts: {nearby_fortress: false, village_has_cleric: false}, ambiguous: {nearby_fortress: unknown, village_has_cleric: unknown}, location: base}
+    oracle: {solvable: false, reference_plan: [explore(fortress), move_to(village), inspect(village), report_impossible(no_blaze_or_trade_route)], expected_failure: missing_eye_components, expected_strategy: explore_inspect_then_report}
+    expected_experience: {path_type: impossible_after_search, learn: [multiple_hidden_negative_results_can_justify_report]}
+  - id: EO_012
+    title: No eye of ender route exists.
+    difficulty: impossible
+    characteristic: no_viable_route
+    initial_state: {inventory: {ender_pearl: 0, blaze_powder: 0, blaze_rod: 0, emerald: 0, eye_of_ender: false}, environment: {nearby_fortress: false, nearby_village: false, enderman_route_available: false, nether_search_available: false}, ambiguous: {}, location: base}
+    oracle: {solvable: false, reference_plan: [report_impossible(no_viable_plan)], expected_failure: missing_eye_components, expected_strategy: report_impossible}
+    expected_experience: {path_type: impossible, learn: [eye_of_ender_needs_pearl_and_blaze_powder_routes]}

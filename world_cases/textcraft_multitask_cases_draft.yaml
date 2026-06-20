@@ -1,0 +1,158 @@
+version: 0.2-draft
+world: textcraft_mc
+status: draft_not_active
+schema: compact_task_family_case_blueprint
+active_suite: world_cases/textcraft_cases.yaml
+field_notes:
+  d: difficulty
+  c: characteristic
+  plan: oracle reference plan sketch
+notes:
+  - This draft is not read by the current runner.
+  - Each family has task-local visible_manual_refs so unrelated recipes stay out of prompts.
+  - Promote cases only after TextCraftAdapter is task-aware and scripted oracle plans pass.
+
+task_families:
+  - id: diamond_set
+    goal: Obtain a full diamond armor set.
+    visible_manual_refs: [diamond_armor_crafting, crafting_table, diamond_mining, armorer_trade, exploration_basics]
+    required_engine_actions: [craft, gather, mine, move_to, inspect, explore, trade, report_impossible]
+    cases:
+      - {id: DS_001, d: easy, c: direct_success, setup: 24 diamonds and table, plan: craft all four armor pieces, solvable: true}
+      - {id: DS_002, d: easy, c: missing_table, setup: 24 diamonds and 4 wood, plan: craft table then armor, solvable: true}
+      - {id: DS_003, d: easy, c: blocked_material, setup: 12 diamonds and no resource access, plan: report impossible, solvable: false}
+      - {id: DS_004, d: medium, c: mining_route, setup: iron pickaxe and known deep mine, plan: mine 3 times then craft armor, solvable: true}
+      - {id: DS_005, d: medium, c: mining_blocked, setup: stone pickaxe and known mine, plan: report missing pickaxe, solvable: false}
+      - {id: DS_006, d: medium, c: hidden_mine, setup: mine unknown with search available, plan: explore mine then mine and craft, solvable: true}
+      - {id: DS_007, d: medium, c: trading_route, setup: known armorer and 40 emeralds, plan: move to village then trade set, solvable: true}
+      - {id: DS_008, d: medium, c: inspect_then_trade, setup: armorer unknown and 40 emeralds, plan: inspect village then trade set, solvable: true}
+      - {id: DS_009, d: medium, c: hidden_negative, setup: village has no armorer and no mine, plan: inspect then report impossible, solvable: false}
+      - {id: DS_010, d: hard, c: mixed_trade_then_mine, setup: 10 emeralds plus mine, plan: trade one piece then mine and craft rest, solvable: true}
+      - {id: DS_011, d: hard, c: mixed_mine_then_trade, setup: mine capacity 16 and 20 emeralds, plan: mine partial diamonds then trade missing pieces, solvable: true}
+      - {id: DS_012, d: impossible, c: no_route, setup: no diamonds mine village or search, plan: report impossible, solvable: false}
+
+  - id: golden_apple
+    goal: Obtain a golden apple.
+    visible_manual_refs: [golden_apple_crafting, apple_gathering, gold_mining, furnace_smelting, loot_chests]
+    required_engine_actions: [craft, gather, mine, smelt, move_to, explore, inspect, loot, trade, report_impossible]
+    cases:
+      - {id: GA_001, d: easy, c: direct_success, setup: apple and 8 gold ingots, plan: craft golden apple, solvable: true}
+      - {id: GA_002, d: easy, c: missing_apple, setup: 8 gold ingots and forest, plan: gather apple then craft, solvable: true}
+      - {id: GA_003, d: easy, c: smelt_gold, setup: apple gold ore furnace fuel, plan: smelt ore then craft, solvable: true}
+      - {id: GA_004, d: medium, c: mine_gold, setup: apple iron pickaxe gold mine, plan: mine gold ore smelt craft, solvable: true}
+      - {id: GA_005, d: medium, c: hidden_gold_mine, setup: mine unknown with search available, plan: explore mine then mine smelt craft, solvable: true}
+      - {id: GA_006, d: medium, c: loot_route, setup: dungeon chest contents unknown, plan: inspect chest then loot golden apple, solvable: true}
+      - {id: GA_007, d: medium, c: trade_apple, setup: farmer village gold ingots emeralds no apple, plan: trade apple then craft, solvable: true}
+      - {id: GA_008, d: medium, c: wrong_tool_blocked, setup: apple stone pickaxe gold mine, plan: report missing pickaxe, solvable: false}
+      - {id: GA_009, d: hard, c: deceptive_loot, setup: chest lacks golden apple but mine exists, plan: inspect chest then switch to mining route, solvable: true}
+      - {id: GA_010, d: hard, c: multi_resource, setup: no apple and no gold ingots, plan: gather apple mine gold smelt craft, solvable: true}
+      - {id: GA_011, d: hard, c: limited_mine_then_trade, setup: mine yields 4 gold ingots farmer has gold trade, plan: mine partial gold then trade extra and craft, solvable: true}
+      - {id: GA_012, d: impossible, c: no_route, setup: no apple gold loot or trade, plan: report impossible, solvable: false}
+
+  - id: nether_portal
+    goal: Build and light a Nether portal.
+    visible_manual_refs: [portal_frame, obsidian_mining, lava_water_casting, flint_and_steel, ruined_portal_repair]
+    required_engine_actions: [mine, gather, craft, smelt, place, cast, ignite, move_to, explore, inspect, loot, report_impossible]
+    cases:
+      - {id: NP_001, d: easy, c: direct_success, setup: 10 obsidian and flint_and_steel, plan: place frame then ignite, solvable: true}
+      - {id: NP_002, d: easy, c: craft_igniter, setup: 10 obsidian flint iron ingot, plan: craft flint_and_steel then ignite portal, solvable: true}
+      - {id: NP_003, d: easy, c: repair_ruined_portal, setup: ruined portal missing 2 obsidian, plan: place missing obsidian then ignite, solvable: true}
+      - {id: NP_004, d: medium, c: mine_obsidian, setup: diamond pickaxe lava pool water, plan: cast obsidian mine place frame ignite, solvable: true}
+      - {id: NP_005, d: medium, c: hidden_ruined_portal, setup: ruined portal unknown with search available, plan: explore inspect repair ignite, solvable: true}
+      - {id: NP_006, d: medium, c: missing_igniter_sources_available, setup: obsidian gravel iron ore, plan: gather flint smelt iron craft igniter ignite, solvable: true}
+      - {id: NP_007, d: medium, c: wrong_tool_blocked, setup: lava water iron pickaxe no casting route, plan: report no obsidian route, solvable: false}
+      - {id: NP_008, d: medium, c: casting_without_pickaxe, setup: lava source water bucket flint_and_steel, plan: cast frame then ignite, solvable: true}
+      - {id: NP_009, d: hard, c: deceptive_ruined_portal, setup: visible portal too broken but lava route exists, plan: inspect portal then switch to casting, solvable: true}
+      - {id: NP_010, d: hard, c: repair_and_craft_igniter, setup: portal missing obsidian and no igniter, plan: repair frame craft igniter ignite, solvable: true}
+      - {id: NP_011, d: hard, c: hidden_negative, setup: ruined portal and lava searches both fail, plan: explore both then report impossible, solvable: false}
+      - {id: NP_012, d: impossible, c: no_route, setup: no obsidian lava ruined portal iron or flint, plan: report impossible, solvable: false}
+
+  - id: enchant_pickaxe
+    goal: Obtain an enchanted pickaxe.
+    visible_manual_refs: [enchanting_table, lapis_lazuli, experience_levels, bookshelves, anvil_book_route]
+    required_engine_actions: [craft, mine, gather, place, enchant, trade, loot, fight, use_anvil, report_impossible]
+    cases:
+      - {id: EP_001, d: easy, c: direct_success, setup: table lapis XP pickaxe, plan: enchant pickaxe, solvable: true}
+      - {id: EP_002, d: easy, c: missing_lapis, setup: table XP lapis mine nearby, plan: mine lapis then enchant, solvable: true}
+      - {id: EP_003, d: easy, c: missing_xp, setup: table lapis mob route, plan: gain XP then enchant, solvable: true}
+      - {id: EP_004, d: medium, c: craft_table, setup: book diamonds obsidian lapis XP, plan: craft table place enchant, solvable: true}
+      - {id: EP_005, d: medium, c: bookshelf_quality, setup: low enchant possible high-level needs shelves, plan: craft/place bookshelf then enchant, solvable: true}
+      - {id: EP_006, d: medium, c: librarian_book, setup: librarian offers book anvil available, plan: trade enchanted book then use anvil, solvable: true}
+      - {id: EP_007, d: medium, c: hidden_librarian, setup: village librarian unknown no table, plan: inspect village trade book use anvil, solvable: true}
+      - {id: EP_008, d: medium, c: no_lapis_route, setup: table XP no lapis source no book route, plan: report impossible, solvable: false}
+      - {id: EP_009, d: hard, c: mixed_table_build, setup: need obsidian lapis XP before crafting table, plan: mine resources gain XP craft table enchant, solvable: true}
+      - {id: EP_010, d: hard, c: deceptive_librarian, setup: librarian absent but table route exists, plan: inspect village then switch to table route, solvable: true}
+      - {id: EP_011, d: hard, c: no_xp, setup: table lapis no XP source no book route, plan: report impossible, solvable: false}
+      - {id: EP_012, d: impossible, c: no_route, setup: no table materials village loot or XP, plan: report impossible, solvable: false}
+
+  - id: fire_resistance_potion
+    goal: Brew a potion of fire resistance.
+    visible_manual_refs: [brewing_stand, blaze_powder, awkward_potion, magma_cream, water_bottle]
+    required_engine_actions: [craft, brew, fill, gather, fight, move_to, explore, inspect, loot, trade, report_impossible]
+    cases:
+      - {id: FR_001, d: easy, c: direct_success, setup: stand blaze powder water bottle nether wart magma cream, plan: brew awkward then fire resistance, solvable: true}
+      - {id: FR_002, d: easy, c: fill_bottle, setup: empty bottle water source ingredients, plan: fill bottle then brew, solvable: true}
+      - {id: FR_003, d: easy, c: craft_magma_cream, setup: slimeball blaze powder no magma cream, plan: craft magma cream then brew, solvable: true}
+      - {id: FR_004, d: medium, c: get_blaze_powder, setup: missing blaze powder fortress reachable, plan: fight blaze craft powder brew, solvable: true}
+      - {id: FR_005, d: medium, c: gather_nether_wart, setup: fortress has wart other items ready, plan: gather wart then brew, solvable: true}
+      - {id: FR_006, d: medium, c: hidden_fortress, setup: fortress unknown with nether search, plan: explore fortress gather wart fight blaze brew, solvable: true}
+      - {id: FR_007, d: medium, c: loot_route, setup: bastion chest contents unknown, plan: inspect chest loot potion, solvable: true}
+      - {id: FR_008, d: medium, c: no_stand, setup: all ingredients but no stand or blaze rod route, plan: report impossible, solvable: false}
+      - {id: FR_009, d: hard, c: deceptive_chest, setup: chest lacks potion but brewing route exists, plan: inspect chest then brew full route, solvable: true}
+      - {id: FR_010, d: hard, c: full_chain, setup: only portal access and empty bottles, plan: fill bottle gather wart fight mobs craft cream brew, solvable: true}
+      - {id: FR_011, d: hard, c: no_wart_after_search, setup: fortress exists but no wart no loot, plan: inspect fortress then report impossible, solvable: false}
+      - {id: FR_012, d: impossible, c: no_route, setup: no stand Nether access or loot, plan: report impossible, solvable: false}
+
+  - id: cure_zombie_villager
+    goal: Cure a zombie villager.
+    visible_manual_refs: [zombie_villager_cure, golden_apple_crafting, weakness_effect, igloo_basement, brewing_weakness]
+    required_engine_actions: [craft, brew, throw, use, wait, cure, explore, inspect, loot, move_to, gather, mine, smelt, report_impossible]
+    cases:
+      - {id: ZV_001, d: easy, c: direct_success, setup: zombie villager golden apple splash weakness, plan: throw weakness use apple wait, solvable: true}
+      - {id: ZV_002, d: easy, c: craft_golden_apple, setup: apple gold weakness potion, plan: craft apple then cure, solvable: true}
+      - {id: ZV_003, d: easy, c: igloo_supplies, setup: known igloo basement has cure supplies, plan: loot supplies then cure, solvable: true}
+      - {id: ZV_004, d: medium, c: hidden_igloo, setup: igloo unknown with snow search, plan: explore igloo loot supplies cure, solvable: true}
+      - {id: ZV_005, d: medium, c: brew_weakness, setup: golden apple and weakness brewing materials, plan: brew weakness make splash cure, solvable: true}
+      - {id: ZV_006, d: medium, c: missing_apple, setup: gold orchard weakness potion, plan: gather apple craft golden apple cure, solvable: true}
+      - {id: ZV_007, d: medium, c: hidden_zombie_villager, setup: cure items ready zombie villager unknown, plan: inspect village then cure, solvable: true}
+      - {id: ZV_008, d: medium, c: no_weakness, setup: golden apple zombie villager no weakness route, plan: report impossible, solvable: false}
+      - {id: ZV_009, d: hard, c: deceptive_igloo, setup: igloo lacks potion but brewing route exists, plan: inspect igloo then brew weakness craft apple cure, solvable: true}
+      - {id: ZV_010, d: hard, c: full_chain, setup: need apple gold weakness and villager confirmation, plan: gather mine smelt craft brew inspect cure, solvable: true}
+      - {id: ZV_011, d: hard, c: no_zombie_villager, setup: cure items ready zombie villager absent, plan: inspect then report impossible, solvable: false}
+      - {id: ZV_012, d: impossible, c: no_route, setup: no apple weakness igloo or zombie villager, plan: report impossible, solvable: false}
+
+  - id: cake
+    goal: Craft a cake.
+    visible_manual_refs: [cake_crafting, milk_bucket, wheat_farming, sugar_cane, egg_collection]
+    required_engine_actions: [gather, milk, craft, plant, harvest, move_to, explore, inspect, trade, wait, report_impossible]
+    cases:
+      - {id: CK_001, d: easy, c: direct_success, setup: milk sugar wheat egg, plan: craft cake, solvable: true}
+      - {id: CK_002, d: easy, c: missing_milk, setup: cow buckets sugar wheat egg, plan: milk cow then craft, solvable: true}
+      - {id: CK_003, d: easy, c: gather_sugar, setup: sugar cane plus other ingredients, plan: gather cane craft sugar cake, solvable: true}
+      - {id: CK_004, d: medium, c: farm_wheat, setup: seeds farmland water other ingredients, plan: plant harvest wheat craft, solvable: true}
+      - {id: CK_005, d: medium, c: egg_wait, setup: chicken no egg other ingredients, plan: wait egg gather craft, solvable: true}
+      - {id: CK_006, d: medium, c: hidden_cow, setup: cow unknown pasture search buckets ready, plan: explore pasture milk cow craft, solvable: true}
+      - {id: CK_007, d: medium, c: farmer_trade, setup: farmer village emeralds missing wheat sugar, plan: trade wheat sugar craft, solvable: true}
+      - {id: CK_008, d: medium, c: no_bucket, setup: cows but no buckets or iron route, plan: report impossible, solvable: false}
+      - {id: CK_009, d: hard, c: multi_resource, setup: need cow wheat sugar egg, plan: explore milk farm gather sugar wait egg craft, solvable: true}
+      - {id: CK_010, d: hard, c: deceptive_village, setup: farmer lacks wheat trade but farm route exists, plan: inspect farmer then farm and craft, solvable: true}
+      - {id: CK_011, d: hard, c: no_egg, setup: chicken search fails and no trade, plan: explore chicken then report impossible, solvable: false}
+      - {id: CK_012, d: impossible, c: no_route, setup: no cow bucket wheat sugar egg or trade, plan: report impossible, solvable: false}
+
+  - id: eye_of_ender
+    goal: Craft an eye of ender.
+    visible_manual_refs: [eye_of_ender_crafting, ender_pearl, blaze_powder, nether_fortress, villager_trade]
+    required_engine_actions: [craft, fight, trade, move_to, explore, inspect, loot, wait, report_impossible]
+    cases:
+      - {id: EO_001, d: easy, c: direct_success, setup: ender pearl and blaze powder, plan: craft eye of ender, solvable: true}
+      - {id: EO_002, d: easy, c: craft_blaze_powder, setup: ender pearl and blaze rod, plan: craft blaze powder then eye, solvable: true}
+      - {id: EO_003, d: easy, c: trade_pearl, setup: cleric village emeralds blaze powder, plan: trade pearl craft eye, solvable: true}
+      - {id: EO_004, d: medium, c: fight_enderman, setup: nighttime enderman route blaze powder, plan: fight enderman craft eye, solvable: true}
+      - {id: EO_005, d: medium, c: get_blaze_powder, setup: ender pearl fortress reachable, plan: fight blaze craft powder craft eye, solvable: true}
+      - {id: EO_006, d: medium, c: hidden_fortress, setup: fortress unknown nether search, plan: explore fortress fight blaze craft eye, solvable: true}
+      - {id: EO_007, d: medium, c: hidden_cleric, setup: village cleric unknown blaze powder, plan: inspect village trade pearl craft, solvable: true}
+      - {id: EO_008, d: medium, c: no_pearl, setup: blaze powder but no pearl route, plan: report impossible, solvable: false}
+      - {id: EO_009, d: hard, c: mixed_fortress_and_enderman, setup: no components fortress and hunt routes, plan: fight blaze wait night fight enderman craft, solvable: true}
+      - {id: EO_010, d: hard, c: deceptive_village, setup: cleric absent but enderman route exists, plan: inspect village then hunt enderman, solvable: true}
+      - {id: EO_011, d: hard, c: hidden_negative, setup: fortress and cleric searches fail, plan: explore inspect then report impossible, solvable: false}
+      - {id: EO_012, d: impossible, c: no_route, setup: no pearl blaze trade or loot, plan: report impossible, solvable: false}
