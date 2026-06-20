@@ -1,344 +1,458 @@
-# TODO: 用实际实验结果替换预测数据
+# ExperienceGraph 实验计划与进度记录
 
-本文概要介绍了 `paper/paper_draft.md` 中强调的预测数据，并将这些数据转化为用于收集实际值的实验方案。
+本文档用于把 `paper/paper_draft.md` 中所有 `[PROJECTED]` 实验声明，转化为可执行、可断点续跑、可复现、可控制预算的实验计划。它同时记录当前实现进度，避免在日志、baseline 或分析脚本未准备好时直接调用付费 LLM。
 
-## 1. projected data 列表
+## 0. 当前状态
 
-### 1.1 主要性能声明
+### 0.1 已完成
 
-- 摘要声明：ExperienceGraph 在第 300 个 episode 时预计达到 85% 的成功率。
-- 摘要基线对比：ReAct 预计为 45%，Reflexion 预计为 65%。
-- 摘要效率声明：ExperienceGraph 预计需要比其他方法少 40% 的 episode 才能达到稳定性能。
-- 结论声明：ExperienceGraph 预计比最强基线方法提升 20+ 个百分点，并大约 40% 更快地收敛。
+- 已有 TextCraft 环境雏形，覆盖 crafting、mining、trading、inspection、exploration、多难度 case 和 hidden facts。
+- 已有核心 ExperienceGraph 数据结构：nodes、edges、paths、hard preconditions、success/failure stats、dormant edge。
+- 已有基础 agent：`scripted`、`react`、`graph`。
+- 已有实验日志文件：`episodes.jsonl`、`metrics.jsonl`、`experience_views.jsonl`、`graph_nodes.jsonl`、`graph_edges.jsonl`、`path_records.jsonl`、`merge_decisions.jsonl`。
+- 已新增更详细的 per-step 日志规划：正式实验必须产出 `steps.jsonl`。
+- 已建立项目级 `AGENTS.md`，明确中文沟通、实验前 smoke test、不得把 `[PROJECTED]` 写成 verified。
+- 已完成初步实验入口扩展方向：seed、difficulty、variant、token budget、case schedule、LLM usage 都应进入配置和日志。
 
-### 1.2 主要对比表格
+### 0.2 当前缺口
 
-300 个 episode、5 个种子，在 Easy、Medium 和 Hard TextCraft 任务上预计的值：
+- `Reflexion`、`VectorTrajectory`、`SkillLibrary` baseline 尚未完整实现。
+- `ExperienceGraphAgent` 目前还不是完整的 explore-then-compare：缺少独立生成 novel candidate path 再与 retrieved paths 比较的流程。
+- `EG - no exploration` 和 `EG - no decay` 消融尚未完全可测。
+- TextCraft 目前主要依赖固定 case schedule；seed 还没有真正生成 procedural initial-state distribution。
+- 节点合并目前主要是 deterministic rule-based merge；论文中的 LLM semantic merge 还没实现。
+- 还缺统一分析脚本：主表、学习曲线、消融表、图增长、token cost、case study、failure mode 统计。
+- 当前 pytest 在本机存在临时目录权限问题，不能只依赖完整 pytest 作为验证入口；需要 smoke run + syntax check 作为补充。
+
+## 1. 总体原则
+
+### 1.1 不直接大规模烧钱
+
+正式调用 DeepSeek 前，必须先完成：
+
+1. baseline 和 ablation 开关可运行；
+2. 日志字段齐全；
+3. fake/scripted smoke run 成功；
+4. 分析脚本能从 smoke 日志生成结果文件；
+5. 预算保护和断点续跑生效。
+
+### 1.2 当前预算
+
+- 真实 LLM provider：DeepSeek。
+- 模型：`deepseek-v4-flash`。
+- 当前预算上限：10 RMB 以内。
+- 需要在 `config.yaml`、`metrics.jsonl` 和最终报告中记录实际使用模型。
+- 每次真实实验必须记录 token 使用；如果 API usage 不可用，则记录估算 token，并标明 `token_source=estimated`。
+
+### 1.3 结果写作规则
+
+- 所有 `[PROJECTED]` 数字在真实实验完成前不能改成结论。
+- 如果 pilot 规模不足，报告中必须写成 pilot observation，不能写成 final claim。
+- 如果真实结果不支持 draft 中的预测，要改论文叙述，不强行贴合预测值。
+
+## 2. 最终需要替换的 projected 内容
+
+### 2.1 主要性能声明
+
+需要替换的预测声明：
+
+- ExperienceGraph 在 episode 300 达到约 85% success rate。
+- ReAct 和 Reflexion 分别约为 45% 和 65%。
+- ExperienceGraph 需要约少 40% episodes 达到稳定性能。
+- ExperienceGraph 比最强 baseline 高 20+ percentage points，并约快 40% 收敛。
+
+需要数据：
+
+- Easy、Medium、Hard 的 `SR@300`。
+- Medium 的 `CS`，即滑动窗口成功率首次达到 80% 的 episode。
+- Medium 的 `SE`，即成功 episode 平均步数。
+- 每个方法 5 seeds 的 mean/std。
+
+### 2.2 主对比表
+
+最终表格目标：
 
 | 方法 | SR@300 Easy | SR@300 Medium | SR@300 Hard | CS Medium | SE Medium |
 |---|---:|---:|---:|---:|---:|
-| ReAct | 72 +/- 5% | 45 +/- 6% | 25 +/- 7% | N/A | 18 +/- 3 |
-| Reflexion | 82 +/- 4% | 65 +/- 5% | 42 +/- 6% | 180 +/- 25 | 14 +/- 3 |
-| VectorTrajectory | 80 +/- 4% | 62 +/- 5% | 40 +/- 7% | 195 +/- 30 | 15 +/- 3 |
-| SkillLibrary | 85 +/- 3% | 68 +/- 5% | 45 +/- 6% | 160 +/- 20 | 13 +/- 2 |
-| ExperienceGraph | 92 +/- 3% | 85 +/- 4% | 65 +/- 5% | 100 +/- 15 | 10 +/- 2 |
+| ReAct | actual | actual | actual | actual | actual |
+| Reflexion | actual | actual | actual | actual | actual |
+| VectorTrajectory | actual | actual | actual | actual | actual |
+| SkillLibrary | actual | actual | actual | actual | actual |
+| ExperienceGraph | actual | actual | actual | actual | actual |
 
-相关预测观察结果：
+### 2.3 学习曲线
 
-- ExperienceGraph 在所有难度级别下都具有最高的最终成功率。
-- 其优势随着任务复杂性的增加而增长。
-- 在 Medium 任务上，其收敛速度比 Reflexion 快约 40%，比 SkillLibrary 快约 37%。
-- 通过随着时间的推移找到更短的路径来提高步进效率。
+需要生成：
 
-### 1.3 学习曲线声明
+- Medium difficulty 上 0-300 episodes 的 sliding-window success rate。
+- window size：50 episodes。
+- 5 seeds 的 mean 曲线和 standard error band。
+- checkpoint：50、100、150、200、250、300。
+- paired significance test：ExperienceGraph vs each baseline。
 
-- 预测了 Medium 任务的学习曲线，包括 0 到 300 个 episode 的成功率轨迹。
-- ExperienceGraph 预计具有最陡的学习曲线和最高的最终渐近值。
-- ReAct 预计保持平稳，因为它没有跨 episode 的记忆。
-- Reflexion 和 VectorTrajectory 预计会逐渐提高，但最终达到的平台较低。
-- SkillLibrary 预计早期会提高，但最终达到平台，因为它无法比较状态条件下的替代方案。
-- 使用配对 t 检验，ExperienceGraph 的优势预计在第 100 个 episode 时会变得具有统计学显著性。
+### 2.4 消融研究
 
-### 1.4 消融研究数值
+最终需要的 variants：
 
-预测的 Medium 任务消融结果：
+| 变体 | 当前状态 | 备注 |
+|---|---|---|
+| EG full | 部分可运行 | 需补完整 explore-then-compare |
+| EG - no exploration | 待实现 | 依赖 novel candidate path 机制 |
+| EG - no statistics | 已规划/部分实现 | 检索展示时隐藏 success stats |
+| EG - no node merging | 已规划/部分实现 | 必须确认不会复用相同 node id |
+| EG - no failure edges | 已规划/部分实现 | 关闭 failure precondition 学习 |
+| EG - no decay | 待实现 | 需要先实现 stats decay |
+| EG - random retrieval | 已规划/部分实现 | 随机排序候选路径 |
+| EG - no graph context | 已规划/部分实现 | 作为额外 sanity baseline |
 
-| 变体 | SR@300 | CS |
-|---|---:|---:|
-| ExperienceGraph 全功能 | 85% | 100 |
-| EG - 无探索 | 72% | 155 |
-| EG - 无统计 | 70% | 170 |
-| EG - 无节点合并 | 75% | 140 |
-| EG - 无失败边 | 78% | 130 |
-| EG - 无衰减 | 80% | 120 |
-| EG - 随机检索 | 68% | 185 |
-
-相关预测观察结果：
-
-- 删除探索会导致 13 个百分点的成功率下降。
-- 删除统计数据会导致 15 个百分点的下降。
-- 随机检索会导致 17 个百分点的下降。
-- 删除节点合并会导致 10 个百分点的下降。
-- 删除失败边和衰减的影响较小但意义重大。
+### 2.5 图增长和 prompt budget
 
-### 1.5 图增长和提示预算值
-
-Medium 任务（单种子）的预测图统计数据：
-
-| Episode | 节点数 | 边数 | 每集新增节点数 | 目标路径数 | 提示令牌数 |
-|---:|---:|---:|---:|---:|---:|
-| 50 | 25 | 45 | 1.2 | 4 | 650 |
-| 100 | 38 | 72 | 0.5 | 7 | 820 |
-| 150 | 45 | 90 | 0.2 | 9 | 900 |
-| 200 | 50 | 100 | 0.1 | 10 | 950 |
-| 300 | 55 | 110 | 0.05 | 11 | 980 |
-
-相关预测声明：
-
-- 到第 200 个 episode 时，图的增长达到稳定状态，节点数约为 40-60，边数约为 80-120。
-- 饱和后，新 episode 主要更新统计数据而不是添加结构。
-- 提示使用量保持在 1000 令牌以下。
-
-### 1.6 令牌成本值
-
-Medium 任务的预测令牌成本：
-
-| 方法 | 每个成功所需的令牌数 | 每个 episode 的令牌数 | 300 个 episode 的总成本 |
-|---|---:|---:|---:|
-| ReAct | 3200 | 2800 | 840K |
-| Reflexion | 4500 | 4000 | 1200K |
-| VectorTrajectory | 4200 | 3800 | 1140K |
-| SkillLibrary | 3800 | 3500 | 1050K |
-| ExperienceGraph | 4800 | 4200 | 1260K |
-
-相关预测声明：
-
-- ExperienceGraph 的原始令牌成本较高，但在按成功结果归一化时可能具有竞争力。
-
-### 1.7 案例研究、失败模式和节点合并
-
-预测的定性案例研究：
-
-- Episode 5：未携带铁镐便进行采矿，失败。
-- Episode 12：制作铁镐后成功采矿。
-- Episode 25：发现村庄贸易路线。
-- Episode 45：当接近已确认的铠甲商时选择贸易路线。
-- Episode 80：发现混合路线。
-- Episode 150+：图稳定下来，路径选择变得状态条件化。
-
-预测的失败模式频率：
-
-- 错误节点合并：约占失败的 5%。
-- 探索开销：约占失败的 8%。
-- 过时统计数据：约占失败的 3%。
-
-预测的节点合并质量：
-
-- 88% 的合并正确。
-- 8% 为保守性非合并。
-- 4% 为错误合并。
-- LLM 合并调用约占总合并决策的 12%。
-
-### 1.8 当前标记为预测的声明-证据状态
-
-- ExperienceGraph 实现了高于所有基线的成功率。
-- 收敛速度比 Reflexion 快约 40%。
-- 图结构、统计数据和探索都具有显著贡献。
-- 图的增长为次线性增长并达到稳定。
-- 提示大小保持在 1000 令牌以下。
-- 节点合并准确率为 88%。
-- 优势随着任务复杂性的增加而增长。
-- 平直记忆无法建模条件路径偏好。
-- 探索后比较可以防止过早收敛。
-
-## 2. 替换预测数据所需的实验
-
-### 实验 1：主要基准对比
-
-**实验概述：**
-在相同的设置下运行所有方法的完整 TextCraft 基准。这是替换摘要、表 1、结论和多个声明-证据清单预测所需的主要实验。
-
-**操作步骤：**
-- 实现或验证五个代理：ReAct、Reflexion、VectorTrajectory、SkillLibrary 和 ExperienceGraph。
-- 运行 Easy、Medium 和 Hard TextCraft 任务。
-- 每次运行使用 300 个 episode。
-- 每个方法和任务使用 5 个随机种子。
-- 保持 LLM 后端、观察格式、动作空间、提示和初始状态序列在所有方法中一致。
-- 记录每个 episode 的结果、动作序列、非法动作、总步骤和令牌使用情况。
-
-**可获得的数据：**
-- Easy、Medium 和 Hard 任务的 SR@300。
-- 5 个种子下的平均值和标准差。
-- Medium 任务上的 CS，定义为滑动窗口成功率达到 80% 时的第一个 episode。
-- Medium 任务上的 SE，定义为成功 episode 中的平均动作数。
-- 如有需要，非法动作率，用于额外的鲁棒性表格。
-- 用于替换预测的主要对比表实际值。
-- 实际证据，证明 ExperienceGraph 是否 outperforms 所有基线，以及其优势是否随着任务复杂性而增长。
-
-### 实验 2：学习曲线和统计学显著性
-
-**实验概述：**
-使用实验 1 的 episode 日志生成实际的学习曲线和训练时间的显著性测试。
-
-**操作步骤：**
-- 对于每个方法和种子，计算 episode 1-300 的滑动窗口成功率。
-- 使用 50 个 episode 的窗口，与论文的指标定义匹配。
-- 绘制 Medium 任务的成功率曲线，带有标准误差带。
-- 在关键检查点（如 episode 50、100、150、200、250 和 300）测试 ExperienceGraph 与每个基线的性能。
-- 使用配对测试，因为每个方法应该面临相同的种子控制的初始状态序列。
-
-**可获得的数据：**
-- 实际的 Figure 2 学习曲线。
-- ExperienceGraph 在哪个 episode 时比每个基线具有统计学显著性。
-- 实际的 p 值或置信区间。
-- 关于 ExperienceGraph 在第 100 个 episode 时变得显著的预测声明的证据。
-- 关于收敛速度声明的证据，包括预测的 40% 更快收敛。
-
-### 实验 3：组件消融研究
-
-**实验概述：**
-对 ExperienceGraph 进行受控消融研究，以识别哪些设计组件产生了观察到的增益。
-
-**操作步骤：**
-- 运行以下变体的 Medium TextCraft 任务：
-  - ExperienceGraph 全功能。
-  - EG - 无探索。
-  - EG - 无统计。
-  - EG - 无节点合并。
-  - EG - 无失败边。
-  - EG - 无衰减。
-  - EG - 随机检索。
-- 每个变体使用 300 个 episode 和 5 个种子。
-- 除消融的组件外，保持所有设置相同。
-- 记录 SR@300、CS、动作数、非法动作率、图大小和令牌使用情况。
-
-**可获得的数据：**
-- 实际的 Table 2 消融值。
-- 相对于完整 ExperienceGraph 系统，每个删除组件的 delta。
-- 关于探索、统计数据、节点合并、失败边、衰减和状态条件检索是否必要的证据。
-- 关于过早收敛和条件路径偏好的预测声明的证据。
-
-### 实验 4：图增长和提示预算分析
-
-**实验概述：**
-测量 ExperienceGraph 结构如何在 episode 中演变，以及提示大小是否保持在限制范围内。
-
-**操作步骤：**
-- 使用至少 5 个种子运行 ExperienceGraph 在 Medium TextCraft 上的任务。
-- 在 episode 里程碑 50、100、150、200 和 300 时，记录：
-  - 节点数，
-  - 边数，
-  - 每个 episode 的新增节点数，
-  - 通往目标的可行路径数，
-  - 用于检索图上下文的提示令牌数，
-  - 休眠或修剪的边数。
-- 即使当前草稿仅列出单个种子，也报告种子之间的平均值和标准差。
-- 如果有空间，绘制图大小与 episode 号的关系图。
-
-**可获得的数据：**
-- 实际的 Table 3 图统计数据。
-- 关于子线性图增长的证据。
-- 关于图在 episode 150-200 时达到稳定性的证据。
-- 关于提示令牌保持在 1000 以下的证据。
-- 用于替换 Section 3.5 中预测的图增长声明的数据。
-
-### 实验 5：令牌成本和每个成功成本
-
-**实验概述：**
-使用实验 1 的日志计算每个方法的实际令牌成本。
-
-**操作步骤：**
-- 记录每次 LLM 调用的提示令牌、补全令牌和总令牌数。
-- 按 episode、成功 episode、方法、任务和种子聚合令牌使用情况。
-- 对于 Medium 任务，计算每个 episode 的令牌数、每个成功 episode 的令牌数以及 300 个 episode 的总令牌成本。
-- 可选地使用实验时的模型当前定价，将令牌转换为估计的美元成本。
-
-**可获得的数据：**
-- 实际的 Table 4 令牌成本值。
-- 每个方法的实际每个成功成本。
-- 关于 ExperienceGraph 的每个 episode 成本较高是否因更高的成功率而合理化的证据。
-- 如果 ExperienceGraph 即使在成功归一化后仍然更昂贵，则用于更诚实的成本讨论的数据。
-
-### 实验 6：路径发现案例研究
-
-**实验概述：**
-选择代表性的 ExperienceGraph 运行，跟踪代理如何随着时间的推移发现、比较和优化路径。
-
-**操作步骤：**
-- 选择一个或多个具有明显路径多样性的 Medium 任务种子。
-- 在 episode 5、12、25、45、80 和 150 时保存图快照，或使用最接近实际的有意义的里程碑。
-- 跟踪发现的路径、路径统计信息、选定的路径、当前状态和 episode 结果。
-- 确定采矿、贸易和混合路径是否自然出现。
-- 用实际观察到的时间线替换当前的说明性时间线。
-
-**可获得的数据：**
-- 实际的案例研究时间线。
-- 失败的路径学习、成功的路径发现和状态条件化的路径选择的具体示例。
-- 关于 ExperienceGraph 学习条件策略偏好而不是仅仅积累成功轨迹的证据。
-
-### 实验 7：失败模式分析
-
-**实验概述：**
-对 ExperienceGraph 的失败 episode 进行分类，以替换预测的失败模式百分比。
-
-**操作步骤：**
-- 从主要基准中收集所有 ExperienceGraph 的失败 episode。
-- 在注释之前定义一个失败分类：
-  - 错误的节点合并，
-  - 探索开销，
-  - 过时统计数据，
-  - 无效动作或先决条件失败，
-  - 检索失败，
-  - LLM 推理或选择失败，
-  - 环境特定的死胡同。
-- 手动注释一个有代表性的样本，或注释所有失败的 episode（如果数量可控）。
-- 如有可能，使用两个注释者并报告一致性。
-
-**可获得的数据：**
-- 关于错误合并、探索开销、过时统计数据和其他类别导致的失败百分比的实际数据。
-- 关于 Section 6.2 的更好证据。
-- 基于观察到的而不是预测的失败的更强力的局限性讨论。
-
-### 实验 8：节点合并质量研究
-
-**实验概述：**
-使用手动注释直接评估节点合并算法。
-
-**操作步骤：**
-- 从 ExperienceGraph 运行中采样至少 50 个合并决策（100 个以上更好）。
-- 包括被接受的合并和被拒绝或非合并决策。
-- 让注释者判断每个决策是否：
-  - 正确合并，
-  - 保守性非合并，
-  - 错误合并，
-  - 错误非合并。
-- 记录每个决策是否由确定性规则或 LLM 语义判断来解决。
-- 计算需要 LLM 判断的总合并决策比例。
-
-**可获得的数据：**
-- 实际的合并准确率。
-- 实际的保守性非合并率。
-- 实际的错误合并率。
-- 需要 LLM 判断的总合并决策百分比。
-- 用于替换预测的 88%、8%、4% 和 12% 值的证据。
-
-### 实验 9：可选的总体或压力测试
-
-**实验概述：**
-进行更艰难的评估，以在主要基准看起来过于受控时加强论文。
-
-**操作步骤：**
-- 添加一个或多个压力设置：
-  - 更困难的初始状态分布，
-  - 更模糊的村庄或资源观察，
-  - 更长的依赖链，
-  - 更多的干扰动作，
-  - 从 Medium 预训练后转移到 Hard。
-- 将 ExperienceGraph 与实验 1 中最强的基线进行比较。
-- 保持相同的报告指标：SR、CS、SE、令牌成本和失败模式。
-
-**可获得的数据：**
-- 关于跨越基本 TextCraft 设置的总体能力的证据。
-- 用于回答怀疑审查者关于 TextCraft 过于简单的担忧的数据。
-- 对可扩展性和转移能力的可选支持。
-
-## 3. 建议的执行顺序
-
-1. 首先完成环境和日志记录工具的安装。
-2. 运行所有方法和所有 ExperienceGraph 消融变体的 1 个种子烟雾测试。
-3. 运行实验 1 和实验 3，因为它们支持论文的核心声明。
-4. 使用这些日志完成实验 2 和实验 5。
-5. 使用 ExperienceGraph 日志运行实验 4。
-6. 在足够多轨迹累积后运行实验 8 和实验 7。
-7. 一旦了解了实际行为，将实验 6 添加为定性故事。
-8. 如果时间允许或如果需要减少审查者风险，则运行实验 9。
-
-## 4. 提交前所需的最少数据
-
-- 带有 5 个种子实际平均值+/- 标准差的主要对比表。
-- 带有标准误差带的学习曲线图。
-- 所有主要 ExperienceGraph 组件的消融表。
-- 图增长表或图表。
-- 令牌成本表。
-- 节点合并质量注释结果。
-- 基于实际失败的失败模式分析。
+需要在 Medium ExperienceGraph runs 中记录：
+
+- episode 50、100、150、200、300 的 nodes、edges、paths、dormant_edges。
+- 每个 episode 新增节点数、边数、路径数。
+- experience view token estimate。
+- 实际 LLM prompt tokens。
+- 图是否在 150-200 episodes 后接近稳定。
+
+### 2.6 Token cost
+
+需要统计：
+
+- tokens per episode。
+- tokens per successful episode。
+- total tokens for 300 episodes。
+- estimated RMB cost。
+- 每个方法的 raw cost 和 success-normalized cost。
+
+### 2.7 定性分析
+
+需要从真实日志中抽样生成：
+
+- 路径发现案例研究。
+- failure mode 分析。
+- node merge quality 分析。
+
+## 3. Stage 1：工程补齐，不调用真实 LLM
+
+目标：让所有实验条件能 fake/scripted 跑通，并能生成分析产物。
+
+### 3.1 Baseline 实现
+
+#### ReAct
+
+状态：已有基础实现。
+
+需要检查：
+
+- 不使用跨 episode memory。
+- 不读取 graph candidate paths，或在 no_graph_context 下公平运行。
+- 记录 LLM call 和 token。
+
+#### Reflexion
+
+目标：实现 Shinn et al. 风格 flat natural-language memory baseline。
+
+设计：
+
+- 每个 episode 结束后写一条 reflection。
+- 后续 prompt 中提供最近 K 条或按简单相关性筛选的 reflections。
+- memory 类型是 append-only text list，不包含图结构和 path-level statistics。
+- 持久化文件：`agent_memory_reflexion.jsonl`。
+- 支持 resume：重新启动时读回 memory 文件。
+
+#### VectorTrajectory
+
+目标：实现 embedding-free 的 lightweight trajectory retrieval baseline，必要时后续再接 embedding。
+
+设计：
+
+- 将历史 trajectory 序列化为文本。
+- 用 current state condition overlap / bag-of-conditions 相似度检索 top-K。
+- prompt 中展示相似历史轨迹，但不提供 graph node/edge structure。
+- 持久化文件：`agent_memory_vector_trajectory.jsonl`。
+- 日志记录 retrieved trajectory ids 和 similarity scores。
+
+#### SkillLibrary
+
+目标：实现 Voyager-style 的简化 action-sequence library baseline。
+
+设计：
+
+- 成功 episode 后保存 action sequence 作为 skill。
+- skill 按 task、difficulty、initial condition signature 建索引。
+- 决策时检索最相近 skill，并让 LLM 选择下一步或改写。
+- 不维护条件路径图和 edge/path success stats。
+- 持久化文件：`agent_memory_skill_library.jsonl`。
+
+### 3.2 ExperienceGraph 补齐
+
+需要完成：
+
+- 独立生成 novel candidate path。
+- 检索 graph candidate paths。
+- compare novel path 与 graph paths。
+- 输出 selected strategy、next_action、reason、expected_next_condition。
+- 支持 no-exploration 消融：不生成 novel candidate path。
+- 支持 no-statistics 消融：不向 LLM 展示成功率和 attempts。
+
+### 3.3 可断点续跑
+
+必须支持：
+
+- 如果 run 目录已存在，读取 `config.yaml`。
+- 从 `metrics.jsonl` 判断已完成 episode 数。
+- 从图文件恢复 `JsonGraphStore`。
+- 从 baseline memory 文件恢复 agent memory。
+- 继续写后续 episode，不覆盖旧日志。
+- 如果配置不一致，拒绝 resume，除非显式传入 override。
+
+### 3.4 预算保护
+
+必须支持：
+
+- `--max-budget-rmb 10`。
+- `--input-price-per-million` 和 `--output-price-per-million` 可配置。
+- 每个 episode 后估算累计成本。
+- 接近预算时写入 `budget_stop.json` 并停止。
+- 停止原因进入最终 summary。
+
+### 3.5 分析脚本
+
+新增脚本建议：`src/experience_graph/scripts/analyze_results.py`。
+
+需要输出：
+
+- `analysis/summary_tables.md`
+- `analysis/main_comparison.csv`
+- `analysis/ablation.csv`
+- `analysis/graph_growth.csv`
+- `analysis/token_cost.csv`
+- `analysis/learning_curve_medium.csv`
+- `analysis/figures/learning_curve_medium.png`
+- `analysis/figures/graph_growth.png`
+- `analysis/figures/token_cost.png`
+- `analysis/experiment_writeup.md`
+
+## 4. Stage 2：Smoke Test，不调用真实 LLM
+
+目标：确认所有 agent、variant、日志、分析脚本能跑通。
+
+### 4.1 Fake smoke matrix
+
+运行：
+
+- agents：`react`、`reflexion`、`vector_trajectory`、`skill_library`、`graph`
+- variants：graph 至少跑 `full`、`no_statistics`、`random_retrieval`、`no_node_merging`、`no_failure_preconditions`、`no_graph_context`
+- episodes：每个条件 2-3 episodes
+- provider：`fake`
+- difficulty：`easy` 和 `medium`
+
+成功标准：
+
+- 所有 run 目录有完整 `config.yaml`、`metrics.jsonl`、`steps.jsonl`。
+- 分析脚本能读入所有 run 并生成表格。
+- 不出现缺字段、JSON parse error、resume 覆盖旧日志。
+
+### 4.2 Scripted smoke
+
+目的：确认环境和图更新逻辑不依赖 LLM。
+
+运行：
+
+- `scripted/full`
+- `scripted/no_node_merging`
+- `scripted/no_failure_preconditions`
+
+成功标准：
+
+- positive oracle case 成功。
+- negative case 能记录 failure reason。
+- graph files 能恢复并继续写。
+
+## 5. Stage 3：DeepSeek-v4-flash 小规模 pilot，预算 10 RMB 内
+
+目标：用真实 LLM 验证 prompt、动作选择、token usage 和成本估算。
+
+### 5.1 Pilot 配置
+
+建议配置：
+
+- provider：DeepSeek。
+- model：`deepseek-v4-flash`。
+- budget：10 RMB hard stop。
+- agents：先跑 `react`、`reflexion`、`graph`。
+- difficulty：`medium`。
+- seeds：1-2。
+- episodes：每个 method 每 seed 10-20。
+- max_steps：30。
+- case_schedule：`shuffled_cycle`。
+
+如果预算消耗低，再加入：
+
+- `vector_trajectory`
+- `skill_library`
+- graph ablations：`no_statistics`、`random_retrieval`、`no_graph_context`
+
+### 5.2 Pilot 成功标准
+
+- 所有方法能完成 episode，不大量失败于 JSON 格式错误。
+- token usage 能正常记录。
+- cost estimate 合理。
+- graph agent 能看到 candidate paths，且后续 episode 的 candidate path 数量增长。
+- 分析脚本能生成 pilot 报告。
+
+### 5.3 Pilot 输出
+
+- `analysis/pilot_summary.md`
+- pilot learning curve。
+- 每个 agent 的 failure reason 分布。
+- 每个 agent 的 token cost。
+- 是否建议进入 full run 的结论。
+
+## 6. Stage 4：可断点 full run
+
+目标：在工程和 pilot 都确认后，执行接近论文规模的实验。
+
+### 6.1 主实验
+
+配置：
+
+- methods：ReAct、Reflexion、VectorTrajectory、SkillLibrary、ExperienceGraph。
+- difficulties：Easy、Medium、Hard。
+- episodes：300。
+- seeds：5。
+- provider/model：记录实际使用模型。
+- case schedule：同一 seed 下所有 method 使用同一 schedule。
+
+产出：
+
+- Main comparison table。
+- Learning curves。
+- Convergence speed。
+- Step efficiency。
+- Token cost。
+
+### 6.2 消融实验
+
+配置：
+
+- difficulty：Medium。
+- variants：full、no exploration、no statistics、no node merging、no failure edges、no decay、random retrieval。
+- episodes：300。
+- seeds：5。
+
+前置条件：
+
+- no exploration 和 no decay 必须先真实实现。
+
+产出：
+
+- Ablation table。
+- Delta vs full。
+- 对贡献声明的证据。
+
+### 6.3 图增长实验
+
+可复用 ExperienceGraph full logs。
+
+产出：
+
+- graph nodes/edges/paths by episode。
+- prompt token by episode。
+- dormant edge count。
+- graph saturation 判断。
+
+## 7. Stage 5：人工分析与论文写作材料
+
+### 7.1 Failure mode annotation
+
+分类建议：
+
+- invalid action / precondition failure。
+- exploration overhead。
+- stale statistics。
+- retrieval failure。
+- LLM selection error。
+- incorrect merge。
+- environment dead end。
+- JSON/schema failure。
+
+产出：
+
+- `analysis/failure_modes.csv`
+- `analysis/failure_mode_summary.md`
+
+### 7.2 Node merge quality annotation
+
+采样：
+
+- 至少 50 条 merge decisions。
+- 如果日志足够，优先采样 100 条。
+
+分类：
+
+- correct merge。
+- conservative non-merge。
+- incorrect merge。
+- incorrect non-merge。
+- not applicable。
+
+注意：
+
+- 如果尚未实现 LLM semantic merge，则只能报告 deterministic merge quality，不能声称 LLM merge call ratio。
+
+### 7.3 Case study
+
+选择标准：
+
+- 有明显路径演化。
+- 同时出现 mining、trading 或 mixed strategy。
+- 有失败路径转化为后续 precondition 的证据。
+
+产出：
+
+- `analysis/case_study.md`
+- 图快照或路径统计表。
+
+## 8. 最终交付文件
+
+最终需要给论文合并使用的文件：
+
+- `analysis/experiment_writeup.md`
+
+建议结构：
+
+1. Experimental Setup。
+2. Implemented Baselines。
+3. Main Results。
+4. Learning Curves。
+5. Ablation Study。
+6. Graph Growth and Prompt Budget。
+7. Token Cost Analysis。
+8. Case Study。
+9. Failure Mode Analysis。
+10. Node Merging Quality。
+11. Claim-Evidence Map。
+12. Limitations and Deviations from Original Draft。
+
+## 9. 当前执行顺序
+
+当前从这里继续：
+
+1. 补齐 `JsonGraphStore` resume 读取能力。
+2. 实现 baseline agent：Reflexion、VectorTrajectory、SkillLibrary。
+3. 补 ExperienceGraph novel path generation 和 no-exploration variant。
+4. 补预算保护和 resume config 校验。
+5. 补分析脚本和图表生成。
+6. 跑 fake/scripted smoke matrix。
+7. 跑 DeepSeek-v4-flash pilot。
+8. 根据 pilot 成本和质量决定 full run 规模。
+
+## 10. 暂不做或谨慎做的事项
+
+- 暂不把 pilot 结果写成论文主结论。
+- 暂不做真实 300 episode full run，直到 resume、budget stop、analysis pipeline 全部通过 smoke test。
+- 暂不声称 node merge 有 LLM semantic judgment，除非代码实现并产生日志。
+- 暂不声称 seed 控制 procedural distribution，除非实现 procedural case sampler。
+- 暂不加入 LATS 或 test-time search baseline，除非主实验结果需要回应 reviewer 风险。
