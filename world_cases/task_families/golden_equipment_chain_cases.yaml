@@ -1,0 +1,85 @@
+version: 0.2-draft
+world: mytextcraft_mc
+status: draft_not_active
+last_updated: 2026-06-21
+family: golden_equipment_chain
+goal: Craft a golden apple and a golden helmet in the same episode.
+visible_manual_refs: [golden_apple_crafting, apple_gathering, gold_mining, furnace_smelting, loot_chests, golden_equipment_crafting]
+required_engine_actions: [craft, gather, mine, smelt, move_to, explore, inspect, loot, trade, report_impossible]
+minecraft_alignment:
+  - MyTextCraft uses a symbolic golden helmet recipe with five gold ingots.
+  - The task intentionally composes the golden apple subgoal with a later equipment subgoal.
+cases:
+  - id: GEC_001
+    title: Craft both items from existing ingredients.
+    difficulty: easy
+    characteristic: direct_success
+    initial_state:
+      inventory: {apple: 1, gold_ingot: 13, gold_ore: 0, furnace: false, emerald: 0, pickaxe: none, golden_apple: false, golden_helmet: false}
+      environment: {nearby_orchard: false, nearby_mine: false, nearby_dungeon: false, nearby_village: false, biome: plains}
+      ambiguous: {}
+      location: base
+    oracle: {solvable: true, reference_plan: ["craft(golden_apple)", "craft(golden_helmet)"], min_steps: 2, expected_strategy: direct_crafting}
+    expected_experience: {path_type: compositional_crafting, learn: [golden_equipment_chain_requires_apple_and_13_gold_ingots]}
+
+  - id: GEC_002
+    title: Gather apple, then craft the chain.
+    difficulty: easy
+    characteristic: missing_apple
+    initial_state:
+      inventory: {apple: 0, gold_ingot: 13, gold_ore: 0, furnace: false, emerald: 0, pickaxe: none, golden_apple: false, golden_helmet: false}
+      environment: {nearby_orchard: true, nearby_mine: false, nearby_dungeon: false, nearby_village: false, biome: forest}
+      ambiguous: {}
+      location: base
+    oracle: {solvable: true, reference_plan: ["move_to(orchard)", "gather(apple)", "craft(golden_apple)", "craft(golden_helmet)"], min_steps: 4, expected_strategy: gather_then_craft}
+    expected_experience: {path_type: gather_crafting, learn: [apple_subgoal_reused_before_equipment_crafting]}
+
+  - id: GEC_003
+    title: Mine and smelt enough gold before crafting both items.
+    difficulty: medium
+    characteristic: mine_gold_chain
+    initial_state:
+      inventory: {apple: 1, gold_ingot: 0, gold_ore: 0, furnace: true, fuel: 16, emerald: 0, pickaxe: iron, golden_apple: false, golden_helmet: false}
+      environment: {nearby_mine: true, mine_has_gold: true, nearby_orchard: false, nearby_dungeon: false, nearby_village: false, biome: plains}
+      ambiguous: {}
+      location: base
+    oracle: {solvable: true, reference_plan: ["move_to(mine)", "mine(gold_ore)", "mine(gold_ore)", "smelt(gold_ore)", "craft(golden_apple)", "craft(golden_helmet)"], min_steps: 6, expected_strategy: mining_then_crafting}
+    expected_experience: {path_type: mining_crafting_chain, learn: [chain_goal_reuses_gold_mining_across_two_outputs]}
+
+  - id: GEC_004
+    title: Gather apple and discover hidden gold mine.
+    difficulty: medium
+    characteristic: hidden_mine_plus_orchard
+    initial_state:
+      inventory: {apple: 0, gold_ingot: 0, gold_ore: 0, furnace: true, fuel: 16, emerald: 0, pickaxe: iron, golden_apple: false, golden_helmet: false}
+      environment: {nearby_orchard: true, nearby_mine: unknown, mine_search_available: true, nearby_dungeon: false, nearby_village: false, biome: forest}
+      hidden_facts: {nearby_mine: true, mine_has_gold: true}
+      ambiguous: {nearby_mine: unknown}
+      location: base
+    oracle: {solvable: true, reference_plan: ["move_to(orchard)", "gather(apple)", "explore(mine)", "move_to(mine)", "mine(gold_ore)", "mine(gold_ore)", "smelt(gold_ore)", "craft(golden_apple)", "craft(golden_helmet)"], min_steps: 9, expected_strategy: gather_explore_mine_craft}
+    expected_experience: {path_type: discovery_compositional_chain, learn: [hidden_gold_route_can_support_multiple_downstream_crafts]}
+
+  - id: GEC_005
+    title: Limited mine plus farmer gold trade completes the chain.
+    difficulty: hard
+    characteristic: limited_mine_then_trade
+    initial_state:
+      inventory: {apple: 1, gold_ingot: 0, gold_ore: 0, furnace: true, fuel: 8, emerald: 8, pickaxe: iron, golden_apple: false, golden_helmet: false}
+      environment: {nearby_mine: true, mine_has_gold: true, mine_gold_capacity: 8, nearby_village: true, village_has_farmer: true, nearby_orchard: false, biome: plains}
+      ambiguous: {}
+      location: base
+    oracle: {solvable: true, reference_plan: ["move_to(mine)", "mine(gold_ore)", "smelt(gold_ore)", "move_to(village)", "trade(farmer, emerald, gold_ingot)", "trade(farmer, emerald, gold_ingot)", "craft(golden_apple)", "craft(golden_helmet)"], min_steps: 8, expected_strategy: mixed_mine_trade_chain}
+    expected_experience: {path_type: mixed_resource_chain, learn: [limited_gold_source_can_be_completed_by_trade]}
+
+  - id: GEC_006
+    title: Loot golden apple, then craft the helmet.
+    difficulty: hard
+    characteristic: loot_subgoal_then_craft
+    initial_state:
+      inventory: {apple: 0, gold_ingot: 5, gold_ore: 0, furnace: false, emerald: 0, pickaxe: none, golden_apple: false, golden_helmet: false}
+      environment: {nearby_dungeon: true, chest_has_golden_apple: unknown, nearby_mine: false, nearby_orchard: false, nearby_village: false, biome: plains}
+      hidden_facts: {chest_has_golden_apple: true}
+      ambiguous: {chest_has_golden_apple: unknown}
+      location: base
+    oracle: {solvable: true, reference_plan: ["move_to(dungeon)", "inspect(chest)", "loot(chest, golden_apple)", "craft(golden_helmet)"], min_steps: 4, expected_strategy: loot_then_equipment}
+    expected_experience: {path_type: loot_then_crafting_chain, learn: [looted_subgoal_can_replace_crafting_route]}

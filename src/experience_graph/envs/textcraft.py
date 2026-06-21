@@ -39,6 +39,7 @@ TASK_SUCCESS_CONDITIONS = {
         "inventory.diamond_boots": True,
     },
     "golden_apple": {"inventory.golden_apple": True},
+    "golden_equipment_chain": {"inventory.golden_apple": True, "inventory.golden_helmet": True},
     "nether_portal": {"environment.portal_lit": True},
     "enchant_pickaxe": {"inventory.enchanted_pickaxe": True},
     "fire_resistance_potion": {"inventory.fire_resistance_potion": True},
@@ -110,6 +111,7 @@ class MyTextCraftAdapter:
         self.cases_data = self._load_cases(self.cases_path)
         self.cases = {case["id"]: case for case in self.cases_data["cases"]}
         self.rules = self.rules_data["rules"]
+        self.action_rules = self._build_action_rule_index()
         self.actions_by_task = self._build_actions_by_task()
         self.current_case: dict[str, Any] | None = None
         self.state: dict[str, Any] | None = None
@@ -135,9 +137,11 @@ class MyTextCraftAdapter:
                 rule_task = (self.rules_data.get("tasks", {}) or {}).get(task_id, {})
                 task.setdefault("success_conditions", rule_task.get("success_conditions") or TASK_SUCCESS_CONDITIONS.get(task_id, {}))
                 case["task"] = task
-                for key in ["visible_manual_refs", "required_engine_actions", "goal"]:
+                for key in ["visible_manual_refs", "required_engine_actions", "action_space", "goal"]:
                     if key in data:
                         case.setdefault(key, copy.deepcopy(data[key]))
+                if "action_space" in rule_task:
+                    case.setdefault("action_space", copy.deepcopy(rule_task["action_space"]))
                 case.setdefault("source_file", str(source))
                 cases.append(case)
         ids = [case["id"] for case in cases]
@@ -146,15 +150,46 @@ class MyTextCraftAdapter:
             raise ValueError(f"Duplicate MyTextCraft case ids: {duplicates}")
         return {"cases": cases}
 
+    def _build_action_rule_index(self) -> dict[str, list[dict[str, Any]]]:
+        by_action: dict[str, list[dict[str, Any]]] = {}
+        for rule in self.rules_data.get("rules", []) or []:
+            action = rule.get("action")
+            if not isinstance(action, dict):
+                continue
+            name = action.get("name")
+            if not isinstance(name, str):
+                continue
+            by_action.setdefault(name, []).append(rule)
+        return by_action
+
     def _build_actions_by_task(self) -> dict[str, list[ActionSpec]]:
         by_task: dict[str, dict[str, ActionSpec]] = {}
+        declared_tasks: set[str] = set()
         for case in self.cases_data["cases"]:
             task_id = case["task"]["id"]
+            templates = by_task.setdefault(task_id, {})
+            action_space = case.get("action_space") or []
+            if action_space:
+                declared_tasks.add(task_id)
+                for entry in action_space:
+                    action = self._action_from_space_entry(entry)
+                    templates[action.label()] = ActionSpec(action.name, dict(action.args))
+        for case in self.cases_data["cases"]:
+            task_id = case["task"]["id"]
+            if task_id in declared_tasks:
+                continue
             templates = by_task.setdefault(task_id, {})
             for action_text in case.get("oracle", {}).get("reference_plan", []) or []:
                 action = Action.parse(action_text)
                 templates[action.label()] = ActionSpec(action.name, dict(action.args))
         return {task_id: list(templates.values()) for task_id, templates in by_task.items()}
+
+    def _action_from_space_entry(self, entry: Any) -> Action:
+        if isinstance(entry, str):
+            return Action.parse(entry)
+        if isinstance(entry, dict):
+            return Action(name=str(entry.get("name", "unknown")), args=dict(entry.get("args", {})))
+        return Action(str(entry), {})
 
     def reset(self, seed: int = 0, task: TaskSpec | None = None, case_id: str | None = None) -> Observation:
         del seed, task
@@ -326,6 +361,59 @@ class MyTextCraftAdapter:
         return actual == expected
 
 
+    def _apply_action_rule(self, action_name: str, args: dict[str, Any], default_failure: str) -> tuple[bool, bool, str | None, dict[str, Any]]:
+        for rule in self.action_rules.get(action_name, []):
+            rule_args = (rule.get("action") or {}).get("args") or {}
+            if not all(args.get(key) == value for key, value in rule_args.items()):
+                continue
+            if not self._rule_preconditions_met(rule.get("preconditions") or {}):
+                return True, False, rule.get("failure_reason") or default_failure, {}
+            return True, True, None, self._apply_rule_effects(rule.get("effects") or {})
+        return False, False, None, {}
+
+    def _rule_preconditions_met(self, preconditions: dict[str, Any]) -> bool:
+        assert self.state is not None
+        for key, expected in preconditions.items():
+            actual = pickaxe_rank(get_path(self.state, "inventory.pickaxe", "none")) if key == "tool.pickaxe_level" else get_path(self.state, key, UNKNOWN)
+            if isinstance(expected, list):
+                if actual not in expected:
+                    return False
+                continue
+            if not self._matches_rule_expected(actual, expected):
+                return False
+        return True
+
+    def _matches_rule_expected(self, actual: Any, expected: Any) -> bool:
+        if isinstance(expected, str):
+            for operator in [">=", "<=", ">", "<"]:
+                if expected.startswith(operator):
+                    raw = expected[len(operator):]
+                    try:
+                        value: Any = int(raw)
+                    except ValueError:
+                        value = raw
+                    return compare_value(actual, operator, value)
+        return actual == expected
+
+    def _apply_rule_effects(self, effects: dict[str, Any]) -> dict[str, Any]:
+        assert self.state is not None
+        delta: dict[str, Any] = {}
+        for key, value in effects.items():
+            if isinstance(value, str) and value[:1] in {"+", "-"}:
+                try:
+                    amount = int(value)
+                except ValueError:
+                    set_path(self.state, key, value)
+                    delta[key] = value
+                    continue
+                self._add(key, amount)
+                delta[key] = amount
+            else:
+                set_path(self.state, key, value)
+                delta[key] = value
+        return delta
+
+
     def _clear_ambiguous(self, dotted_key: str) -> None:
         assert self.state is not None
         ambiguous = self.state.get("ambiguous")
@@ -337,6 +425,9 @@ class MyTextCraftAdapter:
 
     def _craft(self, item: str | None) -> tuple[bool, str | None, dict[str, Any]]:
         assert self.state is not None
+        handled, ok, failure_reason, state_delta = self._apply_action_rule("craft", {"item": item}, f"missing_{item}_ingredients" if item else "unknown_craft_item")
+        if handled:
+            return ok, failure_reason, state_delta
         if item == "crafting_table":
             if get_path(self.state, "inventory.wood", 0) < 4:
                 return False, "insufficient_wood", {}
@@ -883,4 +974,6 @@ class MyTextCraftAdapter:
 
 
 TextCraftAdapter = MyTextCraftAdapter
+
+
 

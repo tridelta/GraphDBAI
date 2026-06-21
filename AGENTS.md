@@ -243,7 +243,7 @@ LLM token 统计优先使用 API usage；没有 usage 时可以用估算值，�
 
 - `world_cases/textcraft_rules.yaml` 是规则来源。
 - `world_cases/textcraft_cases.yaml` 是当前 diamond-set 主套件。
-- `world_cases/task_families/` 包含 8 个 task family，测试期望可加载 96 个 cases。
+- `world_cases/task_families/` 包含 9 个 task family，测试期望可加载 102 个 cases。
 - `docs/mytextcraft_task_standard.md` 是新增 task family 的统一标准。
 - 每个 case 需要包含稳定 `id`、`difficulty`、`task`、`initial_state`、`oracle`、`expected_experience`。
 - 后续主评测默认应避免 `impossible` / no-route cases；这类 case 保留为 diagnostic，并在分析中区分 `goal_achieved` 与 `case_resolved`。
@@ -280,5 +280,6 @@ LLM token 统计优先使用 API usage；没有 usage 时可以用估算值，�
 6. 汇报功能变化、验证结果、未验证风险。
 
 对小型文档修改，可用阅读检查代替完整测试；对 runner、env、agent、graph、LLM client、analysis 脚本修改，应至少执行相关测试文件。
+
 
 

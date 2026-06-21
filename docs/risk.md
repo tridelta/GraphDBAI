@@ -1,3 +1,5 @@
+
+Last updated: 2026-06-21
 可以这样表述：
 
 目前 `retriever.py` 中的 `retrieve()` 主要依赖已有 `PathRecord` 与当前任务、图结构之间的精确匹配。节点合并也主要基于 `condition signature` 的规则化比较：只有当两个节点的条件集合在规范化后完全一致时，才会被视为同一个节点。这种方式虽然简单、可解释，但会限制 ExperienceGraph 的泛化能力。
@@ -26,8 +28,8 @@ The task-family suite now loads through `MyTextCraftAdapter`, and oracle referen
 
 Current risks:
 
-- `available_actions()` is still derived from oracle reference plans, so oracle plans currently influence the exposed action space. Future task families should define action space independently.
-- Many action semantics still live in Python branches inside `MyTextCraftAdapter.step()` and helper methods. This works for current tasks, but it makes new recipes require code changes.
+- `available_actions()` now uses `tasks.<task_id>.action_space` when present, but older suites still rely on the fallback path if a task omits action declarations.
+- Many non-craft action semantics still live in Python branches inside `MyTextCraftAdapter.step()` and helper methods. Core `craft(...)` recipes have started moving to declarative rules.
 - Prompt manuals are not yet generated from `visible_manual_refs`, so task-local rules are recorded in YAML but not fully used by LLM agents.
 - Older suites include `impossible` cases. These are useful diagnostics, but future main evaluation should prefer solvable cases and separate `goal_achieved` from `case_resolved` if diagnostics are included.
 - `run_experiment.py --task-id all` supports mixed schedules, but final comparison protocols still need a fixed case schedule across agents and seeds.
@@ -39,3 +41,4 @@ Recommended handling:
 - Move recipe and action precondition definitions toward declarative YAML before adding many more tasks.
 - Before real LLM calls, run scripted or fake-provider smoke runs for each new task family and verify that prompts expose only the selected task's visible manual, never unrelated recipes or hidden facts.
 - Treat simplified Minecraft rules as MyTextCraft rules and mark any deviation from real Minecraft mechanics in rule notes, especially villager trading and route shortcuts.
+

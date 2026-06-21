@@ -36,7 +36,7 @@ def test_rule_ids_unique():
 
 def test_task_family_cases_load_as_active_suite():
     env = MyTextCraftAdapter(TASK_FAMILIES, RULES)
-    assert len(env.cases) == 96
+    assert len(env.cases) == 102
     assert set(env.actions_by_task) == {
         "cake",
         "cure_zombie_villager",
@@ -45,6 +45,7 @@ def test_task_family_cases_load_as_active_suite():
         "eye_of_ender",
         "fire_resistance_potion",
         "golden_apple",
+        "golden_equipment_chain",
         "nether_portal",
     }
     for case in env.cases.values():
@@ -63,3 +64,22 @@ def test_task_family_oracle_plans_match_expected_solvability():
         if result.success != expected:
             mismatches.append((case_id, case["task"]["id"], expected, result.success, result.failure_reason))
     assert mismatches == []
+
+
+
+def test_task_family_oracle_actions_are_declared():
+    env = MyTextCraftAdapter(TASK_FAMILIES, RULES)
+    missing = []
+    for case_id, case in env.cases.items():
+        obs = env.reset(case_id=case_id)
+        available = {
+            f"{spec.name}({', '.join(str(value) for value in spec.args.values())})" if spec.args else spec.name
+            for spec in env.available_actions(obs)
+        }
+        for action_text in case["oracle"].get("reference_plan", []) or []:
+            if action_text.startswith("report_impossible"):
+                continue
+            if action_text not in available:
+                missing.append((case_id, case["task"]["id"], action_text))
+    assert missing == []
+

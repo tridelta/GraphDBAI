@@ -1,5 +1,7 @@
 # MyTextCraft Task Standard
 
+Last updated: 2026-06-21
+
 MyTextCraft is the symbolic crafting benchmark used by ExperienceGraph. It should be treated as a benchmark artifact, not only as a helper environment. New tasks should follow one shared schema so that agents, oracle checks, analysis scripts, and paper claims all talk about the same task definition.
 
 ## Design Goal
@@ -8,9 +10,16 @@ MyTextCraft tasks should test reusable experience, not one-off puzzle memorizati
 
 Future main evaluation should avoid impossible cases by default. As the world gains more rules and actions, most cases should have at least one viable route. Impossible or no-route cases can stay as diagnostic assets for parser, reporting, and safety checks, but they should not drive the main success-rate claim unless the metric is explicitly named `case_resolved`.
 
+## Current Implementation Status
+
+- `MyTextCraftAdapter.available_actions()` uses `tasks.<task_id>.action_space` from `world_cases/textcraft_rules.yaml` when present.
+- `craft(...)` first checks declarative action rules in `world_cases/textcraft_rules.yaml`, then falls back to legacy Python branches for compatibility.
+- Declarative craft coverage currently includes diamond armor pieces, crafting table, golden apple, golden helmet, cake, sugar, potion ingredients, enchanting-table items, and eye of ender.
+- `report_impossible` remains available for diagnostic cases, but future main experiments should prefer solvable schedules.
+
 ## Required Task Family Fields
 
-Each file in `world_cases/task_families/` should define one task family:
+Each file in `world_cases/task_families/` should define one task family. Shared success conditions and action spaces should live in `world_cases/textcraft_rules.yaml` under `tasks.<task_id>`:
 
 ```yaml
 version: 0.2-draft
@@ -27,6 +36,9 @@ required_engine_actions:
   - mine
   - smelt
   - report_impossible
+action_space:
+  - craft(golden_apple)
+  - gather(apple)
 minecraft_alignment:
   - Vanilla golden apple crafting uses one apple and eight gold ingots.
 cases:
@@ -51,6 +63,7 @@ Required fields:
 - `goal`: human-readable objective shown to humans and eventually to agents.
 - `visible_manual_refs`: task-local manuals that may be exposed in prompts.
 - `required_engine_actions`: action names needed by this task family.
+- `tasks.<task_id>.action_space` in `textcraft_rules.yaml`: concrete action templates exposed to agents.
 - `minecraft_alignment`: notes for simplified mechanics.
 - `cases`: concrete initial states, oracle plans, and expected learning signals.
 
@@ -80,13 +93,13 @@ Current runner logs still use `success`. Before final experiments with diagnosti
 
 ## Action Space Contract
 
-`available_actions` should eventually come from task and rule declarations, not from oracle plans. Oracle plans are references for validation. They should not define what the agent is allowed to try.
+`available_actions` comes from `tasks.<task_id>.action_space` in `world_cases/textcraft_rules.yaml` when that field is present. Oracle plans remain references for validation. They should not define what the agent is allowed to try.
 
 Preferred direction:
 
 1. Keep action names finite and typed: `craft(item)`, `mine(resource)`, `trade(villager, offer, want)`, etc.
 2. Define recipes and hard preconditions in rules YAML.
-3. Generate `ActionSpec` entries from task-local action declarations and visible manuals.
+3. Generate `ActionSpec` entries from `tasks.<task_id>.action_space`.
 4. Validate oracle plans against the generated action space.
 
 ## Compositional Task Pattern
@@ -111,3 +124,6 @@ Before promoting a new task family to the active suite:
 - Scripted smoke works for the family.
 - Fake-provider LLM smoke still writes `llm_input_messages`, `llm_output`, `llm_raw_response`, `llm_parse_error`, `llm_finish_reason`, and `llm_attempts`.
 - Main evaluation excludes diagnostic no-route cases unless metrics distinguish `goal_achieved` from `case_resolved`.
+
+
+

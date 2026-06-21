@@ -1,8 +1,9 @@
-version: 0.1
+version: 0.2
 world: mytextcraft_mc
+last_updated: 2026-06-21
 description: >
   Symbolic Minecraft-inspired rules for MyTextCraft. These rules are intentionally
-  compact and deterministic in v0.1 so they can be used by unit tests and an oracle planner.
+  compact and deterministic so they can be used by unit tests and an oracle planner.
 
 item_groups:
   pickaxe_levels:
@@ -28,28 +29,186 @@ tasks:
     equivalent_conditions:
       inventory.diamond: ">=24"
       inventory.crafting_table: true
+    action_space:
+      - craft(crafting_table)
+      - craft(diamond_set)
+      - craft(diamond_helmet)
+      - craft(diamond_chestplate)
+      - craft(diamond_leggings)
+      - craft(diamond_boots)
+      - gather(wood)
+      - mine(diamond)
+      - move_to(mine)
+      - move_to(village)
+      - inspect(village)
+      - inspect(mine)
+      - explore(mine)
+      - explore(village)
+      - trade(armorer, emerald, diamond_set)
+      - trade(armorer, emerald, diamond_helmet)
+      - trade(armorer, emerald, diamond_chestplate)
+      - trade(armorer, emerald, diamond_leggings)
+      - trade(armorer, emerald, diamond_boots)
+      - report_impossible(no_viable_plan)
   golden_apple:
     success_conditions:
       inventory.golden_apple: true
+    action_space:
+      - craft(golden_apple)
+      - gather(apple)
+      - mine(gold_ore)
+      - smelt(gold_ore)
+      - move_to(orchard)
+      - move_to(mine)
+      - move_to(dungeon)
+      - move_to(village)
+      - explore(mine)
+      - explore(dungeon)
+      - inspect(chest)
+      - loot(chest, golden_apple)
+      - trade(farmer, emerald, apple)
+      - trade(farmer, emerald, gold_ingot)
+      - report_impossible(no_viable_plan)
+  golden_equipment_chain:
+    success_conditions:
+      inventory.golden_apple: true
+      inventory.golden_helmet: true
+    action_space:
+      - craft(golden_apple)
+      - craft(golden_helmet)
+      - gather(apple)
+      - mine(gold_ore)
+      - smelt(gold_ore)
+      - move_to(orchard)
+      - move_to(mine)
+      - move_to(dungeon)
+      - move_to(village)
+      - explore(mine)
+      - inspect(chest)
+      - loot(chest, golden_apple)
+      - trade(farmer, emerald, gold_ingot)
+      - report_impossible(no_viable_plan)
   nether_portal:
     success_conditions:
       environment.portal_lit: true
+    action_space:
+      - craft(flint_and_steel)
+      - gather(flint)
+      - mine(iron_ore)
+      - mine(obsidian)
+      - smelt(iron_ore)
+      - place(obsidian_portal_frame)
+      - place(obsidian)
+      - cast(obsidian)
+      - cast(portal_frame)
+      - ignite(portal)
+      - move_to(mine)
+      - move_to(ruined_portal)
+      - move_to(lava_pool)
+      - explore(ruined_portal)
+      - explore(lava_pool)
+      - inspect(portal_frame)
+      - report_impossible(no_viable_plan)
   enchant_pickaxe:
     success_conditions:
       inventory.enchanted_pickaxe: true
+    action_space:
+      - craft(enchanting_table)
+      - craft(bookshelf)
+      - mine(obsidian)
+      - mine(lapis)
+      - gather(wood)
+      - place(bookshelf)
+      - place(enchanting_table)
+      - enchant(pickaxe)
+      - trade(librarian, emerald, enchanted_book)
+      - inspect(village)
+      - move_to(village)
+      - move_to(mine)
+      - move_to(mob_area)
+      - fight(monsters)
+      - use_anvil(pickaxe, enchanted_book)
+      - report_impossible(no_viable_plan)
   fire_resistance_potion:
     success_conditions:
       inventory.fire_resistance_potion: true
+    action_space:
+      - craft(blaze_powder)
+      - craft(magma_cream)
+      - brew(awkward_potion)
+      - brew(fire_resistance_potion)
+      - fill(water_bottle)
+      - gather(nether_wart)
+      - fight(blaze)
+      - fight(magma_cube)
+      - move_to(fortress)
+      - move_to(bastion)
+      - move_to(basalt_delta)
+      - explore(fortress)
+      - inspect(fortress)
+      - inspect(chest)
+      - loot(chest, fire_resistance_potion)
+      - report_impossible(no_viable_plan)
   cure_zombie_villager:
     success_conditions:
       environment.zombie_villager_cured: true
+    action_space:
+      - craft(golden_apple)
+      - craft(splash_potion_of_weakness)
+      - brew(potion_of_weakness)
+      - throw(splash_potion_of_weakness)
+      - use(golden_apple, zombie_villager)
+      - wait(cure_complete)
+      - gather(apple)
+      - mine(gold_ore)
+      - smelt(gold_ore)
+      - move_to(orchard)
+      - move_to(mine)
+      - move_to(village)
+      - move_to(igloo)
+      - explore(igloo)
+      - inspect(village)
+      - inspect(basement)
+      - loot(chest, golden_apple)
+      - loot(stand, splash_potion_of_weakness)
+      - report_impossible(no_viable_plan)
   cake:
     success_conditions:
       inventory.cake: true
+    action_space:
+      - craft(cake)
+      - craft(sugar)
+      - gather(sugar_cane)
+      - gather(egg)
+      - milk(cow)
+      - plant(wheat)
+      - harvest(wheat)
+      - move_to(pasture)
+      - move_to(river)
+      - move_to(village)
+      - explore(pasture)
+      - explore(chicken)
+      - inspect(farmer)
+      - trade(farmer, emerald, wheat)
+      - trade(farmer, emerald, sugar)
+      - wait(egg_drop)
+      - report_impossible(no_viable_plan)
   eye_of_ender:
     success_conditions:
       inventory.eye_of_ender: true
-
+    action_space:
+      - craft(eye_of_ender)
+      - craft(blaze_powder)
+      - fight(blaze)
+      - fight(enderman)
+      - trade(cleric, emerald, ender_pearl)
+      - move_to(village)
+      - move_to(fortress)
+      - explore(fortress)
+      - inspect(village)
+      - loot(chest, ender_pearl)
+      - wait(night)
+      - report_impossible(no_viable_plan)
 rules:
   - id: R001
     name: full_diamond_armor_material_cost
@@ -317,3 +476,180 @@ rules:
       environment.mine_search_available: false
       environment.village_search_available: false
 
+
+
+  - id: R021
+    name: craft_golden_apple
+    type: hard
+    action:
+      name: craft
+      args:
+        item: golden_apple
+    preconditions:
+      inventory.apple: ">=1"
+      inventory.gold_ingot: ">=8"
+    effects:
+      inventory.apple: "-1"
+      inventory.gold_ingot: "-8"
+      inventory.golden_apple: true
+    failure_reason: missing_golden_apple_ingredients
+
+  - id: R022
+    name: craft_flint_and_steel
+    type: hard
+    action:
+      name: craft
+      args:
+        item: flint_and_steel
+    preconditions:
+      inventory.flint: ">=1"
+      inventory.iron_ingot: ">=1"
+    effects:
+      inventory.flint: "-1"
+      inventory.iron_ingot: "-1"
+      inventory.flint_and_steel: true
+    failure_reason: missing_flint_and_iron
+
+  - id: R023
+    name: craft_blaze_powder
+    type: hard
+    action:
+      name: craft
+      args:
+        item: blaze_powder
+    preconditions:
+      inventory.blaze_rod: ">=1"
+    effects:
+      inventory.blaze_rod: "-1"
+      inventory.blaze_powder: "+2"
+    failure_reason: missing_blaze_rod
+
+  - id: R024
+    name: craft_magma_cream
+    type: hard
+    action:
+      name: craft
+      args:
+        item: magma_cream
+    preconditions:
+      inventory.slimeball: ">=1"
+      inventory.blaze_powder: ">=1"
+    effects:
+      inventory.slimeball: "-1"
+      inventory.blaze_powder: "-1"
+      inventory.magma_cream: "+1"
+    failure_reason: missing_magma_cream_ingredients
+
+  - id: R025
+    name: craft_sugar
+    type: hard
+    action:
+      name: craft
+      args:
+        item: sugar
+    preconditions:
+      inventory.sugar_cane: ">=1"
+    effects:
+      inventory.sugar_cane: "-1"
+      inventory.sugar: "+2"
+    failure_reason: missing_sugar_cane
+
+  - id: R026
+    name: craft_cake
+    type: hard
+    action:
+      name: craft
+      args:
+        item: cake
+    preconditions:
+      inventory.milk_bucket: ">=3"
+      inventory.sugar: ">=2"
+      inventory.wheat: ">=3"
+      inventory.egg: ">=1"
+    effects:
+      inventory.milk_bucket: "-3"
+      inventory.sugar: "-2"
+      inventory.wheat: "-3"
+      inventory.egg: "-1"
+      inventory.cake: true
+    failure_reason: missing_cake_ingredients
+
+  - id: R027
+    name: craft_enchanting_table
+    type: hard
+    action:
+      name: craft
+      args:
+        item: enchanting_table
+    preconditions:
+      inventory.book: ">=1"
+      inventory.diamond: ">=2"
+      inventory.obsidian: ">=4"
+    effects:
+      inventory.book: "-1"
+      inventory.diamond: "-2"
+      inventory.obsidian: "-4"
+      inventory.enchanting_table: true
+    failure_reason: missing_enchanting_table_ingredients
+
+  - id: R028
+    name: craft_bookshelf
+    type: hard
+    action:
+      name: craft
+      args:
+        item: bookshelf
+    preconditions:
+      inventory.book: ">=3"
+      inventory.wood: ">=6"
+    effects:
+      inventory.book: "-3"
+      inventory.wood: "-6"
+      inventory.bookshelf: "+1"
+    failure_reason: missing_bookshelf_ingredients
+
+  - id: R029
+    name: craft_splash_potion_of_weakness
+    type: hard
+    action:
+      name: craft
+      args:
+        item: splash_potion_of_weakness
+    preconditions:
+      inventory.potion_of_weakness: ">=1"
+      inventory.gunpowder: ">=1"
+    effects:
+      inventory.potion_of_weakness: "-1"
+      inventory.gunpowder: "-1"
+      inventory.splash_potion_of_weakness: "+1"
+    failure_reason: missing_splash_potion_ingredients
+
+  - id: R030
+    name: craft_eye_of_ender
+    type: hard
+    action:
+      name: craft
+      args:
+        item: eye_of_ender
+    preconditions:
+      inventory.ender_pearl: ">=1"
+      inventory.blaze_powder: ">=1"
+    effects:
+      inventory.ender_pearl: "-1"
+      inventory.blaze_powder: "-1"
+      inventory.eye_of_ender: true
+    failure_reason: missing_eye_of_ender_ingredients
+
+  - id: R031
+    name: craft_golden_helmet
+    type: hard
+    action:
+      name: craft
+      args:
+        item: golden_helmet
+    preconditions:
+      inventory.gold_ingot: ">=5"
+    effects:
+      inventory.gold_ingot: "-5"
+      inventory.golden_helmet: true
+    failure_reason: missing_golden_helmet_ingredients
