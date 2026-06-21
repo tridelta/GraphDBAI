@@ -1,5 +1,5 @@
 version: 0.2-draft
-world: textcraft_mc
+world: mytextcraft_mc
 status: draft_not_active
 family: nether_portal
 goal: Build and light a Nether portal.
@@ -7,7 +7,7 @@ visible_manual_refs: [portal_frame, obsidian_mining, lava_water_casting, flint_a
 required_engine_actions: [mine, gather, craft, smelt, place, cast, ignite, move_to, explore, inspect, report_impossible]
 minecraft_alignment:
   - Minimum functional portal frame needs 10 obsidian because corners are optional.
-  - Lava-water casting is a TextCraft symbolic route.
+  - Lava-water casting is a MyTextCraft symbolic route.
 cases:
   - id: NP_001
     title: Place and ignite a frame from existing supplies.
@@ -93,3 +93,4 @@ cases:
     initial_state: {inventory: {obsidian: 0, flint_and_steel: false, flint: 0, iron_ingot: 0, water_bucket: false, pickaxe: none}, environment: {nearby_lava_pool: false, nearby_ruined_portal: false, portal_search_available: false, lava_search_available: false}, ambiguous: {}, location: base}
     oracle: {solvable: false, reference_plan: ["report_impossible(no_viable_plan)"], expected_failure: missing_portal_materials, expected_strategy: report_impossible}
     expected_experience: {path_type: impossible, learn: [portal_needs_frame_material_and_ignition_route]}
+

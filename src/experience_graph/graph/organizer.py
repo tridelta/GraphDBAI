@@ -199,7 +199,7 @@ class GraphOrganizer:
             "case_id": record.initial_observation.case_id,
             "action_tags": sorted({action.name for action in actions}),
             "resource_tags": self._resource_tags(actions),
-            "domain_tags": ["textcraft_mc"],
+            "domain_tags": ["mytextcraft_mc"],
         }
 
     def _resource_tags(self, actions: list[Action]) -> list[str]:
@@ -287,6 +287,7 @@ class GraphOrganizer:
         if old is None or count <= 1:
             return new
         return ((old * (count - 1)) + new) / count
+
 
 
 

@@ -5,13 +5,17 @@ from pathlib import Path
 import yaml
 
 from experience_graph.envs.oracle import CaseOracle
-from experience_graph.envs.textcraft import TextCraftAdapter
+from experience_graph.envs.textcraft import MyTextCraftAdapter, TextCraftAdapter
 
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "world_cases" / "textcraft_cases.yaml"
 RULES = ROOT / "world_cases" / "textcraft_rules.yaml"
 TASK_FAMILIES = ROOT / "world_cases" / "task_families"
+
+
+def test_legacy_textcraft_adapter_alias():
+    assert TextCraftAdapter is MyTextCraftAdapter
 
 
 def test_world_cases_load():
@@ -30,10 +34,8 @@ def test_rule_ids_unique():
     assert len(ids) == len(set(ids))
 
 
-
-
 def test_task_family_cases_load_as_active_suite():
-    env = TextCraftAdapter(TASK_FAMILIES, RULES)
+    env = MyTextCraftAdapter(TASK_FAMILIES, RULES)
     assert len(env.cases) == 96
     assert set(env.actions_by_task) == {
         "cake",
@@ -52,7 +54,7 @@ def test_task_family_cases_load_as_active_suite():
 
 
 def test_task_family_oracle_plans_match_expected_solvability():
-    env = TextCraftAdapter(TASK_FAMILIES, RULES)
+    env = MyTextCraftAdapter(TASK_FAMILIES, RULES)
     oracle = CaseOracle(env)
     mismatches = []
     for case_id, case in env.cases.items():

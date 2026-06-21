@@ -1,5 +1,5 @@
 version: 0.2-draft
-world: textcraft_mc
+world: mytextcraft_mc
 status: draft_not_active
 family: enchant_pickaxe
 goal: Obtain an enchanted pickaxe.
@@ -93,3 +93,4 @@ cases:
     initial_state: {inventory: {pickaxe: iron, enchanted_pickaxe: false, lapis: 0, xp_level: 0, enchanting_table: false, book: 0, diamond: 0, obsidian: 0, emerald: 0, anvil: false}, environment: {nearby_mine: false, nearby_village: false, nearby_mob_area: false}, ambiguous: {}, location: base}
     oracle: {solvable: false, reference_plan: ["report_impossible(no_viable_plan)"], expected_failure: missing_enchanting_route, expected_strategy: report_impossible}
     expected_experience: {path_type: impossible, learn: [enchanted_pickaxe_needs_table_or_book_route]}
+

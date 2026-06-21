@@ -1,5 +1,5 @@
 version: 0.2-draft
-world: textcraft_mc
+world: mytextcraft_mc
 status: draft_not_active
 family: cure_zombie_villager
 goal: Cure a zombie villager.
@@ -7,7 +7,7 @@ visible_manual_refs: [zombie_villager_cure, golden_apple_crafting, weakness_effe
 required_engine_actions: [craft, brew, throw, use, wait, explore, inspect, loot, move_to, gather, mine, smelt, report_impossible]
 minecraft_alignment:
   - Vanilla cure requires weakness effect plus golden apple.
-  - Igloo basement route is a deterministic TextCraft simplification.
+  - Igloo basement route is a deterministic MyTextCraft simplification.
 cases:
   - id: ZV_001
     title: Cure with ready golden apple and weakness potion.
@@ -93,3 +93,4 @@ cases:
     initial_state: {inventory: {golden_apple: 0, apple: 0, gold_ingot: 0, splash_potion_of_weakness: 0, brewing_stand: false}, environment: {zombie_villager_present: false, nearby_igloo: false, nearby_orchard: false, nearby_mine: false}, ambiguous: {}, location: base}
     oracle: {solvable: false, reference_plan: ["report_impossible(no_viable_plan)"], expected_failure: missing_cure_requirements, expected_strategy: report_impossible}
     expected_experience: {path_type: impossible, learn: [cure_requires_target_golden_apple_and_weakness_route]}
+

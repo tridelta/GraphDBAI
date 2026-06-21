@@ -102,7 +102,7 @@ INSPECT_TARGET_KEYS = {
 }
 
 
-class TextCraftAdapter:
+class MyTextCraftAdapter:
     def __init__(self, cases_path: str | Path, rules_path: str | Path):
         self.cases_path = Path(cases_path)
         self.rules_path = Path(rules_path)
@@ -121,7 +121,7 @@ class TextCraftAdapter:
         for source in sources:
             data = yaml.safe_load(source.read_text(encoding="utf-8")) or {}
             if "cases" not in data:
-                raise ValueError(f"TextCraft cases file has no cases list: {source}")
+                raise ValueError(f"MyTextCraft cases file has no cases list: {source}")
             family = data.get("family")
             for raw_case in data["cases"]:
                 case = copy.deepcopy(raw_case)
@@ -130,7 +130,7 @@ class TextCraftAdapter:
                 task = dict(case.get("task") or {})
                 task_id = task.get("id") or family
                 if not task_id:
-                    raise ValueError(f"TextCraft case has no task id: {case.get('id')} in {source}")
+                    raise ValueError(f"MyTextCraft case has no task id: {case.get('id')} in {source}")
                 task["id"] = task_id
                 rule_task = (self.rules_data.get("tasks", {}) or {}).get(task_id, {})
                 task.setdefault("success_conditions", rule_task.get("success_conditions") or TASK_SUCCESS_CONDITIONS.get(task_id, {}))
@@ -143,7 +143,7 @@ class TextCraftAdapter:
         ids = [case["id"] for case in cases]
         if len(ids) != len(set(ids)):
             duplicates = sorted({case_id for case_id in ids if ids.count(case_id) > 1})
-            raise ValueError(f"Duplicate TextCraft case ids: {duplicates}")
+            raise ValueError(f"Duplicate MyTextCraft case ids: {duplicates}")
         return {"cases": cases}
 
     def _build_actions_by_task(self) -> dict[str, list[ActionSpec]]:
@@ -161,7 +161,7 @@ class TextCraftAdapter:
         if case_id is None:
             case_id = next(iter(self.cases))
         if case_id not in self.cases:
-            raise KeyError(f"Unknown TextCraft case: {case_id}")
+            raise KeyError(f"Unknown MyTextCraft case: {case_id}")
         self.current_case = self.cases[case_id]
         self.state = copy.deepcopy(self.current_case["initial_state"])
         self.step_count = 0
@@ -176,7 +176,7 @@ class TextCraftAdapter:
 
     def step(self, action: Action) -> StepResult:
         if self.state is None:
-            raise RuntimeError("TextCraftAdapter.reset must be called before step.")
+            raise RuntimeError("MyTextCraftAdapter.reset must be called before step.")
         before = copy.deepcopy(self.state)
         revealed: list[Condition] = []
         ok = True
@@ -880,4 +880,7 @@ class TextCraftAdapter:
     def _hidden(self, key: str, default: Any) -> Any:
         assert self.current_case is not None
         return self.current_case.get("hidden_facts", {}).get(key, self.state.get("hidden_facts", {}).get(key, default))
+
+
+TextCraftAdapter = MyTextCraftAdapter
 

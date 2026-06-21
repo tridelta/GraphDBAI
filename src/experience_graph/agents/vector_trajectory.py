@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from experience_graph.agents.base import BaseAgent, extract_action_data
-from experience_graph.agents.prompts import TEXTCRAFT_ACTION_GUIDE
+from experience_graph.agents.prompts import MYTEXTCRAFT_ACTION_GUIDE
 from experience_graph.agents.memory_utils import append_jsonl, jaccard, observation_features, read_jsonl, summarize_experience
 from experience_graph.core.models import Action, AgentInput, AgentOutput, ExperienceRecord
 from experience_graph.llm.client import LLMClient
@@ -48,7 +48,7 @@ class VectorTrajectoryAgent(BaseAgent):
         messages = [
             {
                 "role": "system",
-                "content": "You are a VectorTrajectory TextCraft-MC agent. Use retrieved similar trajectories as flat trajectory memory, not as a graph. " + TEXTCRAFT_ACTION_GUIDE,
+                "content": "You are a VectorTrajectory MyTextCraft agent. Use retrieved similar trajectories as flat trajectory memory, not as a graph. " + MYTEXTCRAFT_ACTION_GUIDE,
             },
             {
                 "role": "user",
@@ -84,6 +84,7 @@ class VectorTrajectoryAgent(BaseAgent):
             }
             for score, row in scored[: self.top_k]
         ]
+
 
 
 

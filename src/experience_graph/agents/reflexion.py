@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from experience_graph.agents.base import BaseAgent, extract_action_data
-from experience_graph.agents.prompts import TEXTCRAFT_ACTION_GUIDE
+from experience_graph.agents.prompts import MYTEXTCRAFT_ACTION_GUIDE
 from experience_graph.agents.memory_utils import append_jsonl, read_jsonl, summarize_experience
 from experience_graph.core.models import Action, AgentInput, AgentOutput, ExperienceRecord
 from experience_graph.llm.client import LLMClient
@@ -46,7 +46,7 @@ class ReflexionAgent(BaseAgent):
         messages = [
             {
                 "role": "system",
-                "content": "You are a Reflexion TextCraft-MC agent. Use prior natural-language reflections only as flat memory. " + TEXTCRAFT_ACTION_GUIDE,
+                "content": "You are a Reflexion MyTextCraft agent. Use prior natural-language reflections only as flat memory. " + MYTEXTCRAFT_ACTION_GUIDE,
             },
             {
                 "role": "user",
@@ -71,6 +71,7 @@ class ReflexionAgent(BaseAgent):
         if feedback.failure_reason:
             return summary + f" Avoid repeating actions that trigger {feedback.failure_reason} unless the missing condition has changed."
         return summary
+
 
 
 

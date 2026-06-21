@@ -173,7 +173,7 @@ if output.action is None:
 result = self.env.step(output.action)
 ```
 
-这一步会进入 TextCraft 环境，根据 action 类型执行不同逻辑：
+这一步会进入 MyTextCraft 环境，根据 action 类型执行不同逻辑：
 
 - `craft(...)`
 - `gather(...)`
@@ -284,3 +284,5 @@ update = self.organizer.integrate(experience)
 用 agent 视角一句话总结就是：
 
 > 每个 step 中，我先观察当前状态，然后系统帮我从经验图里找过去相似或可用的路径；我把这些路径和自己新生成的探索计划进行比较，选择下一步动作；环境执行动作并返回结果；如果任务没结束也没失败，我带着新状态继续下一步。整个 episode 结束后，我这次走过的路径才会被整理进 ExperienceGraph，供以后使用。
+
+

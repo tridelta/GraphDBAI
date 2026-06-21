@@ -1,5 +1,5 @@
 version: 0.2-draft
-world: textcraft_mc
+world: mytextcraft_mc
 status: draft_not_active
 family: golden_apple
 goal: Obtain a golden apple.
@@ -22,7 +22,7 @@ required_engine_actions:
   - report_impossible
 minecraft_alignment:
   - Vanilla golden apple crafting uses one apple and eight gold ingots.
-  - Dungeon/chest loot is represented as deterministic TextCraft hidden information.
+  - Dungeon/chest loot is represented as deterministic MyTextCraft hidden information.
 cases:
   - id: GA_001
     title: Craft golden apple from existing ingredients.
@@ -170,3 +170,4 @@ cases:
       location: base
     oracle: {solvable: false, reference_plan: ["report_impossible(no_viable_plan)"], expected_failure: missing_apple_and_gold_sources, expected_strategy: report_impossible}
     expected_experience: {path_type: impossible, learn: [golden_apple_needs_apple_and_gold_or_loot_route]}
+

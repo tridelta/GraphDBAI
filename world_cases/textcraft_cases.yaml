@@ -1,5 +1,5 @@
 version: 0.1
-world: textcraft_mc
+world: mytextcraft_mc
 cases:
   - id: TC_CRAFT_001
     title: Craft full diamond set from existing materials.
@@ -630,3 +630,4 @@ cases:
             - environment.mine_search_available: true
             - environment.village_search_available: true
     notes: Oracle sanity case. Agent should stop or report impossible within step budget.
+

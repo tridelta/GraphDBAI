@@ -1,5 +1,5 @@
 version: 0.2-draft
-world: textcraft_mc
+world: mytextcraft_mc
 status: draft_not_active
 schema: compact_task_family_case_blueprint
 active_suite: world_cases/textcraft_cases.yaml
@@ -10,7 +10,7 @@ field_notes:
 notes:
   - This draft is not read by the current runner.
   - Each family has task-local visible_manual_refs so unrelated recipes stay out of prompts.
-  - Promote cases only after TextCraftAdapter is task-aware and scripted oracle plans pass.
+  - Promote cases only after MyTextCraftAdapter is task-aware and scripted oracle plans pass.
 
 task_families:
   - id: diamond_set
@@ -156,3 +156,5 @@ task_families:
       - {id: EO_010, d: hard, c: deceptive_village, setup: cleric absent but enderman route exists, plan: inspect village then hunt enderman, solvable: true}
       - {id: EO_011, d: hard, c: hidden_negative, setup: fortress and cleric searches fail, plan: explore inspect then report impossible, solvable: false}
       - {id: EO_012, d: impossible, c: no_route, setup: no pearl blaze trade or loot, plan: report impossible, solvable: false}
+
+

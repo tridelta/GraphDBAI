@@ -9,7 +9,7 @@ ExperienceGraph 是一个面向 LLM agent 的跨 episode 经验管理框架。�
 1. 将每次任务执行过程保存为结构化经验，而不是只保存自然语言反思。
 2. 用条件路径图表示“在什么状态下，采取什么动作，通常会进入什么状态”。
 3. 支持外部 agent 接入，包括 ReAct、Reflexion、纯 LLM planner、工具调用型 agent。
-4. 支持外部环境接入，TextCraft 是第一个环境，但核心框架不依赖 Minecraft 语义。
+4. 支持外部环境接入，MyTextCraft 是第一个环境，但核心框架不依赖 Minecraft 语义。
 5. 控制每次给 LLM 的经验信息量，避免图谱随 episode 增长后直接塞进 prompt。
 
 非目标：
@@ -39,7 +39,7 @@ flowchart LR
 
 | 模块 | 职责 |
 |------|------|
-| `EnvironmentAdapter` | 统一环境接口，把 TextCraft 或其他环境包装成标准 observation/action/result |
+| `EnvironmentAdapter` | 统一环境接口，把 MyTextCraft 或其他环境包装成标准 observation/action/result |
 | `ExternalAgent` | 外部智能体接口，只要求能接收输入并输出动作或计划 |
 | `EpisodeRunner` | 控制 episode 执行过程，连接环境、agent、经验图谱和日志 |
 | `ExperienceBuilder` | 将 trajectory 转换为结构化经验记录 |
@@ -332,15 +332,15 @@ class EnvironmentAdapter(Protocol):
         ...
 ```
 
-### 5.2 TextCraftAdapter
+### 5.2 MyTextCraftAdapter
 
-TextCraftAdapter 负责三类事情：
+MyTextCraftAdapter 负责三类事情：
 
 1. 状态管理：inventory、environment、ambiguous、location、step_count。
 2. 规则执行：craft、mine、trade、move_to、explore、gather 的前置条件和状态变化。
 3. 条件提取：把完整状态转换成图谱能理解的条件集合。
 
-TextCraft 的动作结果统一为：
+MyTextCraft 的动作结果统一为：
 
 ```python
 @dataclass
@@ -673,7 +673,7 @@ environment:
 ## 13. 第一版开发顺序
 
 1. 定义数据模型：Condition、Observation、Action、StepResult、ExperienceRecord、GraphNode、GraphEdge、PathRecord。
-2. 实现 TextCraftAdapter：支持 reset、available_actions、step、extract_conditions。
+2. 实现 MyTextCraftAdapter：支持 reset、available_actions、step、extract_conditions。
 3. 实现 EpisodeRunner：能让任意 ExternalAgent 完成一个 episode。
 4. 实现 ReActAgent baseline：不使用图谱。
 5. 实现 ExperienceBuilder：从 trajectory 生成 ExperienceRecord。
@@ -699,7 +699,7 @@ environment:
 伪代码：
 
 ```python
-env = TextCraftAdapter(config.environment)
+env = MyTextCraftAdapter(config.environment)
 graph_store = JsonGraphStore(run_dir)
 organizer = GraphOrganizer(graph_store, config.experience_graph)
 retriever = GraphRetriever(graph_store, config.experience_graph)
@@ -715,7 +715,7 @@ for episode_id in range(config.experiment.episodes):
     logger.write(result.metrics)
 ```
 
-这里的关键点是：`ExperienceGraphAgent` 可以被替换成 `ReActAgent` 或 `ReflexionAgent`，`TextCraftAdapter` 也可以被替换成其他环境 adapter。ExperienceGraph 的核心能力集中在 `ExperienceBuilder`、`GraphOrganizer`、`GraphRetriever` 和 `GraphStore`。
+这里的关键点是：`ExperienceGraphAgent` 可以被替换成 `ReActAgent` 或 `ReflexionAgent`，`MyTextCraftAdapter` 也可以被替换成其他环境 adapter。ExperienceGraph 的核心能力集中在 `ExperienceBuilder`、`GraphOrganizer`、`GraphRetriever` 和 `GraphStore`。
 
 ## 16. 推荐的代码目录
 
@@ -756,7 +756,7 @@ experience_graph/
 
 | 论文概念 | 工程模块 |
 |----------|----------|
-| TextCraft 环境 | `TextCraftAdapter` |
+| MyTextCraft 环境 | `MyTextCraftAdapter` |
 | Agent | `ExternalAgent` / `ExperienceGraphAgent` |
 | 经验 | `ExperienceRecord` |
 | 经验图谱 | `GraphStore` 中的 nodes、edges、paths |
@@ -767,8 +767,11 @@ experience_graph/
 
 ## 18. 开放问题
 
-1. `Condition` 的 canonicalization 规则需要先覆盖 TextCraft，再考虑通用化。
+1. `Condition` 的 canonicalization 规则需要先覆盖 MyTextCraft，再考虑通用化。
 2. LLM 合并判断是否进入主实验，需要看成本和一致性。
 3. 路径评分公式中的权重需要通过开发集确定，不能在测试集上调。
 4. 是否加入 RAG-only baseline，取决于论文想强调“经验组织”还是“世界知识接入”。
-5. TextCraft 是否引入随机事件要谨慎，第一版建议默认 deterministic，后续实验再打开 stochastic mode。
+5. MyTextCraft 是否引入随机事件要谨慎，第一版建议默认 deterministic，后续实验再打开 stochastic mode。
+
+
+

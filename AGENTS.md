@@ -15,7 +15,7 @@ ExperienceGraph 是一个 Python 3.11 / uv 项目，用于研究 LLM agent 的�
 
 核心任务：
 
-- TextCraft-MC 符号环境：可复现的 crafting/trading/exploration 任务。
+- MyTextCraft 符号环境：可复现的 crafting/trading/exploration 任务。
 - ExperienceGraph：把 episode trajectory 组织为 condition node、action edge、path record 和统计信息。
 - 多 agent 对比：`scripted`、`react`、`reflexion`、`vector_trajectory`、`skill_library`、`graph`。
 - JSONL 实验日志：为论文实验、可观测性检查、Stage 2 pilot 分析服务。
@@ -30,14 +30,14 @@ ExperienceGraph 是一个 Python 3.11 / uv 项目，用于研究 LLM agent 的�
 ## 2. 目录速览
 
 - `src/experience_graph/core/`：数据模型、condition、experience 构建、序列化。
-- `src/experience_graph/envs/`：环境 adapter、TextCraft 实现、oracle。
+- `src/experience_graph/envs/`：环境 adapter、MyTextCraft 实现、oracle。
 - `src/experience_graph/agents/`：各 agent、prompt、memory 工具。
 - `src/experience_graph/graph/`：JSON graph store、organizer、retriever、merge/relevance。
 - `src/experience_graph/runners/`：`EpisodeRunner`，连接 env、agent、retriever、organizer、logger。
 - `src/experience_graph/evaluation/`：JSONL logger。
 - `src/experience_graph/scripts/`：实验执行与结果分析 CLI。
 - `src/experience_graph/panel/`：FastAPI panel。
-- `world_cases/`：TextCraft 规则、active cases、task family cases、样例经验。
+- `world_cases/`：MyTextCraft 规则、active cases、task family cases、样例经验。
 - `tests/`：环境、runner、LLM client、graph、panel、world cases 测试。
 - `tools/`：Stage 2 分析、报告生成、HTML viewer、real pilot package。
 - `docs/`：系统设计、风险记录、Stage 2 审计事项。
@@ -53,7 +53,7 @@ ExperienceGraph 是一个 Python 3.11 / uv 项目，用于研究 LLM agent 的�
 - 工作区可能已有 Leo 的未提交改动。修改前看 `git status --short`，不要覆盖无关变化。
 - 新增逻辑要有可验证结果：测试、fake-provider smoke、日志字段检查或分析脚本输出。
 - 修改 prompt、parser、LLM client、runner 时，要检查 `steps.jsonl` 中的 `llm_input_messages`、`llm_output`、`llm_raw_response`、`llm_parse_error`、`llm_finish_reason`、`llm_attempts` 是否仍写入。
-- 修改 TextCraft 任务、规则或 world cases 时，要同时考虑 oracle plan、action space、success condition、prompt manual 和 tests。
+- 修改 MyTextCraft 任务、规则或 world cases 时，要同时考虑 oracle plan、action space、success condition、prompt manual 和 tests。
 - 不要用真实 LLM 调用验证普通代码改动。付费调用只在 Leo 明确需要时执行，并遵守 smoke 规则。
 
 ## 4. 常用命令
@@ -239,14 +239,16 @@ LLM token 统计优先使用 API usage；没有 usage 时可以用估算值，�
 
 如果模型返回根级 action JSON，例如 `{ "name": "inspect", "args": {...} }`，agent parser 应视为有效 action。若返回 `{}` 或 malformed JSON，应记录 `invalid_llm_output`，实验进程不能因为 parser 错误中断。
 
-## 8. TextCraft 与 world cases
+## 8. MyTextCraft 与 world cases
 
 - `world_cases/textcraft_rules.yaml` 是规则来源。
 - `world_cases/textcraft_cases.yaml` 是当前 diamond-set 主套件。
 - `world_cases/task_families/` 包含 8 个 task family，测试期望可加载 96 个 cases。
+- `docs/mytextcraft_task_standard.md` 是新增 task family 的统一标准。
 - 每个 case 需要包含稳定 `id`、`difficulty`、`task`、`initial_state`、`oracle`、`expected_experience`。
+- 后续主评测默认应避免 `impossible` / no-route cases；这类 case 保留为 diagnostic，并在分析中区分 `goal_achieved` 与 `case_resolved`。
 - 任务相关变更要确认 `CaseOracle` reference plan 与 expected solvability 一致。
-- 新 task family 不能只加 YAML；还要检查 `TextCraftAdapter.available_actions()`、`is_success()`、`step()`、`TEXTCRAFT_ACTION_GUIDE`、`report_impossible()` 是否 task-aware。
+- 新 task family 不能只加 YAML；还要检查 `MyTextCraftAdapter.available_actions()`、`is_success()`、`step()`、`MYTEXTCRAFT_ACTION_GUIDE`、`report_impossible()` 是否 task-aware。
 - prompt 不应暴露 hidden facts。已有测试和 Stage 2 validation 会检查 `prompt_hidden_facts=false`。
 
 ## 9. Agent 与 Graph 约束
@@ -278,3 +280,5 @@ LLM token 统计优先使用 API usage；没有 usage 时可以用估算值，�
 6. 汇报功能变化、验证结果、未验证风险。
 
 对小型文档修改，可用阅读检查代替完整测试；对 runner、env、agent、graph、LLM client、analysis 脚本修改，应至少执行相关测试文件。
+
+

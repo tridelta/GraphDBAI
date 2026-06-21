@@ -8,7 +8,7 @@ from typing import Any
 from experience_graph.core.experience import ExperienceBuilder
 from experience_graph.core.models import AgentInput, ExperienceRecord, StepRecord, TaskSpec
 from experience_graph.core.serialization import to_jsonable
-from experience_graph.envs.textcraft import TextCraftAdapter
+from experience_graph.envs.textcraft import MyTextCraftAdapter
 from experience_graph.evaluation.logger import EvaluationLogger
 from experience_graph.graph.organizer import GraphOrganizer
 from experience_graph.graph.retriever import GraphRetriever
@@ -45,7 +45,7 @@ class RunContext:
 class EpisodeRunner:
     def __init__(
         self,
-        env: TextCraftAdapter,
+        env: MyTextCraftAdapter,
         agent,
         organizer: GraphOrganizer,
         retriever: GraphRetriever,
@@ -377,4 +377,6 @@ class EpisodeRunner:
     def _stable_hash(self, payload: Any) -> str:
         text = json.dumps(to_jsonable(payload), ensure_ascii=False, sort_keys=True)
         return hashlib.sha1(text.encode("utf-8")).hexdigest()[:12]
+
+
 

@@ -1,5 +1,5 @@
 version: 0.2-draft
-world: textcraft_mc
+world: mytextcraft_mc
 status: draft_not_active
 family: diamond_set
 goal: Obtain a full diamond armor set.
@@ -20,7 +20,7 @@ required_engine_actions:
   - report_impossible
 minecraft_alignment:
   - Full diamond armor costs 24 diamonds: helmet 5, chestplate 8, leggings 7, boots 4.
-  - Armorer trade is a deterministic TextCraft simplification, not vanilla trade-table behavior.
+  - Armorer trade is a deterministic MyTextCraft simplification, not vanilla trade-table behavior.
 cases:
   - id: DS_001
     title: Craft full diamond set from existing materials.
@@ -216,3 +216,4 @@ cases:
       expected_failure: no_resource_access
       expected_strategy: report_impossible
     expected_experience: {path_type: impossible, learn: [no_resource_route_for_diamond_set]}
+

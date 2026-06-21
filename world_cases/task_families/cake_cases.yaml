@@ -1,5 +1,5 @@
 version: 0.2-draft
-world: textcraft_mc
+world: mytextcraft_mc
 status: draft_not_active
 family: cake
 goal: Craft a cake.
@@ -7,7 +7,7 @@ visible_manual_refs: [cake_crafting, milk_bucket, wheat_farming, sugar_cane, egg
 required_engine_actions: [gather, milk, craft, plant, harvest, move_to, explore, inspect, trade, wait, report_impossible]
 minecraft_alignment:
   - Vanilla cake uses milk, sugar, wheat, and egg.
-  - TextCraft treats bucket and repeated milk collection symbolically.
+  - MyTextCraft treats bucket and repeated milk collection symbolically.
 cases:
   - id: CK_001
     title: Craft cake from existing ingredients.
@@ -93,3 +93,4 @@ cases:
     initial_state: {inventory: {milk_bucket: 0, bucket: 0, sugar: 0, wheat: 0, seeds: 0, egg: 0, cake: false}, environment: {nearby_cow: false, nearby_chicken: false, nearby_village: false, nearby_river: false, farmland_available: false}, ambiguous: {}, location: base}
     oracle: {solvable: false, reference_plan: ["report_impossible(no_viable_plan)"], expected_failure: missing_cake_ingredients, expected_strategy: report_impossible}
     expected_experience: {path_type: impossible, learn: [cake_requires_all_four_ingredient_categories]}
+

@@ -6,7 +6,7 @@
 
 更进一步，即使两个状态并不完全相同，它们也可能对应相似的策略选择。例如，当前状态和某个历史状态的资源数量、工具条件、环境位置略有差异，但它们都适合走“交易路线”或“先采矿再合成”的路径。在这种情况下，我们希望 retriever 不只返回完全匹配的路径，而是能够找到与当前状态语义上最相近、经验上最有参考价值的已有节点和路径。
 
-因此，一个改进方向是为每个 node 或 path 构造语义表示，并生成 embedding 向量。节点 embedding 可以由节点的 `required conditions`、`suggested` 描述、节点 label、上下文信息等组成；路径 embedding 可以由整条路径的 action sequence、起点条件、终点条件、成功/失败统计和自然语言摘要组成。检索时，将当前 observation 或当前 condition set 也编码成同一向量空间中的 query embedding，然后在历史 node/path embedding 中做近邻搜索，返回语义上最接近当前状态的候选节点或路径。
+因此，一个改进方向是为每个 node 或 path 构造语义表示，并生成 embedding 向量。节点 embedding 可以由节点的 `required conditions`、`suggested` 描述、节点 label、上下文信息等组成；路径 embedding 可以由整条路径的 action sequence、起点条件、终点条件、成功/失败统计和自然语言摘要组成。检索时，将当前 observation 或当前 condition set 也编码成同一向量空间的 query embedding，然后在历史 node/path embedding 中做近邻搜索，返回语义上最接近当前状态的候选节点或路径。
 
 这种方式可以把检索从“精确结构匹配”扩展为“语义相似性检索”。它有几个潜在好处：
 
@@ -20,23 +20,22 @@
 
 > To improve retrieval beyond exact condition matching, we propose augmenting each graph node and path with a semantic embedding. For a node, the embedding is computed from its normalized conditions, label, suggested natural-language hints, and local graph context. For a path, the embedding summarizes the start conditions, action sequence, terminal condition, and accumulated outcome statistics. At retrieval time, the current observation and condition set are encoded into the same embedding space, and the retriever performs nearest-neighbor search over stored node/path embeddings. The top semantic matches are then filtered by hard preconditions and ranked by both similarity and success statistics. This allows ExperienceGraph to retrieve experiences that are not structurally identical to the current state but are semantically relevant, enabling reuse across paraphrased conditions, partially overlapping states, and similar strategy contexts.
 
-## Multi-task case suite implementation risk
+## MyTextCraft task suite risk
 
-The planned final-stage case suite should cover multiple task families, but the current active TextCraft implementation is still mostly centered on `diamond_set`.
+The task-family suite now loads through `MyTextCraftAdapter`, and oracle reference plans are validated by `tests/test_world_cases_load.py`. The remaining risk is no longer basic multi-task loading; it is task-standard drift.
 
-Observed implementation gaps:
+Current risks:
 
-- `TextCraftAdapter.is_success()` currently checks the four diamond armor pieces rather than reading `tasks.<task_id>.success_conditions` from `textcraft_rules.yaml`.
-- `TextCraftAdapter.step()` computes `done` using `TaskSpec(id="diamond_set")`, so non-`diamond_set` tasks may not terminate correctly even if their goal state is reached.
-- `available_actions()` and `TEXTCRAFT_ACTION_GUIDE` are still diamond armor oriented. New tasks such as `golden_apple`, `nether_portal`, `enchant_pickaxe`, and `fire_resistance_potion` will need task-relevant actions and task-local prompt manuals.
-- `report_impossible()` and `_has_viable_completion_route()` encode diamond armor routes, so impossible-case behavior for other task families would be unreliable unless this logic becomes task-aware.
-- `run_experiment.py` filters by one `--task-id`; this is fine for per-task runs, but a mixed-task final suite needs either repeated per-task runs or an explicit multi-task schedule mode.
+- `available_actions()` is still derived from oracle reference plans, so oracle plans currently influence the exposed action space. Future task families should define action space independently.
+- Many action semantics still live in Python branches inside `MyTextCraftAdapter.step()` and helper methods. This works for current tasks, but it makes new recipes require code changes.
+- Prompt manuals are not yet generated from `visible_manual_refs`, so task-local rules are recorded in YAML but not fully used by LLM agents.
+- Older suites include `impossible` cases. These are useful diagnostics, but future main evaluation should prefer solvable cases and separate `goal_achieved` from `case_resolved` if diagnostics are included.
+- `run_experiment.py --task-id all` supports mixed schedules, but final comparison protocols still need a fixed case schedule across agents and seeds.
 
 Recommended handling:
 
-- Keep the current `world_cases/textcraft_cases.yaml` as the active diamond-set suite until the environment is task-aware.
-- Put new multi-task cases in a draft file first, then promote them after oracle execution passes for every reference plan.
-- Before real LLM calls, run scripted or fake-provider smoke runs for each new task family and verify that prompts expose only the selected task's visible manual, never unrelated task recipes or hidden facts.
-- Treat simplified Minecraft rules as TextCraft rules and mark any deviation from real Minecraft mechanics in rule notes, especially villager trading and route shortcuts.
-
-
+- Use `docs/mytextcraft_task_standard.md` as the source of truth for new task families.
+- Keep no-route cases as optional diagnostics, not as part of the default main success-rate claim.
+- Move recipe and action precondition definitions toward declarative YAML before adding many more tasks.
+- Before real LLM calls, run scripted or fake-provider smoke runs for each new task family and verify that prompts expose only the selected task's visible manual, never unrelated recipes or hidden facts.
+- Treat simplified Minecraft rules as MyTextCraft rules and mark any deviation from real Minecraft mechanics in rule notes, especially villager trading and route shortcuts.

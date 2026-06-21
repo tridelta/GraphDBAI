@@ -1,7 +1,7 @@
 version: 0.1
-world: textcraft_mc
+world: mytextcraft_mc
 description: >
-  Symbolic Minecraft-inspired rules for TextCraft-MC. These rules are intentionally
+  Symbolic Minecraft-inspired rules for MyTextCraft. These rules are intentionally
   compact and deterministic in v0.1 so they can be used by unit tests and an oracle planner.
 
 item_groups:
@@ -316,3 +316,4 @@ rules:
       environment.nearby_village: false
       environment.mine_search_available: false
       environment.village_search_available: false
+

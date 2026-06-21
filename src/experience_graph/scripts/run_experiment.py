@@ -18,7 +18,7 @@ from experience_graph.agents.reflexion import ReflexionAgent
 from experience_graph.agents.scripted import ScriptedAgent
 from experience_graph.agents.skill_library import SkillLibraryAgent
 from experience_graph.agents.vector_trajectory import VectorTrajectoryAgent
-from experience_graph.envs.textcraft import TextCraftAdapter
+from experience_graph.envs.textcraft import MyTextCraftAdapter
 from experience_graph.evaluation.logger import EvaluationLogger
 from experience_graph.graph.organizer import GraphOrganizer
 from experience_graph.graph.retriever import GraphRetriever
@@ -145,7 +145,7 @@ def main() -> None:
     effective_llm_provider = "none" if args.agent == "scripted" else (args.llm_provider or os.getenv("EXPERIENCE_GRAPH_LLM_PROVIDER", "openai"))
     effective_llm_model = resolve_model(effective_llm_provider, args.llm_model)
 
-    env = TextCraftAdapter(args.cases, args.rules)
+    env = MyTextCraftAdapter(args.cases, args.rules)
     selected_cases = filter_cases(env.cases, args.difficulty, args.task_id)
     case_ids = build_case_schedule(selected_cases, args.episodes, args.seed, args.case_schedule)
     variant_config = build_variant_config(args.variant, args.top_k)
@@ -482,4 +482,6 @@ def build_agent(
 
 if __name__ == "__main__":
     main()
+
+
 

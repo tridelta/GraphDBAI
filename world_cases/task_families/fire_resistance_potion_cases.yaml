@@ -1,5 +1,5 @@
 version: 0.2-draft
-world: textcraft_mc
+world: mytextcraft_mc
 status: draft_not_active
 family: fire_resistance_potion
 goal: Brew or obtain a potion of fire resistance.
@@ -7,7 +7,7 @@ visible_manual_refs: [brewing_stand, blaze_powder, awkward_potion, magma_cream, 
 required_engine_actions: [craft, brew, fill, gather, fight, move_to, explore, inspect, loot, report_impossible]
 minecraft_alignment:
   - Brewing uses water bottle, nether wart, blaze powder fuel, and magma cream.
-  - Mob drops and loot are deterministic TextCraft simplifications.
+  - Mob drops and loot are deterministic MyTextCraft simplifications.
 cases:
   - id: FR_001
     title: Brew potion from all ingredients.
@@ -93,3 +93,4 @@ cases:
     initial_state: {inventory: {brewing_stand: false, blaze_powder: 0, water_bottle: 0, nether_wart: 0, magma_cream: 0}, environment: {nearby_fortress: false, nearby_bastion: false, nether_search_available: false}, ambiguous: {}, location: base}
     oracle: {solvable: false, reference_plan: ["report_impossible(no_viable_plan)"], expected_failure: missing_brewing_route, expected_strategy: report_impossible}
     expected_experience: {path_type: impossible, learn: [fire_resistance_needs_brewing_or_loot_route]}
+

@@ -42,14 +42,14 @@ ExperienceGraph 更适合被表述为：
 |---|---|---|---|
 | ReAct | 推理和行动交替进行。 | 适合作为无跨 episode 记忆 baseline。 | 默认不积累长期经验。 |
 | Reflexion | 失败/成功后生成文字反思，并在后续任务中复用。 | 是最直接的 flat memory baseline。 | 记忆多为文本列表，缺少条件化路径结构。 |
-| Voyager | Minecraft lifelong agent，包含自动课程、代码技能库、自我改进。 | TextCraft 与 Minecraft 相似，因此 Voyager 是重要对照。 | 存储的是 executable skills，不是带条件统计的多路径经验图。 |
+| Voyager | Minecraft lifelong agent，包含自动课程、代码技能库、自我改进。 | MyTextCraft 与 Minecraft 相似，因此 Voyager 是重要对照。 | 存储的是 executable skills，不是带条件统计的多路径经验图。 |
 | GITM | 面向 Minecraft 的文本知识、结构化动作、规划和记忆。 | 适合作为 embodied/game agent 相关工作。 | 更像 planner + memory system，不以轨迹图增量学习为重点。 |
-| DEPS | Describe、Explain、Plan、Select 的开放世界多任务规划。 | 与 TextCraft 的开放任务规划关系较近。 | 关注计划选择，不强调跨 episode 图式经验积累。 |
+| DEPS | Describe、Explain、Plan、Select 的开放世界多任务规划。 | 与 MyTextCraft 的开放任务规划关系较近。 | 关注计划选择，不强调跨 episode 图式经验积累。 |
 
 对 proposal 的影响：
 
 - ReAct 和 Reflexion 必须保留。
-- 建议加入简化版 Voyager-style skill library，因为 TextCraft 的 Minecraft 来源很明显。
+- 建议加入简化版 Voyager-style skill library，因为 MyTextCraft 的 Minecraft 来源很明显。
 - GITM 和 DEPS 可放入 related work；如果完整复现成本过高，不一定要作为实验 baseline。
 
 ## 2. 推理时搜索与规划
@@ -61,7 +61,7 @@ ExperienceGraph 更适合被表述为：
 | RAP | 把 LLM 当作 policy 和 world model，使用 MCTS 风格规划。 | 与探索-利用和环境模型有关。 | 重点在推理时搜索，不是持久经验图。 |
 | LATS | 结合行动、规划、反思和 Monte Carlo Tree Search。 | 可作为强 search baseline。 | 提升的是任务内 deliberation，不是跨 episode 路径记忆。 |
 | Tree Search for LM Agents | 在 web 环境中用 best-first tree search 提升 agent 表现。 | 说明 test-time search 对交互式任务有效。 | 关注当前任务搜索，不是历史经验图增长。 |
-| Branch-and-Browse | Web agent 中使用树结构推理和跨 session action memory。 | 与“action memory”很接近，值得关注。 | 面向 web exploration，领域假设与 TextCraft 不同。 |
+| Branch-and-Browse | Web agent 中使用树结构推理和跨 session action memory。 | 与“action memory”很接近，值得关注。 | 面向 web exploration，领域假设与 MyTextCraft 不同。 |
 
 对 proposal 的影响：
 
@@ -104,7 +104,7 @@ ExperienceGraph 更适合被表述为：
 | OpenAI Agents SDK | 轻量 agent runtime，包含 agents、tools、handoffs、guardrails、sessions、tracing、sandbox agents。 | 适合做 tracing、sessions、受控工具执行。 | 不定义学习算法。 |
 | AutoGen | 多智能体对话框架，包含 AgentChat、Core、Extensions、Studio。 | 后续可用于 planner、critic、graph organizer 多角色设计。 | 对话编排不等于轨迹记忆。 |
 | CrewAI | Crews 和 Flows，用于协作 agent、memory、knowledge、observability、自动化。 | 可用于角色型实验。 | 更偏 workflow automation。 |
-| LlamaIndex Agents | 工具调用 agent，与 RAG、workflow、query engine、graph/property index 集成。 | 如果 TextCraft 需要 RAG 或图存储集成，会比较方便。 | 主要是数据/RAG 框架。 |
+| LlamaIndex Agents | 工具调用 agent，与 RAG、workflow、query engine、graph/property index 集成。 | 如果 MyTextCraft 需要 RAG 或图存储集成，会比较方便。 | 主要是数据/RAG 框架。 |
 | Google ADK | 开源 agent development kit，强调 graph workflows、sessions、memory、context management、evaluation、deployment。 | ADK 2.0 的 graph workflow 与协作 agent 值得关注。 | workflow graph 和 experience graph 不是同一个层次。 |
 | Semantic Kernel | 面向企业 AI agent 的 middleware，强调 plugins、function calling、model integration。 | 适合抽象工具和函数调用。 | 不是学习型 agent 方法。 |
 | AutoGPT | 用于构建、部署和运行 continuous AI agents 的平台，也有 block-based workflows 和 benchmark 历史。 | 作为自治 agent 工程历史参考。 | 不是具体的长期记忆学习算法。 |
@@ -145,7 +145,7 @@ ExperienceGraph 更适合被表述为：
 
 ## 7. Benchmarks 与评测风险
 
-| 工作 | 对 TextCraft 实验的提醒 |
+| 工作 | 对 MyTextCraft 实验的提醒 |
 |---|---|
 | WebArena | 真实长程环境很难，强模型 agent 与人类仍有较大差距。 |
 | OSWorld | 基于真实执行结果的评测很重要；GUI/computer tasks 暴露了 agent 能力缺口。 |
@@ -153,7 +153,7 @@ ExperienceGraph 更适合被表述为：
 | SWE-agent | Agent-computer interface 会显著影响表现，环境接口和 prompt 同样重要。 |
 | AI Agents That Matter | 应报告成本、准确率、复现性、holdout 设计，避免过拟合 benchmark。 |
 
-对 TextCraft 的建议：
+对 MyTextCraft 的建议：
 
 - 设计 hidden test seeds/tasks，不只在 prompt 调试过的任务上评估。
 - 同时报告 LLM 调用次数、token 成本、wall-clock time、成功率、成功 episode 步数。
@@ -343,5 +343,8 @@ ExperienceGraph 可以重点强调：
 3. 确定第一版要实现哪些 baseline：
    - 必做：ReAct、Reflexion、VectorTrajectory、ExperienceGraph。
    - 可选：SkillLibrary、LATS/search-only。
-4. 在写 TextCraft 代码前，定义 ExperienceGraph schema 和 update algorithm。
+4. 在写 MyTextCraft 代码前，定义 ExperienceGraph schema 和 update algorithm。
 5. 做一个 30-50 episode 的 pilot experiment，观察图检索出的路径在随机初始状态下是否可执行。
+
+
+

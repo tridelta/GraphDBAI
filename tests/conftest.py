@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from experience_graph.envs.textcraft import TextCraftAdapter
+from experience_graph.envs.textcraft import MyTextCraftAdapter
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -13,5 +13,7 @@ RULES = ROOT / "world_cases" / "textcraft_rules.yaml"
 
 
 @pytest.fixture
-def textcraft_env() -> TextCraftAdapter:
-    return TextCraftAdapter(CASES, RULES)
+def textcraft_env() -> MyTextCraftAdapter:
+    return MyTextCraftAdapter(CASES, RULES)
+
+

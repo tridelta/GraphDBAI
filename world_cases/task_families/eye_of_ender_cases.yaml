@@ -1,5 +1,5 @@
 version: 0.2-draft
-world: textcraft_mc
+world: mytextcraft_mc
 status: draft_not_active
 family: eye_of_ender
 goal: Craft an eye of ender.
@@ -7,7 +7,7 @@ visible_manual_refs: [eye_of_ender_crafting, ender_pearl, blaze_powder, nether_f
 required_engine_actions: [craft, fight, trade, move_to, explore, inspect, loot, wait, report_impossible]
 minecraft_alignment:
   - Vanilla eye of ender uses ender pearl and blaze powder.
-  - TextCraft simplifies mob encounters and villager offers into deterministic action outcomes.
+  - MyTextCraft simplifies mob encounters and villager offers into deterministic action outcomes.
 cases:
   - id: EO_001
     title: Craft eye from existing components.
@@ -93,3 +93,4 @@ cases:
     initial_state: {inventory: {ender_pearl: 0, blaze_powder: 0, blaze_rod: 0, emerald: 0, eye_of_ender: false}, environment: {nearby_fortress: false, nearby_village: false, enderman_route_available: false, nether_search_available: false}, ambiguous: {}, location: base}
     oracle: {solvable: false, reference_plan: ["report_impossible(no_viable_plan)"], expected_failure: missing_eye_components, expected_strategy: report_impossible}
     expected_experience: {path_type: impossible, learn: [eye_of_ender_needs_pearl_and_blaze_powder_routes]}
+

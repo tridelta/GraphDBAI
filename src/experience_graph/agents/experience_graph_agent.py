@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from experience_graph.agents.base import extract_action_data
-from experience_graph.agents.prompts import TEXTCRAFT_ACTION_GUIDE
+from experience_graph.agents.prompts import MYTEXTCRAFT_ACTION_GUIDE
 from experience_graph.agents.react import ReActAgent
 from experience_graph.core.models import Action, AgentInput, AgentOutput
 from experience_graph.llm.client import LLMClient
@@ -33,8 +33,8 @@ class ExperienceGraphAgent(ReActAgent):
             {
                 "role": "system",
                 "content": (
-                    "You are an ExperienceGraph TextCraft-MC agent. "
-                    + TEXTCRAFT_ACTION_GUIDE
+                    "You are an ExperienceGraph MyTextCraft agent. "
+                    + MYTEXTCRAFT_ACTION_GUIDE
                     + " If exploration is enabled, first propose one novel candidate path, then compare it with graph candidate paths."
                     + " Return JSON with novel_candidate_path, selected_strategy, selected_plan, next_action, reason, confidence."
                 ),
@@ -92,6 +92,7 @@ class ExperienceGraphAgent(ReActAgent):
             elif isinstance(item, str):
                 plan.append(Action.parse(item))
         return plan or None
+
 
 
 

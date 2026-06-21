@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from experience_graph.core.models import Action, TaskSpec
-from experience_graph.envs.textcraft import TextCraftAdapter
+from experience_graph.envs.textcraft import MyTextCraftAdapter
 
 
 @dataclass
@@ -16,7 +16,7 @@ class OracleResult:
 
 
 class CaseOracle:
-    def __init__(self, env: TextCraftAdapter):
+    def __init__(self, env: MyTextCraftAdapter):
         self.env = env
 
     def run_case(self, case_id: str) -> OracleResult:
@@ -41,3 +41,5 @@ class CaseOracle:
             steps=observation.step_count,
             failure_reason=failure_reason,
         )
+
+

@@ -258,7 +258,7 @@ def main() -> None:
         "| Claim | Evidence | Status |",
         "| --- | --- | --- |",
         "| Fixed Stage 2 logs no longer expose hidden facts in prompts | `hidden_fact_prompts` table above | Supported for this pilot if the count is 0 |",
-        "| Agents can complete the medium TextCraft flow with real external LLM calls | `success_rate` and failure table above | " + llm_claim_status + " |",
+        "| Agents can complete the medium MyTextCraft flow with real external LLM calls | `success_rate` and failure table above | " + llm_claim_status + " |",
         "| ExperienceGraph graph context is available to the graph agent | `avg_candidate_paths` plus graph growth artifacts | Pilot observation |",
         "| Pilot numbers replace paper-scale `[PROJECTED]` claims | Only 5 episodes per method | Not supported |",
         "",
@@ -277,4 +277,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+
 

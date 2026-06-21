@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from experience_graph.agents.base import BaseAgent, extract_action_data
-from experience_graph.agents.prompts import TEXTCRAFT_ACTION_GUIDE
+from experience_graph.agents.prompts import MYTEXTCRAFT_ACTION_GUIDE
 from experience_graph.agents.memory_utils import append_jsonl, jaccard, observation_features, read_jsonl
 from experience_graph.core.models import Action, AgentInput, AgentOutput, ExperienceRecord
 from experience_graph.llm.client import LLMClient
@@ -53,7 +53,7 @@ class SkillLibraryAgent(BaseAgent):
         messages = [
             {
                 "role": "system",
-                "content": "You are a SkillLibrary TextCraft-MC agent. Reuse or adapt successful action-sequence skills when applicable. " + TEXTCRAFT_ACTION_GUIDE,
+                "content": "You are a SkillLibrary MyTextCraft agent. Reuse or adapt successful action-sequence skills when applicable. " + MYTEXTCRAFT_ACTION_GUIDE,
             },
             {
                 "role": "user",
@@ -87,6 +87,7 @@ class SkillLibraryAgent(BaseAgent):
             }
             for score, row in scored[: self.top_k]
         ]
+
 
 
 

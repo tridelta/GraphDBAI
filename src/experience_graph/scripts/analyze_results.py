@@ -300,7 +300,7 @@ def write_experiment_writeup(path: Path, rows: list[dict[str, Any]], runs: list[
             "",
             "- Pilot-scale runs should not replace projected paper claims until the planned seed and episode counts are complete.",
             "- If semantic node merging is not enabled, node-merge quality claims must be restricted to deterministic rule-based merging.",
-            "- If TextCraft uses fixed case schedules rather than procedural initial-state sampling, describe seed as controlling case order rather than environment distribution.",
+            "- If MyTextCraft uses fixed case schedules rather than procedural initial-state sampling, describe seed as controlling case order rather than environment distribution.",
         ]
     )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -393,4 +393,5 @@ def format_value(value: Any) -> str:
 
 if __name__ == "__main__":
     main()
+
 

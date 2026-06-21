@@ -2,7 +2,7 @@
 
 ## Abstract
 
-Large language model (LLM) agents have demonstrated strong reasoning and action capabilities in interactive environments. However, existing approaches either lack cross-episode memory (ReAct), store experiences as unstructured text lists (Reflexion), or accumulate isolated skills without modeling conditional dependencies between alternative paths (Voyager). This flat or fragmented experience organization prevents agents from systematically improving decision quality as task attempts accumulate. We observe that in multi-path environments, the key to sample-efficient learning is not merely *remembering* past trajectories, but *organizing* them into a structured, state-conditioned, and statistically grounded decision memory. Based on this insight, we propose ExperienceGraph, a framework that organizes cross-episode execution trajectories into a directed graph where nodes represent state-condition checkpoints and edges represent actions with hard preconditions, soft heuristics, and success/failure statistics. At decision time, the agent retrieves top-K feasible paths from the graph conditioned on the current state, generates a novel candidate path for exploration, and selects among them using both statistical evidence and LLM reasoning. Experiments on TextCraft, a text-based crafting environment with partial observability and multiple solution paths, show that ExperienceGraph achieves **<mark style="background-color: yellow;">[PROJECTED: 85% success rate at episode 300]</mark>** compared to **<mark style="background-color: yellow;">[PROJECTED: 45% for ReAct and 65% for Reflexion]</mark>**, while requiring **<mark style="background-color: yellow;">[PROJECTED: 40% fewer episodes]</mark>** to reach stable performance. Ablation studies confirm that graph structure, path-level statistics, and the explore-then-compare mechanism each contribute significantly to the overall gain.
+Large language model (LLM) agents have demonstrated strong reasoning and action capabilities in interactive environments. However, existing approaches either lack cross-episode memory (ReAct), store experiences as unstructured text lists (Reflexion), or accumulate isolated skills without modeling conditional dependencies between alternative paths (Voyager). This flat or fragmented experience organization prevents agents from systematically improving decision quality as task attempts accumulate. We observe that in multi-path environments, the key to sample-efficient learning is not merely *remembering* past trajectories, but *organizing* them into a structured, state-conditioned, and statistically grounded decision memory. Based on this insight, we propose ExperienceGraph, a framework that organizes cross-episode execution trajectories into a directed graph where nodes represent state-condition checkpoints and edges represent actions with hard preconditions, soft heuristics, and success/failure statistics. At decision time, the agent retrieves top-K feasible paths from the graph conditioned on the current state, generates a novel candidate path for exploration, and selects among them using both statistical evidence and LLM reasoning. Experiments on MyTextCraft, a text-based crafting environment with partial observability and multiple solution paths, show that ExperienceGraph achieves **<mark style="background-color: yellow;">[PROJECTED: 85% success rate at episode 300]</mark>** compared to **<mark style="background-color: yellow;">[PROJECTED: 45% for ReAct and 65% for Reflexion]</mark>**, while requiring **<mark style="background-color: yellow;">[PROJECTED: 40% fewer episodes]</mark>** to reach stable performance. Ablation studies confirm that graph structure, path-level statistics, and the explore-then-compare mechanism each contribute significantly to the overall gain.
 
 ## 1. Introduction
 
@@ -16,14 +16,14 @@ We observe that execution trajectories across episodes naturally form a graph st
 
 Based on this insight, we propose **ExperienceGraph**, a framework that organizes cross-episode execution experience into a conditional path graph. Each node represents a state-condition checkpoint (e.g., "possesses >= 24 diamonds and has access to a crafting table"). Each edge represents a transition action annotated with hard preconditions (machine-checkable), soft heuristics (natural-language guidance for the LLM), and beta-binomial success statistics. At decision time, the agent (1) generates a novel candidate path for exploration, (2) retrieves top-K feasible paths from the graph conditioned on the current state, and (3) selects among all candidates using both statistical evidence and LLM-based reasoning. After each episode, the Graph Organizer integrates the executed trajectory into the graph through a rule-based-then-semantic node merging algorithm and updates path statistics.
 
-We evaluate ExperienceGraph on TextCraft, a text-based environment that preserves the core decision complexity of Minecraft—multi-step crafting, resource gathering, trading, and partial observability—while eliminating visual perception and motor control confounds. TextCraft provides controlled, reproducible experiments with configurable task complexity.
+We evaluate ExperienceGraph on MyTextCraft, a text-based environment that preserves the core decision complexity of Minecraft—multi-step crafting, resource gathering, trading, and partial observability—while eliminating visual perception and motor control confounds. MyTextCraft provides controlled, reproducible experiments with configurable task complexity.
 
 Our contributions are as follows:
 
 - We propose a conditional path graph framework for organizing LLM agent experience, where nodes encode state preconditions, edges encode actions with layered conditions and statistics, and paths encode complete strategies that are retrievable, comparable, and incrementally refinable.
 - We design an explore-then-compare decision mechanism that balances exploitation of high-success paths with generation of novel candidates, preventing premature convergence to suboptimal strategies.
-- We demonstrate on TextCraft that structured graph-based experience significantly outperforms flat memory and memoryless baselines in both sample efficiency and final success rate, with ablations confirming the necessity of each design component.
-- We introduce TextCraft as a lightweight benchmark for studying long-horizon, cross-episode learning in LLM agents, featuring partial observability, multiple solution paths, and configurable complexity.
+- We demonstrate on MyTextCraft that structured graph-based experience significantly outperforms flat memory and memoryless baselines in both sample efficiency and final success rate, with ablations confirming the necessity of each design component.
+- We introduce MyTextCraft as a lightweight benchmark for studying long-horizon, cross-episode learning in LLM agents, featuring partial observability, multiple solution paths, and configurable complexity.
 
 ## 2. Related Work
 
@@ -55,7 +55,7 @@ ExperienceGraph consists of three components: (1) the **Experience Graph** $G = 
 
 ```
 ┌──────────────────────────────────────────────────┐
-│              TextCraft Environment                 │
+│              MyTextCraft Environment                 │
 │     (State management / Action execution)         │
 └─────────────────────┬────────────────────────────┘
                       │ observation + reward
@@ -142,7 +142,7 @@ This hierarchical approach minimizes LLM calls (expensive) by resolving most cas
 
 A critical engineering challenge is preventing the experience graph from overwhelming the LLM's context window. We address this through bounded growth and active compression.
 
-**Bounded Growth.** In TextCraft, the state space is finite and discrete (~10 resource dimensions with bounded values, ~5 environment dimensions). The number of meaningfully distinct checkpoints is bounded by the combinatorial space of relevant conditions. Empirically, we observe sublinear growth: **<mark style="background-color: yellow;">[PROJECTED: graph growth plateaus at approximately 40-60 nodes and 80-120 edges by episode 200, with new episodes primarily updating statistics rather than adding structure]</mark>**.
+**Bounded Growth.** In MyTextCraft, the state space is finite and discrete (~10 resource dimensions with bounded values, ~5 environment dimensions). The number of meaningfully distinct checkpoints is bounded by the combinatorial space of relevant conditions. Empirically, we observe sublinear growth: **<mark style="background-color: yellow;">[PROJECTED: graph growth plateaus at approximately 40-60 nodes and 80-120 edges by episode 200, with new episodes primarily updating statistics rather than adding structure]</mark>**.
 
 **Active Compression (Experience Distillation):**
 - *Edge Pruning*: Edges with success rate below 10% after K ≥ 10 attempts are marked dormant and excluded from retrieval.
@@ -152,9 +152,9 @@ A critical engineering challenge is preventing the experience graph from overwhe
 
 **Fixed Token Budget.** Regardless of graph size, the information presented to the LLM at each decision point is bounded by a fixed token budget (default: 1000 tokens). When the top-K paths exceed this budget, lower-ranked paths are summarized to single-line statistics. This guarantees that prompt length does not grow with experience accumulation.
 
-## 4. TextCraft Environment
+## 4. MyTextCraft Environment
 
-TextCraft is a text-based interactive environment designed to study cross-episode learning in LLM agents. It retains the core decision complexity of Minecraft—multi-step crafting dependencies, resource gathering, NPC trading, and partial observability—while eliminating visual perception and motor control as confounding variables.
+MyTextCraft is a text-based interactive environment designed to study cross-episode learning in LLM agents. It retains the core decision complexity of Minecraft—multi-step crafting dependencies, resource gathering, NPC trading, and partial observability—while eliminating visual perception and motor control as confounding variables.
 
 **State Space.** The game state consists of approximately 10 dimensions organized into three categories:
 - *Inventory*: quantities of resources (diamond, emerald, iron, wood, etc.) and equipped tools.
@@ -168,7 +168,7 @@ TextCraft is a text-based interactive environment designed to study cross-episod
 - *Medium*: Craft a diamond armor set (multiple viable paths—mining vs. trading—with ambiguous information).
 - *Hard*: Craft an enchanted diamond armor set (long dependency chains, multiple prerequisite subgoals).
 
-**Design Rationale.** TextCraft isolates the *planning and learning* capabilities of agents by providing: (1) deterministic state transitions given a seed, ensuring reproducibility; (2) partial observability via `ambiguous` fields, testing information-gathering behavior; (3) multiple viable paths to each goal, testing strategy selection; (4) configurable complexity via task difficulty levels. Compared to full Minecraft, TextCraft enables running 300 episodes × 5 seeds × 5 conditions in feasible compute time while maintaining decision-theoretic richness.
+**Design Rationale.** MyTextCraft isolates the *planning and learning* capabilities of agents by providing: (1) deterministic state transitions given a seed, ensuring reproducibility; (2) partial observability via `ambiguous` fields, testing information-gathering behavior; (3) multiple viable paths to each goal, testing strategy selection; (4) configurable complexity via task difficulty levels. Compared to full Minecraft, MyTextCraft enables running 300 episodes × 5 seeds × 5 conditions in feasible compute time while maintaining decision-theoretic richness.
 
 ## 5. Experiments
 
@@ -184,7 +184,7 @@ TextCraft is a text-based interactive environment designed to study cross-episod
 | **SkillLibrary** | Indexed successful action sequences | Skill retrieval and reuse/adaptation |
 | **ExperienceGraph (Ours)** | Conditional path graph with statistics | Explore-then-compare with top-K retrieval |
 
-All agents share the same LLM backbone (GPT-4), the same TextCraft environment, the same observation format, and the same action interface. The only difference is the internal experience organization and decision mechanism.
+All agents share the same LLM backbone (GPT-4), the same MyTextCraft environment, the same observation format, and the same action interface. The only difference is the internal experience organization and decision mechanism.
 
 **Protocol.** Each condition is run for 300 episodes across each of the three task difficulty levels. Each configuration is repeated with 5 random seeds (controlling initial state distribution), yielding 5 × 300 = 1500 episodes per condition per task. All agents face identical initial state sequences within each seed to ensure direct comparability.
 
@@ -199,7 +199,7 @@ All agents share the same LLM backbone (GPT-4), the same TextCraft environment, 
 
 > **<mark style="background-color: yellow;">⚠️ PROJECTED RESULTS — Pending experimental validation</mark>**
 
-**Table 1: Main comparison on TextCraft (300 episodes, 5 seeds, mean ± std).**
+**Table 1: Main comparison on MyTextCraft (300 episodes, 5 seeds, mean ± std).**
 
 | Method | SR@300 (Easy) | SR@300 (Medium) | SR@300 (Hard) | CS (Medium) | SE (Medium) |
 |--------|:---:|:---:|:---:|:---:|:---:|
@@ -347,7 +347,7 @@ The hierarchical merging algorithm (deterministic rules first, LLM only when amb
 
 ### 7.1 Limitations
 
-**Environment scope.** TextCraft is a controlled, relatively low-dimensional environment. While it captures key properties (partial observability, multi-path structure, conditional dependencies), it does not exhibit the continuous state spaces, visual complexity, or open-ended goal spaces of real-world embodied environments.
+**Environment scope.** MyTextCraft is a controlled, relatively low-dimensional environment. While it captures key properties (partial observability, multi-path structure, conditional dependencies), it does not exhibit the continuous state spaces, visual complexity, or open-ended goal spaces of real-world embodied environments.
 
 **Scalability of node merging.** The node merging algorithm relies on a finite, discrete state space for its rule-based components. In continuous or high-dimensional state spaces, the normalization and exact-match steps would require embedding-based similarity, introducing additional design choices and potential errors.
 
@@ -363,7 +363,7 @@ This positions ExperienceGraph as a middle ground between pure in-context learni
 
 ### 7.3 Generalization Potential
 
-The ExperienceGraph framework abstracts over the specific semantics of TextCraft. The core mechanism—conditional nodes, action edges with layered preconditions, path-level statistics, explore-then-compare decision-making—applies to any environment satisfying four conditions: (1) states are discretizable into finite condition sets, (2) multiple paths exist to goals, (3) action outcomes are state-dependent, and (4) the agent interacts repeatedly with the same environment type.
+The ExperienceGraph framework abstracts over the specific semantics of MyTextCraft. The core mechanism—conditional nodes, action edges with layered preconditions, path-level statistics, explore-then-compare decision-making—applies to any environment satisfying four conditions: (1) states are discretizable into finite condition sets, (2) multiple paths exist to goals, (3) action outcomes are state-dependent, and (4) the agent interacts repeatedly with the same environment type.
 
 Potential transfer domains include:
 - **Embodied navigation**: nodes as spatial landmarks with accessibility conditions, edges as navigation primitives.
@@ -376,7 +376,7 @@ We leave empirical validation of cross-domain transfer to future work.
 
 This paper proposes ExperienceGraph, a framework for organizing LLM agent experience as a conditional path graph with state-conditioned retrieval and path-level success statistics. The key insight is that in multi-path environments, *structured, statistically grounded experience organization* enables fundamentally better cross-episode learning than flat memory or isolated skill storage.
 
-Experiments on TextCraft demonstrate that ExperienceGraph achieves **<mark style="background-color: yellow;">[PROJECTED: 20+ percentage points]</mark>** higher success rate than the strongest baseline while converging **<mark style="background-color: yellow;">[PROJECTED: ~40%]</mark>** faster. Ablation studies confirm that the graph structure, statistical annotations, exploration mechanism, and state-conditioned retrieval each contribute meaningfully to performance.
+Experiments on MyTextCraft demonstrate that ExperienceGraph achieves **<mark style="background-color: yellow;">[PROJECTED: 20+ percentage points]</mark>** higher success rate than the strongest baseline while converging **<mark style="background-color: yellow;">[PROJECTED: ~40%]</mark>** faster. Ablation studies confirm that the graph structure, statistical annotations, exploration mechanism, and state-conditioned retrieval each contribute meaningfully to performance.
 
 A current limitation is the controlled, discrete nature of the evaluation environment. Extending ExperienceGraph to continuous state spaces, multi-goal settings, and real-world embodied environments—where node merging requires learned representations rather than symbolic matching—represents the most important direction for future work.
 
@@ -468,7 +468,7 @@ A current limitation is the controlled, discrete nature of the evaluation enviro
 | Are design choices justified? | Beta-binomial scoring: justified over raw ratios. Top-K retrieval: justified by token budget. Hierarchical merging: justified by cost. |
 | Are there potential failure modes acknowledged? | Yes — incorrect merging, exploration overhead, stale statistics (Section 6.2). |
 | Is the approach reproducible? | State space, action space, scoring formula, merging algorithm, and compression rules are all specified. Environment details in Section 4 enable reimplementation. |
-| What would a skeptical reviewer attack? | (1) TextCraft is too simple / not a real benchmark. (2) <mark style="background-color: yellow;">Projected results</mark> are speculative. (3) Cost overhead not justified. (4) Node merging quality may degrade in harder environments. All acknowledged in Discussion. |
+| What would a skeptical reviewer attack? | (1) MyTextCraft is too simple / not a real benchmark. (2) <mark style="background-color: yellow;">Projected results</mark> are speculative. (3) Cost overhead not justified. (4) Node merging quality may degrade in harder environments. All acknowledged in Discussion. |
 
 ---
 
@@ -485,4 +485,5 @@ A current limitation is the controlled, discrete nature of the evaluation enviro
 | Explore-then-compare | Three-phase decision process (generate, retrieve, select) | Section 3.3 |
 | Graph Organizer | Module that integrates trajectories and manages the graph | Section 3.4 |
 | Experience distillation | Active compression mechanisms (pruning, decay, folding) | Section 3.5 |
-| TextCraft | Text-based evaluation environment | Section 4 |
+| MyTextCraft | Text-based evaluation environment | Section 4 |
+
