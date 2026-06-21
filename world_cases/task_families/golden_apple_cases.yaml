@@ -33,7 +33,7 @@ cases:
       environment: {nearby_mine: false, nearby_orchard: false, nearby_dungeon: false, nearby_village: false, mine_search_available: false, dungeon_search_available: false, biome: plains}
       ambiguous: {}
       location: base
-    oracle: {solvable: true, reference_plan: [craft(golden_apple)], min_steps: 1, expected_strategy: direct_crafting}
+    oracle: {solvable: true, reference_plan: ["craft(golden_apple)"], min_steps: 1, expected_strategy: direct_crafting}
     expected_experience: {path_type: crafting, learn: [golden_apple_requires_apple_and_8_gold_ingots]}
 
   - id: GA_002
@@ -45,7 +45,7 @@ cases:
       environment: {nearby_orchard: true, nearby_mine: false, nearby_dungeon: false, nearby_village: false, biome: forest}
       ambiguous: {}
       location: base
-    oracle: {solvable: true, reference_plan: [move_to(orchard), gather(apple), craft(golden_apple)], min_steps: 3, expected_strategy: gather_then_craft}
+    oracle: {solvable: true, reference_plan: ["move_to(orchard)", "gather(apple)", "craft(golden_apple)"], min_steps: 3, expected_strategy: gather_then_craft}
     expected_experience: {path_type: gather_crafting, learn: [apple_can_be_gathered_from_orchard_or_forest]}
 
   - id: GA_003
@@ -57,7 +57,7 @@ cases:
       environment: {nearby_mine: false, nearby_orchard: false, nearby_dungeon: false, nearby_village: false, biome: plains}
       ambiguous: {}
       location: base
-    oracle: {solvable: true, reference_plan: [smelt(gold_ore), craft(golden_apple)], min_steps: 2, expected_strategy: smelt_then_craft}
+    oracle: {solvable: true, reference_plan: ["smelt(gold_ore)", "craft(golden_apple)"], min_steps: 2, expected_strategy: smelt_then_craft}
     expected_experience: {path_type: smelting, learn: [gold_ore_needs_furnace_and_fuel]}
 
   - id: GA_004
@@ -69,7 +69,7 @@ cases:
       environment: {nearby_mine: true, mine_has_gold: true, nearby_orchard: false, nearby_dungeon: false, nearby_village: false, biome: plains}
       ambiguous: {}
       location: base
-    oracle: {solvable: true, reference_plan: [move_to(mine), mine(gold_ore), smelt(gold_ore), craft(golden_apple)], min_steps: 4, expected_strategy: mining}
+    oracle: {solvable: true, reference_plan: ["move_to(mine)", "mine(gold_ore)", "smelt(gold_ore)", "craft(golden_apple)"], min_steps: 4, expected_strategy: mining}
     expected_experience: {path_type: mining_crafting, learn: [gold_route_requires_mine_pickaxe_furnace_fuel]}
 
   - id: GA_005
@@ -82,7 +82,7 @@ cases:
       hidden_facts: {nearby_mine: true, mine_has_gold: true}
       ambiguous: {nearby_mine: unknown}
       location: base
-    oracle: {solvable: true, reference_plan: [explore(mine), move_to(mine), mine(gold_ore), smelt(gold_ore), craft(golden_apple)], min_steps: 5, expected_strategy: explore_then_mine}
+    oracle: {solvable: true, reference_plan: ["explore(mine)", "move_to(mine)", "mine(gold_ore)", "smelt(gold_ore)", "craft(golden_apple)"], min_steps: 5, expected_strategy: explore_then_mine}
     expected_experience: {path_type: mining_with_discovery, learn: [hidden_gold_mine_can_enable_crafting_route]}
 
   - id: GA_006
@@ -95,7 +95,7 @@ cases:
       hidden_facts: {chest_has_golden_apple: true}
       ambiguous: {chest_has_golden_apple: unknown}
       location: base
-    oracle: {solvable: true, reference_plan: [move_to(dungeon), inspect(chest), loot(chest, golden_apple)], min_steps: 3, expected_strategy: loot}
+    oracle: {solvable: true, reference_plan: ["move_to(dungeon)", "inspect(chest)", "loot(chest, golden_apple)"], min_steps: 3, expected_strategy: loot}
     expected_experience: {path_type: loot, learn: [inspect_unknown_chest_before_looting]}
 
   - id: GA_007
@@ -107,7 +107,7 @@ cases:
       environment: {nearby_village: true, village_has_farmer: true, nearby_mine: false, nearby_orchard: false, nearby_dungeon: false, biome: plains}
       ambiguous: {}
       location: base
-    oracle: {solvable: true, reference_plan: [move_to(village), trade(farmer, emerald, apple), craft(golden_apple)], min_steps: 3, expected_strategy: trade_then_craft}
+    oracle: {solvable: true, reference_plan: ["move_to(village)", "trade(farmer, emerald, apple)", "craft(golden_apple)"], min_steps: 3, expected_strategy: trade_then_craft}
     expected_experience: {path_type: trading_crafting, learn: [farmer_can_supply_missing_apple_in_textcraft]}
 
   - id: GA_008
@@ -119,7 +119,7 @@ cases:
       environment: {nearby_mine: true, mine_has_gold: true, nearby_orchard: false, nearby_dungeon: false, nearby_village: false, biome: plains}
       ambiguous: {}
       location: base
-    oracle: {solvable: false, reference_plan: [report_impossible(missing_required_pickaxe)], expected_failure: missing_required_pickaxe, expected_strategy: report_after_tool_check}
+    oracle: {solvable: false, reference_plan: ["report_impossible(missing_required_pickaxe)"], expected_failure: missing_required_pickaxe, expected_strategy: report_after_tool_check}
     expected_experience: {path_type: blocked_mining, learn: [gold_mining_requires_iron_or_better_pickaxe]}
 
   - id: GA_009
@@ -132,7 +132,7 @@ cases:
       hidden_facts: {chest_has_golden_apple: false}
       ambiguous: {chest_has_golden_apple: unknown}
       location: base
-    oracle: {solvable: true, reference_plan: [move_to(dungeon), inspect(chest), move_to(orchard), gather(apple), move_to(mine), mine(gold_ore), smelt(gold_ore), craft(golden_apple)], min_steps: 8, expected_strategy: switch_after_negative_inspection}
+    oracle: {solvable: true, reference_plan: ["move_to(dungeon)", "inspect(chest)", "move_to(orchard)", "gather(apple)", "move_to(mine)", "mine(gold_ore)", "smelt(gold_ore)", "craft(golden_apple)"], min_steps: 8, expected_strategy: switch_after_negative_inspection}
     expected_experience: {path_type: path_switching, learn: [failed_loot_route_should_not_end_episode_if_mining_route_exists]}
 
   - id: GA_010
@@ -144,7 +144,7 @@ cases:
       environment: {nearby_orchard: true, nearby_mine: true, mine_has_gold: true, nearby_dungeon: false, nearby_village: false, biome: forest}
       ambiguous: {}
       location: base
-    oracle: {solvable: true, reference_plan: [move_to(orchard), gather(apple), move_to(mine), mine(gold_ore), smelt(gold_ore), craft(golden_apple)], min_steps: 6, expected_strategy: multi_resource_collection}
+    oracle: {solvable: true, reference_plan: ["move_to(orchard)", "gather(apple)", "move_to(mine)", "mine(gold_ore)", "smelt(gold_ore)", "craft(golden_apple)"], min_steps: 6, expected_strategy: multi_resource_collection}
     expected_experience: {path_type: mixed_gather_mine, learn: [goal_requires_parallel_resource_collection]}
 
   - id: GA_011
@@ -156,7 +156,7 @@ cases:
       environment: {nearby_mine: true, mine_has_gold: true, mine_gold_capacity: 4, nearby_village: true, village_has_farmer: true, nearby_orchard: false, biome: plains}
       ambiguous: {}
       location: base
-    oracle: {solvable: true, reference_plan: [move_to(mine), mine(gold_ore), smelt(gold_ore), move_to(village), trade(farmer, emerald, gold_ingot), craft(golden_apple)], min_steps: 6, expected_strategy: mixed_mine_then_trade}
+    oracle: {solvable: true, reference_plan: ["move_to(mine)", "mine(gold_ore)", "smelt(gold_ore)", "move_to(village)", "trade(farmer, emerald, gold_ingot)", "craft(golden_apple)"], min_steps: 6, expected_strategy: mixed_mine_then_trade}
     expected_experience: {path_type: mixed, learn: [limited_resource_source_can_be_completed_by_trade]}
 
   - id: GA_012
@@ -168,5 +168,5 @@ cases:
       environment: {nearby_orchard: false, nearby_mine: false, nearby_dungeon: false, nearby_village: false, mine_search_available: false, dungeon_search_available: false, biome: desert}
       ambiguous: {}
       location: base
-    oracle: {solvable: false, reference_plan: [report_impossible(no_viable_plan)], expected_failure: missing_apple_and_gold_sources, expected_strategy: report_impossible}
+    oracle: {solvable: false, reference_plan: ["report_impossible(no_viable_plan)"], expected_failure: missing_apple_and_gold_sources, expected_strategy: report_impossible}
     expected_experience: {path_type: impossible, learn: [golden_apple_needs_apple_and_gold_or_loot_route]}

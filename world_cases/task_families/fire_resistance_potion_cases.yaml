@@ -14,82 +14,82 @@ cases:
     difficulty: easy
     characteristic: direct_success
     initial_state: {inventory: {brewing_stand: true, blaze_powder: 1, water_bottle: 1, nether_wart: 1, magma_cream: 1, fire_resistance_potion: false}, environment: {nearby_fortress: false, nearby_bastion: false}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [brew(awkward_potion), brew(fire_resistance_potion)], min_steps: 2, expected_strategy: direct_brewing}
+    oracle: {solvable: true, reference_plan: ["brew(awkward_potion)", "brew(fire_resistance_potion)"], min_steps: 2, expected_strategy: direct_brewing}
     expected_experience: {path_type: brewing, learn: [fire_resistance_needs_awkward_potion_and_magma_cream]}
   - id: FR_002
     title: Fill bottle before brewing.
     difficulty: easy
     characteristic: fill_bottle
     initial_state: {inventory: {brewing_stand: true, blaze_powder: 1, empty_bottle: 1, water_bottle: 0, nether_wart: 1, magma_cream: 1}, environment: {nearby_water: true}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [fill(water_bottle), brew(awkward_potion), brew(fire_resistance_potion)], min_steps: 3, expected_strategy: fill_then_brew}
+    oracle: {solvable: true, reference_plan: ["fill(water_bottle)", "brew(awkward_potion)", "brew(fire_resistance_potion)"], min_steps: 3, expected_strategy: fill_then_brew}
     expected_experience: {path_type: prerequisite_then_brewing, learn: [empty_bottle_needs_water_source]}
   - id: FR_003
     title: Craft magma cream from slimeball and blaze powder.
     difficulty: easy
     characteristic: craft_magma_cream
     initial_state: {inventory: {brewing_stand: true, blaze_powder: 2, water_bottle: 1, nether_wart: 1, slimeball: 1, magma_cream: 0}, environment: {}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [craft(magma_cream), brew(awkward_potion), brew(fire_resistance_potion)], min_steps: 3, expected_strategy: craft_reagent_then_brew}
+    oracle: {solvable: true, reference_plan: ["craft(magma_cream)", "brew(awkward_potion)", "brew(fire_resistance_potion)"], min_steps: 3, expected_strategy: craft_reagent_then_brew}
     expected_experience: {path_type: crafting_brewing, learn: [magma_cream_can_be_crafted_from_slimeball_and_blaze_powder]}
   - id: FR_004
     title: Get blaze powder from fortress.
     difficulty: medium
     characteristic: get_blaze_powder
     initial_state: {inventory: {brewing_stand: true, blaze_powder: 0, water_bottle: 1, nether_wart: 1, magma_cream: 1}, environment: {nearby_fortress: true, fortress_has_blaze: true}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [move_to(fortress), fight(blaze), craft(blaze_powder), brew(awkward_potion), brew(fire_resistance_potion)], min_steps: 5, expected_strategy: fortress_blaze_route}
+    oracle: {solvable: true, reference_plan: ["move_to(fortress)", "fight(blaze)", "craft(blaze_powder)", "brew(awkward_potion)", "brew(fire_resistance_potion)"], min_steps: 5, expected_strategy: fortress_blaze_route}
     expected_experience: {path_type: combat_brewing, learn: [blaze_powder_route_requires_fortress_and_blaze]}
   - id: FR_005
     title: Gather nether wart from fortress.
     difficulty: medium
     characteristic: gather_nether_wart
     initial_state: {inventory: {brewing_stand: true, blaze_powder: 1, water_bottle: 1, nether_wart: 0, magma_cream: 1}, environment: {nearby_fortress: true, fortress_has_nether_wart: true}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [move_to(fortress), gather(nether_wart), brew(awkward_potion), brew(fire_resistance_potion)], min_steps: 4, expected_strategy: gather_wart_then_brew}
+    oracle: {solvable: true, reference_plan: ["move_to(fortress)", "gather(nether_wart)", "brew(awkward_potion)", "brew(fire_resistance_potion)"], min_steps: 4, expected_strategy: gather_wart_then_brew}
     expected_experience: {path_type: gather_brewing, learn: [nether_wart_is_precondition_for_awkward_potion]}
   - id: FR_006
     title: Discover fortress and collect missing ingredients.
     difficulty: medium
     characteristic: hidden_fortress
     initial_state: {inventory: {brewing_stand: true, blaze_powder: 0, empty_bottle: 1, water_bottle: 0, nether_wart: 0, slimeball: 1, magma_cream: 0}, environment: {nearby_fortress: unknown, nether_search_available: true, nearby_water: true}, hidden_facts: {nearby_fortress: true, fortress_has_nether_wart: true, fortress_has_blaze: true}, ambiguous: {nearby_fortress: unknown}, location: base}
-    oracle: {solvable: true, reference_plan: [explore(fortress), move_to(fortress), gather(nether_wart), fight(blaze), craft(blaze_powder), craft(magma_cream), fill(water_bottle), brew(awkward_potion), brew(fire_resistance_potion)], min_steps: 9, expected_strategy: explore_full_brewing_chain}
+    oracle: {solvable: true, reference_plan: ["explore(fortress)", "move_to(fortress)", "gather(nether_wart)", "fight(blaze)", "craft(blaze_powder)", "craft(magma_cream)", "fill(water_bottle)", "brew(awkward_potion)", "brew(fire_resistance_potion)"], min_steps: 9, expected_strategy: explore_full_brewing_chain}
     expected_experience: {path_type: discovery_chain, learn: [fortress_discovery_can_enable_multiple_reagents]}
   - id: FR_007
     title: Loot potion from bastion chest.
     difficulty: medium
     characteristic: loot_route
     initial_state: {inventory: {fire_resistance_potion: false}, environment: {nearby_bastion: true, chest_has_fire_resistance_potion: unknown, nearby_fortress: false}, hidden_facts: {chest_has_fire_resistance_potion: true}, ambiguous: {chest_has_fire_resistance_potion: unknown}, location: base}
-    oracle: {solvable: true, reference_plan: [move_to(bastion), inspect(chest), loot(chest, fire_resistance_potion)], min_steps: 3, expected_strategy: loot}
+    oracle: {solvable: true, reference_plan: ["move_to(bastion)", "inspect(chest)", "loot(chest, fire_resistance_potion)"], min_steps: 3, expected_strategy: loot}
     expected_experience: {path_type: loot, learn: [bastion_chest_should_be_inspected_before_loot_decision]}
   - id: FR_008
     title: Ingredients exist but no brewing stand route.
     difficulty: medium
     characteristic: no_stand
     initial_state: {inventory: {brewing_stand: false, blaze_powder: 1, water_bottle: 1, nether_wart: 1, magma_cream: 1}, environment: {nearby_fortress: false, nearby_bastion: false}, ambiguous: {}, location: base}
-    oracle: {solvable: false, reference_plan: [report_impossible(no_brewing_stand)], expected_failure: missing_brewing_stand, expected_strategy: report_impossible}
+    oracle: {solvable: false, reference_plan: ["report_impossible(no_brewing_stand)"], expected_failure: missing_brewing_stand, expected_strategy: report_impossible}
     expected_experience: {path_type: blocked_brewing, learn: [brewing_stand_is_required_without_loot_route]}
   - id: FR_009
     title: Bastion chest fails, switch to brewing.
     difficulty: hard
     characteristic: deceptive_chest
     initial_state: {inventory: {brewing_stand: true, blaze_powder: 0, water_bottle: 1, nether_wart: 0, slimeball: 1, magma_cream: 0}, environment: {nearby_bastion: true, chest_has_fire_resistance_potion: unknown, nearby_fortress: true, fortress_has_nether_wart: true, fortress_has_blaze: true}, hidden_facts: {chest_has_fire_resistance_potion: false}, ambiguous: {chest_has_fire_resistance_potion: unknown}, location: base}
-    oracle: {solvable: true, reference_plan: [move_to(bastion), inspect(chest), move_to(fortress), gather(nether_wart), fight(blaze), craft(blaze_powder), craft(magma_cream), brew(awkward_potion), brew(fire_resistance_potion)], min_steps: 9, expected_strategy: switch_loot_to_brewing}
+    oracle: {solvable: true, reference_plan: ["move_to(bastion)", "inspect(chest)", "move_to(fortress)", "gather(nether_wart)", "fight(blaze)", "craft(blaze_powder)", "craft(magma_cream)", "brew(awkward_potion)", "brew(fire_resistance_potion)"], min_steps: 9, expected_strategy: switch_loot_to_brewing}
     expected_experience: {path_type: path_switching, learn: [negative_loot_result_should_trigger_brewing_route]}
   - id: FR_010
     title: Full Nether ingredient chain.
     difficulty: hard
     characteristic: full_chain
     initial_state: {inventory: {brewing_stand: true, blaze_powder: 0, empty_bottle: 1, water_bottle: 0, nether_wart: 0, magma_cream: 0}, environment: {nearby_water: true, nearby_fortress: true, fortress_has_nether_wart: true, fortress_has_blaze: true, nearby_magma_cube: true}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [fill(water_bottle), move_to(fortress), gather(nether_wart), fight(blaze), craft(blaze_powder), move_to(basalt_delta), fight(magma_cube), craft(magma_cream), brew(awkward_potion), brew(fire_resistance_potion)], min_steps: 10, expected_strategy: full_brewing_chain}
+    oracle: {solvable: true, reference_plan: ["fill(water_bottle)", "move_to(fortress)", "gather(nether_wart)", "fight(blaze)", "craft(blaze_powder)", "move_to(basalt_delta)", "fight(magma_cube)", "craft(magma_cream)", "brew(awkward_potion)", "brew(fire_resistance_potion)"], min_steps: 10, expected_strategy: full_brewing_chain}
     expected_experience: {path_type: long_resource_chain, learn: [potion_task_tests_ordered_multi_step_dependencies]}
   - id: FR_011
     title: Fortress lacks nether wart.
     difficulty: hard
     characteristic: no_wart_after_search
     initial_state: {inventory: {brewing_stand: true, blaze_powder: 1, water_bottle: 1, nether_wart: 0, magma_cream: 1}, environment: {nearby_fortress: unknown, nether_search_available: true, nearby_bastion: false}, hidden_facts: {nearby_fortress: true, fortress_has_nether_wart: false}, ambiguous: {nearby_fortress: unknown}, location: base}
-    oracle: {solvable: false, reference_plan: [explore(fortress), move_to(fortress), inspect(fortress), report_impossible(no_nether_wart)], expected_failure: missing_nether_wart, expected_strategy: inspect_then_report}
+    oracle: {solvable: false, reference_plan: ["explore(fortress)", "move_to(fortress)", "inspect(fortress)", "report_impossible(no_nether_wart)"], expected_failure: missing_nether_wart, expected_strategy: inspect_then_report}
     expected_experience: {path_type: impossible_after_search, learn: [fortress_without_wart_blocks_brewing_route]}
   - id: FR_012
     title: No potion route exists.
     difficulty: impossible
     characteristic: no_viable_route
     initial_state: {inventory: {brewing_stand: false, blaze_powder: 0, water_bottle: 0, nether_wart: 0, magma_cream: 0}, environment: {nearby_fortress: false, nearby_bastion: false, nether_search_available: false}, ambiguous: {}, location: base}
-    oracle: {solvable: false, reference_plan: [report_impossible(no_viable_plan)], expected_failure: missing_brewing_route, expected_strategy: report_impossible}
+    oracle: {solvable: false, reference_plan: ["report_impossible(no_viable_plan)"], expected_failure: missing_brewing_route, expected_strategy: report_impossible}
     expected_experience: {path_type: impossible, learn: [fire_resistance_needs_brewing_or_loot_route]}

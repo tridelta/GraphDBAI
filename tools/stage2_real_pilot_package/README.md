@@ -26,7 +26,7 @@ This package runs the fixed Stage 2 pilot locally with real DeepSeek calls and t
 
 The script runs episodes sequentially inside each run, preserving cross-episode graph/memory learning. It can run independent conditions in parallel with `-Parallel`; this does not change the learning semantics because each condition writes to its own run directory. If a run directory already contains `config.yaml`, it passes `--resume`.
 
-The key ablation is `graph/full` vs `graph/no_graph_context`: both use `ExperienceGraphAgent`, but `no_graph_context` sets graph retrieval `top_k=0`, so the agent receives no Experience Graph candidate paths.
+The key ablation is `graph/full` vs `graph/no_graph_context`: both use `ExperienceGraphAgent`, but `no_graph_context` sets graph retrieval `top_k=0`, so the agent receives no Experience Graph candidate paths. Warm-start runs exclude both `react` and `graph/no_graph_context` because they are no-experience baselines.
 
 ## Before Running
 
@@ -45,14 +45,37 @@ $env:EG_OUTPUT_PRICE_PER_M_RMB = "3.0"
 
 ## Run Everything
 
+One command for the full cold + warm-start pilot:
+
 ```powershell
-python -B tools\stage2_real_pilot_package\run_stage2_real_pilot.py
+python -B tools\stage2_real_pilot_package\run_stage2_real_pilot.py `
+  --full-cycle `
+  --prefix stage2_pilot_real_s2g_ `
+  --parallel `
+  --max-workers 6
 ```
 
-To run independent conditions concurrently:
+This does three things:
+
+- runs a one-episode `scripted` smoke run before paid LLM calls,
+- runs the cold pilot for all six conditions,
+- runs the warm-start pilot for `reflexion`, `vector_trajectory`, `skill_library`, and `graph_full`, then analyzes cold + warm together by the cold prefix.
+
+The default warm prefix is `<prefix>warm_`. Override it when needed:
 
 ```powershell
-python -B tools\stage2_real_pilot_package\run_stage2_real_pilot.py --parallel --max-workers 3
+python -B tools\stage2_real_pilot_package\run_stage2_real_pilot.py `
+  --full-cycle `
+  --prefix stage2_pilot_real_s2g_ `
+  --warm-prefix stage2_pilot_real_s2g_warm2_ `
+  --parallel `
+  --max-workers 6
+```
+
+You can still run a single batch:
+
+```powershell
+python -B tools\stage2_real_pilot_package\run_stage2_real_pilot.py --parallel --max-workers 6
 ```
 
 The older PowerShell runner is still present, but the Python runner is preferred because it handles child-process exit codes more reliably on Windows.

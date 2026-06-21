@@ -323,7 +323,7 @@ def filter_cases(cases: dict[str, dict[str, Any]], difficulty: str, task_id: str
     for case_id, case in cases.items():
         if difficulty != "all" and case.get("difficulty") != difficulty:
             continue
-        if case.get("task", {}).get("id") != task_id:
+        if task_id != "all" and case.get("task", {}).get("id") != task_id:
             continue
         case_ids.append(case_id)
     if not case_ids:

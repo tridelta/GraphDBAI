@@ -14,82 +14,82 @@ cases:
     difficulty: easy
     characteristic: direct_success
     initial_state: {inventory: {obsidian: 10, flint_and_steel: true, flint: 0, iron_ingot: 0, water_bucket: false, pickaxe: none}, environment: {nearby_lava_pool: false, nearby_ruined_portal: false, portal_search_available: false}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [place(obsidian_portal_frame), ignite(portal)], min_steps: 2, expected_strategy: direct_build}
+    oracle: {solvable: true, reference_plan: ["place(obsidian_portal_frame)", "ignite(portal)"], min_steps: 2, expected_strategy: direct_build}
     expected_experience: {path_type: portal_building, learn: [portal_needs_frame_and_ignition]}
   - id: NP_002
     title: Craft flint and steel before lighting portal.
     difficulty: easy
     characteristic: craft_igniter
     initial_state: {inventory: {obsidian: 10, flint_and_steel: false, flint: 1, iron_ingot: 1, water_bucket: false, pickaxe: none}, environment: {nearby_lava_pool: false, nearby_ruined_portal: false}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [craft(flint_and_steel), place(obsidian_portal_frame), ignite(portal)], min_steps: 3, expected_strategy: craft_igniter_then_build}
+    oracle: {solvable: true, reference_plan: ["craft(flint_and_steel)", "place(obsidian_portal_frame)", "ignite(portal)"], min_steps: 3, expected_strategy: craft_igniter_then_build}
     expected_experience: {path_type: prerequisite_then_build, learn: [flint_and_steel_can_be_crafted_from_flint_and_iron]}
   - id: NP_003
     title: Repair a nearly complete ruined portal.
     difficulty: easy
     characteristic: repair_ruined_portal
     initial_state: {inventory: {obsidian: 2, flint_and_steel: true, pickaxe: none}, environment: {nearby_ruined_portal: true, ruined_portal_missing_obsidian: 2, nearby_lava_pool: false}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [move_to(ruined_portal), inspect(portal_frame), place(obsidian), place(obsidian), ignite(portal)], min_steps: 5, expected_strategy: repair_then_ignite}
+    oracle: {solvable: true, reference_plan: ["move_to(ruined_portal)", "inspect(portal_frame)", "place(obsidian)", "place(obsidian)", "ignite(portal)"], min_steps: 5, expected_strategy: repair_then_ignite}
     expected_experience: {path_type: repair, learn: [ruined_portal_can_reduce_obsidian_requirement]}
   - id: NP_004
     title: Mine obsidian from cast lava pool.
     difficulty: medium
     characteristic: mine_obsidian
     initial_state: {inventory: {obsidian: 0, flint_and_steel: true, water_bucket: true, pickaxe: diamond}, environment: {nearby_lava_pool: true, nearby_ruined_portal: false}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [move_to(lava_pool), cast(obsidian), mine(obsidian), place(obsidian_portal_frame), ignite(portal)], min_steps: 5, expected_strategy: mine_obsidian}
+    oracle: {solvable: true, reference_plan: ["move_to(lava_pool)", "cast(obsidian)", "mine(obsidian)", "place(obsidian_portal_frame)", "ignite(portal)"], min_steps: 5, expected_strategy: mine_obsidian}
     expected_experience: {path_type: mining, learn: [obsidian_mining_requires_diamond_pickaxe]}
   - id: NP_005
     title: Discover and repair a hidden ruined portal.
     difficulty: medium
     characteristic: hidden_ruined_portal
     initial_state: {inventory: {obsidian: 2, flint_and_steel: true, pickaxe: none}, environment: {nearby_ruined_portal: unknown, portal_search_available: true, nearby_lava_pool: false}, hidden_facts: {nearby_ruined_portal: true, ruined_portal_missing_obsidian: 2}, ambiguous: {nearby_ruined_portal: unknown}, location: base}
-    oracle: {solvable: true, reference_plan: [explore(ruined_portal), move_to(ruined_portal), inspect(portal_frame), place(obsidian), place(obsidian), ignite(portal)], min_steps: 6, expected_strategy: explore_repair}
+    oracle: {solvable: true, reference_plan: ["explore(ruined_portal)", "move_to(ruined_portal)", "inspect(portal_frame)", "place(obsidian)", "place(obsidian)", "ignite(portal)"], min_steps: 6, expected_strategy: explore_repair}
     expected_experience: {path_type: repair_with_discovery, learn: [unknown_ruined_portal_should_be_explored]}
   - id: NP_006
     title: Make the missing igniter from raw sources.
     difficulty: medium
     characteristic: missing_igniter_sources_available
     initial_state: {inventory: {obsidian: 10, flint_and_steel: false, flint: 0, iron_ingot: 0, iron_ore: 1, furnace: true, fuel: 1, pickaxe: stone}, environment: {nearby_gravel: true, nearby_lava_pool: false, nearby_ruined_portal: false}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [gather(flint), mine(iron_ore), smelt(iron_ore), craft(flint_and_steel), place(obsidian_portal_frame), ignite(portal)], min_steps: 6, expected_strategy: craft_igniter_from_sources}
+    oracle: {solvable: true, reference_plan: ["gather(flint)", "mine(iron_ore)", "smelt(iron_ore)", "craft(flint_and_steel)", "place(obsidian_portal_frame)", "ignite(portal)"], min_steps: 6, expected_strategy: craft_igniter_from_sources}
     expected_experience: {path_type: resource_chain, learn: [ignition_can_require_flint_and_iron_chain]}
   - id: NP_007
     title: Obsidian route is blocked by tool and casting constraints.
     difficulty: medium
     characteristic: wrong_tool_blocked
     initial_state: {inventory: {obsidian: 0, flint_and_steel: true, water_bucket: false, pickaxe: iron}, environment: {nearby_lava_pool: true, nearby_ruined_portal: false}, ambiguous: {}, location: base}
-    oracle: {solvable: false, reference_plan: [report_impossible(cannot_obtain_obsidian)], expected_failure: cannot_obtain_obsidian, expected_strategy: reject_unmineable_obsidian_route}
+    oracle: {solvable: false, reference_plan: ["report_impossible(cannot_obtain_obsidian)"], expected_failure: cannot_obtain_obsidian, expected_strategy: reject_unmineable_obsidian_route}
     expected_experience: {path_type: blocked_obsidian, learn: [iron_pickaxe_cannot_mine_obsidian]}
   - id: NP_008
     title: Cast portal frame without mining obsidian.
     difficulty: medium
     characteristic: casting_without_pickaxe
     initial_state: {inventory: {obsidian: 0, flint_and_steel: true, water_bucket: true, pickaxe: none}, environment: {nearby_lava_pool: true, casting_space_available: true, nearby_ruined_portal: false}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [move_to(lava_pool), cast(portal_frame), ignite(portal)], min_steps: 3, expected_strategy: lava_water_casting}
+    oracle: {solvable: true, reference_plan: ["move_to(lava_pool)", "cast(portal_frame)", "ignite(portal)"], min_steps: 3, expected_strategy: lava_water_casting}
     expected_experience: {path_type: casting, learn: [casting_can_bypass_diamond_pickaxe_requirement]}
   - id: NP_009
     title: Ruined portal is too broken, switch to casting.
     difficulty: hard
     characteristic: deceptive_ruined_portal
     initial_state: {inventory: {obsidian: 1, flint_and_steel: true, water_bucket: true, pickaxe: none}, environment: {nearby_ruined_portal: true, ruined_portal_repairable: unknown, nearby_lava_pool: true, casting_space_available: true}, hidden_facts: {ruined_portal_repairable: false}, ambiguous: {ruined_portal_repairable: unknown}, location: base}
-    oracle: {solvable: true, reference_plan: [move_to(ruined_portal), inspect(portal_frame), move_to(lava_pool), cast(portal_frame), ignite(portal)], min_steps: 5, expected_strategy: switch_after_bad_inspection}
+    oracle: {solvable: true, reference_plan: ["move_to(ruined_portal)", "inspect(portal_frame)", "move_to(lava_pool)", "cast(portal_frame)", "ignite(portal)"], min_steps: 5, expected_strategy: switch_after_bad_inspection}
     expected_experience: {path_type: path_switching, learn: [negative_ruined_portal_inspection_should_trigger_casting_route]}
   - id: NP_010
     title: Repair portal and craft igniter.
     difficulty: hard
     characteristic: repair_and_craft_igniter
     initial_state: {inventory: {obsidian: 2, flint_and_steel: false, flint: 0, iron_ore: 1, furnace: true, fuel: 1, pickaxe: stone}, environment: {nearby_ruined_portal: true, ruined_portal_missing_obsidian: 2, nearby_gravel: true}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [move_to(ruined_portal), inspect(portal_frame), place(obsidian), place(obsidian), gather(flint), mine(iron_ore), smelt(iron_ore), craft(flint_and_steel), ignite(portal)], min_steps: 9, expected_strategy: mixed_repair_and_igniter_chain}
+    oracle: {solvable: true, reference_plan: ["move_to(ruined_portal)", "inspect(portal_frame)", "place(obsidian)", "place(obsidian)", "gather(flint)", "mine(iron_ore)", "smelt(iron_ore)", "craft(flint_and_steel)", "ignite(portal)"], min_steps: 9, expected_strategy: mixed_repair_and_igniter_chain}
     expected_experience: {path_type: mixed, learn: [portal_success_can_require_repair_and_ignition_subgoals]}
   - id: NP_011
     title: Searches reveal no portal material route.
     difficulty: hard
     characteristic: hidden_negative
     initial_state: {inventory: {obsidian: 0, flint_and_steel: true, water_bucket: true, pickaxe: diamond}, environment: {nearby_ruined_portal: unknown, nearby_lava_pool: unknown, portal_search_available: true, lava_search_available: true}, hidden_facts: {nearby_ruined_portal: false, nearby_lava_pool: false}, ambiguous: {nearby_ruined_portal: unknown, nearby_lava_pool: unknown}, location: base}
-    oracle: {solvable: false, reference_plan: [explore(ruined_portal), explore(lava_pool), report_impossible(no_portal_material_route)], expected_failure: no_obsidian_source, expected_strategy: explore_then_report}
+    oracle: {solvable: false, reference_plan: ["explore(ruined_portal)", "explore(lava_pool)", "report_impossible(no_portal_material_route)"], expected_failure: no_obsidian_source, expected_strategy: explore_then_report}
     expected_experience: {path_type: impossible_after_search, learn: [search_failures_can_justify_impossible_report]}
   - id: NP_012
     title: No portal route exists.
     difficulty: impossible
     characteristic: no_viable_route
     initial_state: {inventory: {obsidian: 0, flint_and_steel: false, flint: 0, iron_ingot: 0, water_bucket: false, pickaxe: none}, environment: {nearby_lava_pool: false, nearby_ruined_portal: false, portal_search_available: false, lava_search_available: false}, ambiguous: {}, location: base}
-    oracle: {solvable: false, reference_plan: [report_impossible(no_viable_plan)], expected_failure: missing_portal_materials, expected_strategy: report_impossible}
+    oracle: {solvable: false, reference_plan: ["report_impossible(no_viable_plan)"], expected_failure: missing_portal_materials, expected_strategy: report_impossible}
     expected_experience: {path_type: impossible, learn: [portal_needs_frame_material_and_ignition_route]}

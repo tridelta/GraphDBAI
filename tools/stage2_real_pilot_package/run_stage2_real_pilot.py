@@ -18,7 +18,8 @@ CONDITIONS = [
     ("graph_full", "graph", "full"),
     ("graph_no_graph_context", "graph", "no_graph_context"),
 ]
-WARM_START_CONDITIONS = [condition for condition in CONDITIONS if condition[1] != "react"]
+NO_EXPERIENCE_LABELS = {"react", "graph_no_graph_context"}
+WARM_START_CONDITIONS = [condition for condition in CONDITIONS if condition[0] not in NO_EXPERIENCE_LABELS]
 
 REQUIRED_FILES = [
     "config.yaml",
@@ -50,6 +51,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--llm-retries", type=int, default=1)
     parser.add_argument("--parallel", action="store_true")
     parser.add_argument("--max-workers", type=int, default=3)
+    parser.add_argument("--full-cycle", action="store_true", help="Run scripted smoke, cold runs, warm runs, and combined analysis.")
+    parser.add_argument("--warm-prefix", default=None, help="Warm-run prefix for --full-cycle. Defaults to '<prefix>warm_'.")
     parser.add_argument("--analyze-only", action="store_true")
     parser.add_argument("--skip-validation", action="store_true")
     return parser.parse_args()
@@ -238,13 +241,98 @@ def run_analysis(args: argparse.Namespace, env: dict[str, str]) -> Path:
     return report_path
 
 
+def run_smoke(args: argparse.Namespace, env: dict[str, str]) -> None:
+    smoke_run_id = f"{args.prefix}smoke_scripted"
+    run_path = Path(args.run_dir) / smoke_run_id
+    if count_jsonl_rows(run_path / "metrics.jsonl") >= 1:
+        print(f"Smoke run already completed: {smoke_run_id}")
+        return
+    command = [
+        sys.executable,
+        "-B",
+        "-m",
+        "experience_graph.scripts.run_experiment",
+        "--agent",
+        "scripted",
+        "--difficulty",
+        args.difficulty,
+        "--episodes",
+        "1",
+        "--max-steps",
+        "3",
+        "--seed",
+        str(args.seed),
+        "--case-schedule",
+        args.case_schedule,
+        "--run-dir",
+        args.run_dir,
+        "--run-id",
+        smoke_run_id,
+    ]
+    if (run_path / "config.yaml").exists():
+        command.append("--resume")
+    print(f"Running scripted smoke: {smoke_run_id}")
+    subprocess.run(command, cwd=repo_root(), env=env, check=True)
+
+
+def run_experiment_batch(args: argparse.Namespace, env: dict[str, str]) -> None:
+    log_dir = Path(args.run_dir) / f"{args.prefix}process_logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    if args.parallel:
+        run_parallel(args, env, log_dir)
+        return
+    failed = False
+    for condition in active_conditions(args):
+        failed = run_condition(args, condition, env, log_dir) != 0 or failed
+    if failed:
+        raise SystemExit(f"One or more Stage 2 runs failed. See {log_dir} for logs.")
+
+
+def clone_args(args: argparse.Namespace, **overrides: Any) -> argparse.Namespace:
+    values = vars(args).copy()
+    values.update(overrides)
+    return argparse.Namespace(**values)
+
+
+def run_full_cycle(args: argparse.Namespace, env: dict[str, str]) -> Path:
+    run_smoke(args, env)
+
+    cold_args = clone_args(
+        args,
+        full_cycle=False,
+        warm_start_from_prefix=None,
+        analysis_prefix=None,
+        analyze_only=False,
+    )
+    print(f"Running cold pilot: prefix={cold_args.prefix}")
+    run_experiment_batch(cold_args, env)
+
+    warm_prefix = args.warm_prefix or f"{args.prefix}warm_"
+    warm_args = clone_args(
+        args,
+        full_cycle=False,
+        prefix=warm_prefix,
+        warm_start_from_prefix=args.prefix,
+        analysis_prefix=args.prefix,
+        analyze_only=False,
+    )
+    print(f"Running warm-start pilot: prefix={warm_args.prefix}, warm-start-from-prefix={args.prefix}")
+    run_experiment_batch(warm_args, env)
+
+    report_path = run_analysis(warm_args, env)
+    if not args.skip_validation:
+        validate(cold_args, check_figures=False)
+        validate(warm_args)
+    return report_path
+
+
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
-def validate(args: argparse.Namespace) -> None:
+def validate(args: argparse.Namespace, check_figures: bool = True) -> None:
     errors = []
     run_dir = Path(args.run_dir)
     for label, agent, variant in active_conditions(args):
@@ -271,15 +359,16 @@ def validate(args: argparse.Namespace) -> None:
             errors.append(f"{rid}: expected {args.episodes} metrics rows, got {len(metrics)}")
         if hidden:
             errors.append(f"{rid}: prompt_hidden_facts count is {hidden}")
-    analysis_prefix = args.analysis_prefix or args.prefix
-    fig_dir = run_dir / f"{analysis_prefix}analysis" / "figures"
-    for name in ["learning_curve_medium.png", "graph_growth.png", "token_cost.png"]:
-        path = fig_dir / name
-        if not path.exists():
-            errors.append(f"missing figure {path}")
-            continue
-        if path.read_bytes()[:8] != b"\x89PNG\r\n\x1a\n":
-            errors.append(f"not a PNG file: {path}")
+    if check_figures:
+        analysis_prefix = args.analysis_prefix or args.prefix
+        fig_dir = run_dir / f"{analysis_prefix}analysis" / "figures"
+        for name in ["learning_curve_medium.png", "graph_growth.png", "token_cost.png"]:
+            path = fig_dir / name
+            if not path.exists():
+                errors.append(f"missing figure {path}")
+                continue
+            if path.read_bytes()[:8] != b"\x89PNG\r\n\x1a\n":
+                errors.append(f"not a PNG file: {path}")
     if errors:
         print("VALIDATION FAILED")
         for error in errors:
@@ -295,17 +384,17 @@ def main() -> None:
     env = build_env(args)
     if not args.analyze_only and not env.get("DEEPSEEK_API_KEY"):
         raise SystemExit("DEEPSEEK_API_KEY is not set. Set it in this terminal before running the real pilot.")
-    log_dir = Path(args.run_dir) / f"{args.prefix}process_logs"
-    log_dir.mkdir(parents=True, exist_ok=True)
+    if args.full_cycle and args.analyze_only:
+        raise SystemExit("--full-cycle cannot be combined with --analyze-only.")
+    if args.full_cycle:
+        report_path = run_full_cycle(args, env)
+        print("Stage 2 real pilot full cycle completed.")
+        analysis_prefix = args.prefix
+        print(f"Analysis directory: {Path(args.run_dir) / f'{analysis_prefix}analysis'}")
+        print(f"Report: {report_path}")
+        return
     if not args.analyze_only:
-        if args.parallel:
-            run_parallel(args, env, log_dir)
-        else:
-            failed = False
-            for condition in active_conditions(args):
-                failed = run_condition(args, condition, env, log_dir) != 0 or failed
-            if failed:
-                raise SystemExit(f"One or more Stage 2 runs failed. See {log_dir} for logs.")
+        run_experiment_batch(args, env)
     report_path = run_analysis(args, env)
     if not args.skip_validation:
         validate(args)

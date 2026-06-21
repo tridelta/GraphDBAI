@@ -33,7 +33,7 @@ cases:
       location: base
     oracle:
       solvable: true
-      reference_plan: [craft(diamond_helmet), craft(diamond_chestplate), craft(diamond_leggings), craft(diamond_boots)]
+      reference_plan: ["craft(diamond_helmet)", "craft(diamond_chestplate)", "craft(diamond_leggings)", "craft(diamond_boots)"]
       min_steps: 4
       expected_strategy: direct_crafting
     expected_experience: {path_type: crafting, learn: [diamond_set_requires_24_diamonds_and_table]}
@@ -49,7 +49,7 @@ cases:
       location: base
     oracle:
       solvable: true
-      reference_plan: [craft(crafting_table), craft(diamond_helmet), craft(diamond_chestplate), craft(diamond_leggings), craft(diamond_boots)]
+      reference_plan: ["craft(crafting_table)", "craft(diamond_helmet)", "craft(diamond_chestplate)", "craft(diamond_leggings)", "craft(diamond_boots)"]
       min_steps: 5
       expected_strategy: prerequisite_then_crafting
     expected_experience: {path_type: crafting, learn: [crafting_table_is_hard_precondition]}
@@ -65,7 +65,7 @@ cases:
       location: base
     oracle:
       solvable: false
-      reference_plan: [report_impossible(no_resource_access)]
+      reference_plan: ["report_impossible(no_resource_access)"]
       expected_failure: insufficient_diamonds_and_no_resource_access
       expected_strategy: report_impossible_after_visible_routes_checked
     expected_experience: {path_type: blocked_crafting, learn: [diamond_set_requires_24_diamonds_or_resource_route]}
@@ -81,7 +81,7 @@ cases:
       location: base
     oracle:
       solvable: true
-      reference_plan: [move_to(mine), mine(diamond), mine(diamond), mine(diamond), craft(diamond_helmet), craft(diamond_chestplate), craft(diamond_leggings), craft(diamond_boots)]
+      reference_plan: ["move_to(mine)", "mine(diamond)", "mine(diamond)", "mine(diamond)", "craft(diamond_helmet)", "craft(diamond_chestplate)", "craft(diamond_leggings)", "craft(diamond_boots)"]
       min_steps: 8
       expected_strategy: mining
     expected_experience: {path_type: mining, learn: [mine_diamond_requires_mine_and_iron_pickaxe]}
@@ -97,7 +97,7 @@ cases:
       location: base
     oracle:
       solvable: false
-      reference_plan: [report_impossible(missing_required_pickaxe)]
+      reference_plan: ["report_impossible(missing_required_pickaxe)"]
       expected_failure: missing_required_pickaxe
       expected_strategy: reject_mining_without_iron_pickaxe
     expected_experience: {path_type: blocked_mining, learn: [tool.pickaxe_level_gte_iron]}
@@ -114,7 +114,7 @@ cases:
       location: base
     oracle:
       solvable: true
-      reference_plan: [explore(mine), move_to(mine), mine(diamond), mine(diamond), mine(diamond), craft(diamond_helmet), craft(diamond_chestplate), craft(diamond_leggings), craft(diamond_boots)]
+      reference_plan: ["explore(mine)", "move_to(mine)", "mine(diamond)", "mine(diamond)", "mine(diamond)", "craft(diamond_helmet)", "craft(diamond_chestplate)", "craft(diamond_leggings)", "craft(diamond_boots)"]
       min_steps: 9
       expected_strategy: explore_then_mine
     expected_experience: {path_type: mining_with_discovery, learn: [unknown_mine_should_be_explored_before_move_or_mine]}
@@ -130,7 +130,7 @@ cases:
       location: base
     oracle:
       solvable: true
-      reference_plan: [move_to(village), trade(armorer, emerald, diamond_set)]
+      reference_plan: ["move_to(village)", "trade(armorer, emerald, diamond_set)"]
       min_steps: 2
       expected_strategy: trading
     expected_experience: {path_type: trading, learn: [armorer_trade_requires_village_armorer_and_40_emeralds]}
@@ -147,7 +147,7 @@ cases:
       location: base
     oracle:
       solvable: true
-      reference_plan: [move_to(village), inspect(village), trade(armorer, emerald, diamond_set)]
+      reference_plan: ["move_to(village)", "inspect(village)", "trade(armorer, emerald, diamond_set)"]
       min_steps: 3
       expected_strategy: inspect_then_trade
     expected_experience: {path_type: trading_with_discovery, learn: [unknown_armorer_status_needs_inspection]}
@@ -164,7 +164,7 @@ cases:
       location: base
     oracle:
       solvable: false
-      reference_plan: [move_to(village), inspect(village), report_impossible(no_armorer_and_no_mine)]
+      reference_plan: ["move_to(village)", "inspect(village)", "report_impossible(no_armorer_and_no_mine)"]
       expected_failure: no_armorer_and_no_mine
       expected_strategy: inspect_then_report
     expected_experience: {path_type: blocked_trading, learn: [no_armorer_blocks_trading_route]}
@@ -180,7 +180,7 @@ cases:
       location: base
     oracle:
       solvable: true
-      reference_plan: [move_to(village), trade(armorer, emerald, diamond_boots), move_to(mine), mine(diamond), mine(diamond), mine(diamond), craft(diamond_helmet), craft(diamond_chestplate), craft(diamond_leggings)]
+      reference_plan: ["move_to(village)", "trade(armorer, emerald, diamond_boots)", "move_to(mine)", "mine(diamond)", "mine(diamond)", "mine(diamond)", "craft(diamond_helmet)", "craft(diamond_chestplate)", "craft(diamond_leggings)"]
       min_steps: 9
       expected_strategy: mixed_trade_then_mine
     expected_experience: {path_type: mixed, learn: [partial_trade_can_reduce_diamond_requirement]}
@@ -196,7 +196,7 @@ cases:
       location: base
     oracle:
       solvable: true
-      reference_plan: [move_to(mine), mine(diamond), mine(diamond), move_to(village), trade(armorer, emerald, diamond_chestplate), trade(armorer, emerald, diamond_boots), craft(diamond_helmet), craft(diamond_leggings)]
+      reference_plan: ["move_to(mine)", "mine(diamond)", "mine(diamond)", "move_to(village)", "trade(armorer, emerald, diamond_chestplate)", "trade(armorer, emerald, diamond_boots)", "craft(diamond_helmet)", "craft(diamond_leggings)"]
       min_steps: 8
       expected_strategy: mixed_mine_then_trade
     expected_experience: {path_type: mixed, learn: [capacity_limited_mine_should_trigger_path_switch]}
@@ -212,7 +212,7 @@ cases:
       location: base
     oracle:
       solvable: false
-      reference_plan: [report_impossible(no_viable_plan)]
+      reference_plan: ["report_impossible(no_viable_plan)"]
       expected_failure: no_resource_access
       expected_strategy: report_impossible
     expected_experience: {path_type: impossible, learn: [no_resource_route_for_diamond_set]}

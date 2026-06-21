@@ -28,6 +28,27 @@ tasks:
     equivalent_conditions:
       inventory.diamond: ">=24"
       inventory.crafting_table: true
+  golden_apple:
+    success_conditions:
+      inventory.golden_apple: true
+  nether_portal:
+    success_conditions:
+      environment.portal_lit: true
+  enchant_pickaxe:
+    success_conditions:
+      inventory.enchanted_pickaxe: true
+  fire_resistance_potion:
+    success_conditions:
+      inventory.fire_resistance_potion: true
+  cure_zombie_villager:
+    success_conditions:
+      environment.zombie_villager_cured: true
+  cake:
+    success_conditions:
+      inventory.cake: true
+  eye_of_ender:
+    success_conditions:
+      inventory.eye_of_ender: true
 
 rules:
   - id: R001

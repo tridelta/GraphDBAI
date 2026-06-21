@@ -14,82 +14,82 @@ cases:
     difficulty: easy
     characteristic: direct_success
     initial_state: {inventory: {milk_bucket: 3, sugar: 2, wheat: 3, egg: 1, bucket: 0, cake: false}, environment: {nearby_cow: false, nearby_chicken: false, nearby_village: false}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [craft(cake)], min_steps: 1, expected_strategy: direct_crafting}
+    oracle: {solvable: true, reference_plan: ["craft(cake)"], min_steps: 1, expected_strategy: direct_crafting}
     expected_experience: {path_type: crafting, learn: [cake_requires_milk_sugar_wheat_egg]}
   - id: CK_002
     title: Milk cow before crafting.
     difficulty: easy
     characteristic: missing_milk
     initial_state: {inventory: {milk_bucket: 0, bucket: 3, sugar: 2, wheat: 3, egg: 1, cake: false}, environment: {nearby_cow: true, nearby_chicken: false, nearby_village: false}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [milk(cow), craft(cake)], min_steps: 2, expected_strategy: milk_then_craft}
+    oracle: {solvable: true, reference_plan: ["milk(cow)", "craft(cake)"], min_steps: 2, expected_strategy: milk_then_craft}
     expected_experience: {path_type: gather_crafting, learn: [milk_requires_cow_and_buckets]}
   - id: CK_003
     title: Gather sugar cane and craft sugar.
     difficulty: easy
     characteristic: gather_sugar
     initial_state: {inventory: {milk_bucket: 3, bucket: 0, sugar: 0, sugar_cane: 0, wheat: 3, egg: 1, cake: false}, environment: {nearby_river: true, sugar_cane_available: true}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [move_to(river), gather(sugar_cane), craft(sugar), craft(cake)], min_steps: 4, expected_strategy: gather_sugar_then_craft}
+    oracle: {solvable: true, reference_plan: ["move_to(river)", "gather(sugar_cane)", "craft(sugar)", "craft(cake)"], min_steps: 4, expected_strategy: gather_sugar_then_craft}
     expected_experience: {path_type: gather_crafting, learn: [sugar_cane_can_supply_sugar]}
   - id: CK_004
     title: Farm wheat before crafting.
     difficulty: medium
     characteristic: farm_wheat
     initial_state: {inventory: {milk_bucket: 3, sugar: 2, wheat: 0, seeds: 3, egg: 1, cake: false}, environment: {farmland_available: true, water_available: true}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [plant(wheat), harvest(wheat), craft(cake)], min_steps: 3, expected_strategy: farm_then_craft}
+    oracle: {solvable: true, reference_plan: ["plant(wheat)", "harvest(wheat)", "craft(cake)"], min_steps: 3, expected_strategy: farm_then_craft}
     expected_experience: {path_type: farming_crafting, learn: [wheat_can_be_farmed_from_seeds]}
   - id: CK_005
     title: Wait for chicken egg.
     difficulty: medium
     characteristic: egg_wait
     initial_state: {inventory: {milk_bucket: 3, sugar: 2, wheat: 3, egg: 0, cake: false}, environment: {nearby_chicken: true}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [wait(egg_drop), gather(egg), craft(cake)], min_steps: 3, expected_strategy: wait_for_egg}
+    oracle: {solvable: true, reference_plan: ["wait(egg_drop)", "gather(egg)", "craft(cake)"], min_steps: 3, expected_strategy: wait_for_egg}
     expected_experience: {path_type: wait_gather_crafting, learn: [egg_source_may_require_wait_action]}
   - id: CK_006
     title: Discover cow location before milking.
     difficulty: medium
     characteristic: hidden_cow
     initial_state: {inventory: {milk_bucket: 0, bucket: 3, sugar: 2, wheat: 3, egg: 1, cake: false}, environment: {nearby_cow: unknown, pasture_search_available: true}, hidden_facts: {nearby_cow: true}, ambiguous: {nearby_cow: unknown}, location: base}
-    oracle: {solvable: true, reference_plan: [explore(pasture), move_to(pasture), milk(cow), craft(cake)], min_steps: 4, expected_strategy: explore_milk_craft}
+    oracle: {solvable: true, reference_plan: ["explore(pasture)", "move_to(pasture)", "milk(cow)", "craft(cake)"], min_steps: 4, expected_strategy: explore_milk_craft}
     expected_experience: {path_type: discovery_gather_crafting, learn: [hidden_cow_should_be_explored_when_milk_missing]}
   - id: CK_007
     title: Trade with farmer for missing crops.
     difficulty: medium
     characteristic: farmer_trade
     initial_state: {inventory: {milk_bucket: 3, sugar: 0, wheat: 0, egg: 1, emerald: 4, cake: false}, environment: {nearby_village: true, village_has_farmer: true}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [move_to(village), trade(farmer, emerald, wheat), trade(farmer, emerald, sugar), craft(cake)], min_steps: 4, expected_strategy: trade_then_craft}
+    oracle: {solvable: true, reference_plan: ["move_to(village)", "trade(farmer, emerald, wheat)", "trade(farmer, emerald, sugar)", "craft(cake)"], min_steps: 4, expected_strategy: trade_then_craft}
     expected_experience: {path_type: trading_crafting, learn: [farmer_trade_can_supply_crop_inputs]}
   - id: CK_008
     title: Cows exist but buckets cannot be obtained.
     difficulty: medium
     characteristic: no_bucket
     initial_state: {inventory: {milk_bucket: 0, bucket: 0, iron_ingot: 0, sugar: 2, wheat: 3, egg: 1, cake: false}, environment: {nearby_cow: true, nearby_mine: false, nearby_village: false}, ambiguous: {}, location: base}
-    oracle: {solvable: false, reference_plan: [report_impossible(no_bucket)], expected_failure: missing_bucket, expected_strategy: report_impossible}
+    oracle: {solvable: false, reference_plan: ["report_impossible(no_bucket)"], expected_failure: missing_bucket, expected_strategy: report_impossible}
     expected_experience: {path_type: blocked_milk, learn: [cow_without_bucket_does_not_enable_milk]}
   - id: CK_009
     title: Collect all ingredients through multiple routes.
     difficulty: hard
     characteristic: multi_resource
     initial_state: {inventory: {milk_bucket: 0, bucket: 3, sugar: 0, wheat: 0, seeds: 3, egg: 0, cake: false}, environment: {nearby_cow: unknown, pasture_search_available: true, nearby_river: true, sugar_cane_available: true, farmland_available: true, nearby_chicken: true}, hidden_facts: {nearby_cow: true}, ambiguous: {nearby_cow: unknown}, location: base}
-    oracle: {solvable: true, reference_plan: [explore(pasture), milk(cow), plant(wheat), harvest(wheat), move_to(river), gather(sugar_cane), craft(sugar), wait(egg_drop), gather(egg), craft(cake)], min_steps: 10, expected_strategy: multi_resource_collection}
+    oracle: {solvable: true, reference_plan: ["explore(pasture)", "milk(cow)", "plant(wheat)", "harvest(wheat)", "move_to(river)", "gather(sugar_cane)", "craft(sugar)", "wait(egg_drop)", "gather(egg)", "craft(cake)"], min_steps: 10, expected_strategy: multi_resource_collection}
     expected_experience: {path_type: mixed, learn: [cake_task_tests_parallel_resource_dependencies]}
   - id: CK_010
     title: Farmer route fails, switch to farming.
     difficulty: hard
     characteristic: deceptive_village
     initial_state: {inventory: {milk_bucket: 3, sugar: 2, wheat: 0, seeds: 3, egg: 1, emerald: 4, cake: false}, environment: {nearby_village: true, village_has_farmer: true, farmer_has_wheat_trade: unknown, farmland_available: true}, hidden_facts: {farmer_has_wheat_trade: false}, ambiguous: {farmer_has_wheat_trade: unknown}, location: base}
-    oracle: {solvable: true, reference_plan: [move_to(village), inspect(farmer), plant(wheat), harvest(wheat), craft(cake)], min_steps: 5, expected_strategy: switch_trade_to_farm}
+    oracle: {solvable: true, reference_plan: ["move_to(village)", "inspect(farmer)", "plant(wheat)", "harvest(wheat)", "craft(cake)"], min_steps: 5, expected_strategy: switch_trade_to_farm}
     expected_experience: {path_type: path_switching, learn: [failed_farmer_trade_should_trigger_farming_route]}
   - id: CK_011
     title: Egg source is absent after search.
     difficulty: hard
     characteristic: no_egg
     initial_state: {inventory: {milk_bucket: 3, sugar: 2, wheat: 3, egg: 0, cake: false}, environment: {nearby_chicken: unknown, chicken_search_available: true, nearby_village: false}, hidden_facts: {nearby_chicken: false}, ambiguous: {nearby_chicken: unknown}, location: base}
-    oracle: {solvable: false, reference_plan: [explore(chicken), report_impossible(no_egg_source)], expected_failure: missing_egg, expected_strategy: explore_then_report}
+    oracle: {solvable: false, reference_plan: ["explore(chicken)", "report_impossible(no_egg_source)"], expected_failure: missing_egg, expected_strategy: explore_then_report}
     expected_experience: {path_type: impossible_after_search, learn: [egg_is_required_for_cake]}
   - id: CK_012
     title: No cake route exists.
     difficulty: impossible
     characteristic: no_viable_route
     initial_state: {inventory: {milk_bucket: 0, bucket: 0, sugar: 0, wheat: 0, seeds: 0, egg: 0, cake: false}, environment: {nearby_cow: false, nearby_chicken: false, nearby_village: false, nearby_river: false, farmland_available: false}, ambiguous: {}, location: base}
-    oracle: {solvable: false, reference_plan: [report_impossible(no_viable_plan)], expected_failure: missing_cake_ingredients, expected_strategy: report_impossible}
+    oracle: {solvable: false, reference_plan: ["report_impossible(no_viable_plan)"], expected_failure: missing_cake_ingredients, expected_strategy: report_impossible}
     expected_experience: {path_type: impossible, learn: [cake_requires_all_four_ingredient_categories]}

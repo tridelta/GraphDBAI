@@ -14,82 +14,82 @@ cases:
     difficulty: easy
     characteristic: direct_success
     initial_state: {inventory: {golden_apple: 1, splash_potion_of_weakness: 1}, environment: {zombie_villager_present: true, nearby_igloo: false, nearby_village: true}, ambiguous: {}, location: village}
-    oracle: {solvable: true, reference_plan: [throw(splash_potion_of_weakness), use(golden_apple, zombie_villager), wait(cure_complete)], min_steps: 3, expected_strategy: direct_cure}
+    oracle: {solvable: true, reference_plan: ["throw(splash_potion_of_weakness)", "use(golden_apple, zombie_villager)", "wait(cure_complete)"], min_steps: 3, expected_strategy: direct_cure}
     expected_experience: {path_type: cure, learn: [cure_requires_weakness_and_golden_apple]}
   - id: ZV_002
     title: Craft golden apple before cure.
     difficulty: easy
     characteristic: craft_golden_apple
     initial_state: {inventory: {golden_apple: 0, apple: 1, gold_ingot: 8, splash_potion_of_weakness: 1}, environment: {zombie_villager_present: true, nearby_village: true}, ambiguous: {}, location: village}
-    oracle: {solvable: true, reference_plan: [craft(golden_apple), throw(splash_potion_of_weakness), use(golden_apple, zombie_villager), wait(cure_complete)], min_steps: 4, expected_strategy: craft_then_cure}
+    oracle: {solvable: true, reference_plan: ["craft(golden_apple)", "throw(splash_potion_of_weakness)", "use(golden_apple, zombie_villager)", "wait(cure_complete)"], min_steps: 4, expected_strategy: craft_then_cure}
     expected_experience: {path_type: crafting_cure, learn: [golden_apple_subgoal_can_feed_cure_task]}
   - id: ZV_003
     title: Use known igloo basement supplies.
     difficulty: easy
     characteristic: igloo_supplies
     initial_state: {inventory: {golden_apple: 0, splash_potion_of_weakness: 0}, environment: {zombie_villager_present: true, nearby_igloo: true, igloo_has_basement: true, basement_has_cure_supplies: true}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [move_to(igloo), loot(chest, golden_apple), loot(stand, splash_potion_of_weakness), throw(splash_potion_of_weakness), use(golden_apple, zombie_villager), wait(cure_complete)], min_steps: 6, expected_strategy: igloo_loot_cure}
+    oracle: {solvable: true, reference_plan: ["move_to(igloo)", "loot(chest, golden_apple)", "loot(stand, splash_potion_of_weakness)", "throw(splash_potion_of_weakness)", "use(golden_apple, zombie_villager)", "wait(cure_complete)"], min_steps: 6, expected_strategy: igloo_loot_cure}
     expected_experience: {path_type: loot_cure, learn: [igloo_basement_can_supply_cure_items]}
   - id: ZV_004
     title: Discover hidden igloo basement.
     difficulty: medium
     characteristic: hidden_igloo
     initial_state: {inventory: {golden_apple: 0, splash_potion_of_weakness: 0}, environment: {zombie_villager_present: true, nearby_igloo: unknown, snow_biome_search_available: true}, hidden_facts: {nearby_igloo: true, igloo_has_basement: true, basement_has_cure_supplies: true}, ambiguous: {nearby_igloo: unknown}, location: base}
-    oracle: {solvable: true, reference_plan: [explore(igloo), move_to(igloo), inspect(basement), loot(chest, golden_apple), loot(stand, splash_potion_of_weakness), throw(splash_potion_of_weakness), use(golden_apple, zombie_villager), wait(cure_complete)], min_steps: 8, expected_strategy: explore_igloo_cure}
+    oracle: {solvable: true, reference_plan: ["explore(igloo)", "move_to(igloo)", "inspect(basement)", "loot(chest, golden_apple)", "loot(stand, splash_potion_of_weakness)", "throw(splash_potion_of_weakness)", "use(golden_apple, zombie_villager)", "wait(cure_complete)"], min_steps: 8, expected_strategy: explore_igloo_cure}
     expected_experience: {path_type: discovery_loot_cure, learn: [hidden_igloo_should_be_explored_when_cure_items_missing]}
   - id: ZV_005
     title: Brew weakness potion before cure.
     difficulty: medium
     characteristic: brew_weakness
     initial_state: {inventory: {golden_apple: 1, brewing_stand: true, blaze_powder: 1, water_bottle: 1, fermented_spider_eye: 1, gunpowder: 1, splash_potion_of_weakness: 0}, environment: {zombie_villager_present: true}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [brew(potion_of_weakness), craft(splash_potion_of_weakness), throw(splash_potion_of_weakness), use(golden_apple, zombie_villager), wait(cure_complete)], min_steps: 5, expected_strategy: brew_then_cure}
+    oracle: {solvable: true, reference_plan: ["brew(potion_of_weakness)", "craft(splash_potion_of_weakness)", "throw(splash_potion_of_weakness)", "use(golden_apple, zombie_villager)", "wait(cure_complete)"], min_steps: 5, expected_strategy: brew_then_cure}
     expected_experience: {path_type: brewing_cure, learn: [weakness_effect_can_be_brewed_when_igloo_route_absent]}
   - id: ZV_006
     title: Gather apple, craft golden apple, then cure.
     difficulty: medium
     characteristic: missing_apple
     initial_state: {inventory: {golden_apple: 0, apple: 0, gold_ingot: 8, splash_potion_of_weakness: 1}, environment: {zombie_villager_present: true, nearby_orchard: true}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [move_to(orchard), gather(apple), craft(golden_apple), throw(splash_potion_of_weakness), use(golden_apple, zombie_villager), wait(cure_complete)], min_steps: 6, expected_strategy: gather_craft_cure}
+    oracle: {solvable: true, reference_plan: ["move_to(orchard)", "gather(apple)", "craft(golden_apple)", "throw(splash_potion_of_weakness)", "use(golden_apple, zombie_villager)", "wait(cure_complete)"], min_steps: 6, expected_strategy: gather_craft_cure}
     expected_experience: {path_type: gather_cure, learn: [missing_apple_is_recoverable_if_orchard_exists]}
   - id: ZV_007
     title: Confirm zombie villager before using cure items.
     difficulty: medium
     characteristic: hidden_zombie_villager
     initial_state: {inventory: {golden_apple: 1, splash_potion_of_weakness: 1}, environment: {nearby_village: true, zombie_villager_present: unknown, village_search_available: true}, hidden_facts: {zombie_villager_present: true}, ambiguous: {zombie_villager_present: unknown}, location: base}
-    oracle: {solvable: true, reference_plan: [move_to(village), inspect(village), throw(splash_potion_of_weakness), use(golden_apple, zombie_villager), wait(cure_complete)], min_steps: 5, expected_strategy: inspect_then_cure}
+    oracle: {solvable: true, reference_plan: ["move_to(village)", "inspect(village)", "throw(splash_potion_of_weakness)", "use(golden_apple, zombie_villager)", "wait(cure_complete)"], min_steps: 5, expected_strategy: inspect_then_cure}
     expected_experience: {path_type: cure_with_discovery, learn: [unknown_zombie_villager_status_needs_inspection]}
   - id: ZV_008
     title: No weakness effect route exists.
     difficulty: medium
     characteristic: no_weakness
     initial_state: {inventory: {golden_apple: 1, splash_potion_of_weakness: 0, brewing_stand: false}, environment: {zombie_villager_present: true, nearby_igloo: false, nearby_fortress: false}, ambiguous: {}, location: village}
-    oracle: {solvable: false, reference_plan: [report_impossible(no_weakness_effect)], expected_failure: missing_weakness_effect, expected_strategy: report_impossible}
+    oracle: {solvable: false, reference_plan: ["report_impossible(no_weakness_effect)"], expected_failure: missing_weakness_effect, expected_strategy: report_impossible}
     expected_experience: {path_type: blocked_cure, learn: [golden_apple_alone_is_insufficient]}
   - id: ZV_009
     title: Igloo lacks potion, switch to brewing.
     difficulty: hard
     characteristic: deceptive_igloo
     initial_state: {inventory: {golden_apple: 0, apple: 1, gold_ingot: 8, brewing_stand: true, blaze_powder: 1, water_bottle: 1, fermented_spider_eye: 1, gunpowder: 1}, environment: {zombie_villager_present: true, nearby_igloo: true, igloo_has_weakness_potion: unknown}, hidden_facts: {igloo_has_weakness_potion: false}, ambiguous: {igloo_has_weakness_potion: unknown}, location: base}
-    oracle: {solvable: true, reference_plan: [move_to(igloo), inspect(basement), craft(golden_apple), brew(potion_of_weakness), craft(splash_potion_of_weakness), throw(splash_potion_of_weakness), use(golden_apple, zombie_villager), wait(cure_complete)], min_steps: 8, expected_strategy: switch_igloo_to_brewing}
+    oracle: {solvable: true, reference_plan: ["move_to(igloo)", "inspect(basement)", "craft(golden_apple)", "brew(potion_of_weakness)", "craft(splash_potion_of_weakness)", "throw(splash_potion_of_weakness)", "use(golden_apple, zombie_villager)", "wait(cure_complete)"], min_steps: 8, expected_strategy: switch_igloo_to_brewing}
     expected_experience: {path_type: path_switching, learn: [negative_igloo_result_should_trigger_brewing_route]}
   - id: ZV_010
     title: Full cure chain from raw materials.
     difficulty: hard
     characteristic: full_chain
     initial_state: {inventory: {golden_apple: 0, apple: 0, gold_ingot: 0, gold_ore: 8, furnace: true, fuel: 8, brewing_stand: true, blaze_powder: 1, water_bottle: 1, fermented_spider_eye: 1, gunpowder: 1}, environment: {nearby_orchard: true, nearby_mine: true, mine_has_gold: true, nearby_village: true, zombie_villager_present: unknown}, hidden_facts: {zombie_villager_present: true}, ambiguous: {zombie_villager_present: unknown}, location: base}
-    oracle: {solvable: true, reference_plan: [move_to(orchard), gather(apple), move_to(mine), mine(gold_ore), smelt(gold_ore), craft(golden_apple), brew(potion_of_weakness), craft(splash_potion_of_weakness), move_to(village), inspect(village), throw(splash_potion_of_weakness), use(golden_apple, zombie_villager), wait(cure_complete)], min_steps: 13, expected_strategy: full_chain}
+    oracle: {solvable: true, reference_plan: ["move_to(orchard)", "gather(apple)", "move_to(mine)", "mine(gold_ore)", "smelt(gold_ore)", "craft(golden_apple)", "brew(potion_of_weakness)", "craft(splash_potion_of_weakness)", "move_to(village)", "inspect(village)", "throw(splash_potion_of_weakness)", "use(golden_apple, zombie_villager)", "wait(cure_complete)"], min_steps: 13, expected_strategy: full_chain}
     expected_experience: {path_type: long_resource_chain, learn: [cure_task_combines_golden_apple_and_weakness_subgoals]}
   - id: ZV_011
     title: Zombie villager is absent.
     difficulty: hard
     characteristic: no_zombie_villager
     initial_state: {inventory: {golden_apple: 1, splash_potion_of_weakness: 1}, environment: {nearby_village: true, zombie_villager_present: unknown}, hidden_facts: {zombie_villager_present: false}, ambiguous: {zombie_villager_present: unknown}, location: base}
-    oracle: {solvable: false, reference_plan: [move_to(village), inspect(village), report_impossible(no_zombie_villager)], expected_failure: no_zombie_villager, expected_strategy: inspect_then_report}
+    oracle: {solvable: false, reference_plan: ["move_to(village)", "inspect(village)", "report_impossible(no_zombie_villager)"], expected_failure: no_zombie_villager, expected_strategy: inspect_then_report}
     expected_experience: {path_type: impossible_after_inspection, learn: [cure_items_are_useless_without_zombie_villager]}
   - id: ZV_012
     title: No cure route exists.
     difficulty: impossible
     characteristic: no_viable_route
     initial_state: {inventory: {golden_apple: 0, apple: 0, gold_ingot: 0, splash_potion_of_weakness: 0, brewing_stand: false}, environment: {zombie_villager_present: false, nearby_igloo: false, nearby_orchard: false, nearby_mine: false}, ambiguous: {}, location: base}
-    oracle: {solvable: false, reference_plan: [report_impossible(no_viable_plan)], expected_failure: missing_cure_requirements, expected_strategy: report_impossible}
+    oracle: {solvable: false, reference_plan: ["report_impossible(no_viable_plan)"], expected_failure: missing_cure_requirements, expected_strategy: report_impossible}
     expected_experience: {path_type: impossible, learn: [cure_requires_target_golden_apple_and_weakness_route]}

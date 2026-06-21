@@ -14,82 +14,82 @@ cases:
     difficulty: easy
     characteristic: direct_success
     initial_state: {inventory: {pickaxe: iron, enchanted_pickaxe: false, lapis: 3, xp_level: 10, enchanting_table: true, bookshelf: 0, emerald: 0}, environment: {nearby_mine: false, nearby_village: false}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [enchant(pickaxe)], min_steps: 1, expected_strategy: direct_enchant}
+    oracle: {solvable: true, reference_plan: ["enchant(pickaxe)"], min_steps: 1, expected_strategy: direct_enchant}
     expected_experience: {path_type: enchanting, learn: [enchant_requires_table_lapis_xp_and_pickaxe]}
   - id: EP_002
     title: Mine missing lapis before enchanting.
     difficulty: easy
     characteristic: missing_lapis
     initial_state: {inventory: {pickaxe: iron, enchanted_pickaxe: false, lapis: 0, xp_level: 10, enchanting_table: true, emerald: 0}, environment: {nearby_mine: true, mine_has_lapis: true, nearby_village: false}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [move_to(mine), mine(lapis), enchant(pickaxe)], min_steps: 3, expected_strategy: mine_lapis_then_enchant}
+    oracle: {solvable: true, reference_plan: ["move_to(mine)", "mine(lapis)", "enchant(pickaxe)"], min_steps: 3, expected_strategy: mine_lapis_then_enchant}
     expected_experience: {path_type: mining_then_enchanting, learn: [missing_lapis_can_be_recovered_by_mining]}
   - id: EP_003
     title: Gain missing XP before enchanting.
     difficulty: easy
     characteristic: missing_xp
     initial_state: {inventory: {pickaxe: iron, enchanted_pickaxe: false, lapis: 3, xp_level: 0, enchanting_table: true, emerald: 0}, environment: {nearby_mob_area: true, safe_combat: true, nearby_village: false}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [move_to(mob_area), fight(monsters), enchant(pickaxe)], min_steps: 3, expected_strategy: gain_xp_then_enchant}
+    oracle: {solvable: true, reference_plan: ["move_to(mob_area)", "fight(monsters)", "enchant(pickaxe)"], min_steps: 3, expected_strategy: gain_xp_then_enchant}
     expected_experience: {path_type: combat_then_enchanting, learn: [xp_is_hard_precondition_for_enchanting]}
   - id: EP_004
     title: Craft enchanting table from materials.
     difficulty: medium
     characteristic: craft_table
     initial_state: {inventory: {pickaxe: iron, enchanted_pickaxe: false, lapis: 3, xp_level: 10, enchanting_table: false, book: 1, diamond: 2, obsidian: 4}, environment: {nearby_mine: false, nearby_village: false}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [craft(enchanting_table), place(enchanting_table), enchant(pickaxe)], min_steps: 3, expected_strategy: craft_table_then_enchant}
+    oracle: {solvable: true, reference_plan: ["craft(enchanting_table)", "place(enchanting_table)", "enchant(pickaxe)"], min_steps: 3, expected_strategy: craft_table_then_enchant}
     expected_experience: {path_type: crafting_enchanting, learn: [table_can_be_crafted_from_book_diamonds_obsidian]}
   - id: EP_005
     title: Add bookshelf before high-level enchant.
     difficulty: medium
     characteristic: bookshelf_quality
     initial_state: {inventory: {pickaxe: iron, enchanted_pickaxe: false, lapis: 3, xp_level: 30, enchanting_table: true, book: 3, wood: 6, bookshelf: 0}, environment: {high_level_enchant_required: true}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [craft(bookshelf), place(bookshelf), enchant(pickaxe)], min_steps: 3, expected_strategy: improve_station_then_enchant}
+    oracle: {solvable: true, reference_plan: ["craft(bookshelf)", "place(bookshelf)", "enchant(pickaxe)"], min_steps: 3, expected_strategy: improve_station_then_enchant}
     expected_experience: {path_type: station_upgrade, learn: [high_level_enchant_requires_bookshelf_context]}
   - id: EP_006
     title: Use librarian book route instead of table.
     difficulty: medium
     characteristic: librarian_book
     initial_state: {inventory: {pickaxe: iron, enchanted_pickaxe: false, emerald: 12, anvil: true, enchanting_table: false, lapis: 0, xp_level: 5}, environment: {nearby_village: true, village_has_librarian: true}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [move_to(village), trade(librarian, emerald, enchanted_book), use_anvil(pickaxe, enchanted_book)], min_steps: 3, expected_strategy: trade_book_then_anvil}
+    oracle: {solvable: true, reference_plan: ["move_to(village)", "trade(librarian, emerald, enchanted_book)", "use_anvil(pickaxe, enchanted_book)"], min_steps: 3, expected_strategy: trade_book_then_anvil}
     expected_experience: {path_type: trading_anvil, learn: [librarian_book_route_can_replace_enchanting_table]}
   - id: EP_007
     title: Inspect village to find librarian.
     difficulty: medium
     characteristic: hidden_librarian
     initial_state: {inventory: {pickaxe: iron, enchanted_pickaxe: false, emerald: 12, anvil: true, enchanting_table: false}, environment: {nearby_village: true, village_has_librarian: unknown}, hidden_facts: {village_has_librarian: true}, ambiguous: {village_has_librarian: unknown}, location: base}
-    oracle: {solvable: true, reference_plan: [move_to(village), inspect(village), trade(librarian, emerald, enchanted_book), use_anvil(pickaxe, enchanted_book)], min_steps: 4, expected_strategy: inspect_then_trade_book}
+    oracle: {solvable: true, reference_plan: ["move_to(village)", "inspect(village)", "trade(librarian, emerald, enchanted_book)", "use_anvil(pickaxe, enchanted_book)"], min_steps: 4, expected_strategy: inspect_then_trade_book}
     expected_experience: {path_type: trading_with_discovery, learn: [unknown_librarian_status_needs_inspection]}
   - id: EP_008
     title: No lapis or book route exists.
     difficulty: medium
     characteristic: no_lapis_route
     initial_state: {inventory: {pickaxe: iron, enchanted_pickaxe: false, lapis: 0, xp_level: 10, enchanting_table: true, emerald: 0, anvil: false}, environment: {nearby_mine: false, nearby_village: false, mine_search_available: false}, ambiguous: {}, location: base}
-    oracle: {solvable: false, reference_plan: [report_impossible(no_lapis_or_book_route)], expected_failure: missing_lapis, expected_strategy: report_impossible}
+    oracle: {solvable: false, reference_plan: ["report_impossible(no_lapis_or_book_route)"], expected_failure: missing_lapis, expected_strategy: report_impossible}
     expected_experience: {path_type: blocked_enchanting, learn: [lapis_or_book_route_required]}
   - id: EP_009
     title: Build enchanting route from several subgoals.
     difficulty: hard
     characteristic: mixed_table_build
     initial_state: {inventory: {pickaxe: iron, enchanted_pickaxe: false, lapis: 0, xp_level: 0, enchanting_table: false, book: 1, diamond: 2, obsidian: 0}, environment: {nearby_mine: true, mine_has_lapis: true, mine_has_obsidian: true, nearby_mob_area: true}, ambiguous: {}, location: base}
-    oracle: {solvable: true, reference_plan: [move_to(mine), mine(obsidian), mine(lapis), move_to(mob_area), fight(monsters), craft(enchanting_table), place(enchanting_table), enchant(pickaxe)], min_steps: 8, expected_strategy: multi_subgoal_enchanting}
+    oracle: {solvable: true, reference_plan: ["move_to(mine)", "mine(obsidian)", "mine(lapis)", "move_to(mob_area)", "fight(monsters)", "craft(enchanting_table)", "place(enchanting_table)", "enchant(pickaxe)"], min_steps: 8, expected_strategy: multi_subgoal_enchanting}
     expected_experience: {path_type: mixed, learn: [enchanting_can_require_material_and_xp_subgoals]}
   - id: EP_010
     title: Librarian is absent, switch to table route.
     difficulty: hard
     characteristic: deceptive_librarian
     initial_state: {inventory: {pickaxe: iron, enchanted_pickaxe: false, emerald: 12, anvil: true, lapis: 0, xp_level: 10, enchanting_table: false, book: 1, diamond: 2, obsidian: 4}, environment: {nearby_village: true, village_has_librarian: unknown, nearby_mine: true, mine_has_lapis: true}, hidden_facts: {village_has_librarian: false}, ambiguous: {village_has_librarian: unknown}, location: base}
-    oracle: {solvable: true, reference_plan: [move_to(village), inspect(village), move_to(mine), mine(lapis), craft(enchanting_table), place(enchanting_table), enchant(pickaxe)], min_steps: 7, expected_strategy: switch_from_trade_to_table}
+    oracle: {solvable: true, reference_plan: ["move_to(village)", "inspect(village)", "move_to(mine)", "mine(lapis)", "craft(enchanting_table)", "place(enchanting_table)", "enchant(pickaxe)"], min_steps: 7, expected_strategy: switch_from_trade_to_table}
     expected_experience: {path_type: path_switching, learn: [failed_librarian_route_should_not_block_table_route]}
   - id: EP_011
     title: No experience source exists.
     difficulty: hard
     characteristic: no_xp
     initial_state: {inventory: {pickaxe: iron, enchanted_pickaxe: false, lapis: 3, xp_level: 0, enchanting_table: true, emerald: 0}, environment: {nearby_mob_area: false, nearby_village: false, xp_bottle_source: false}, ambiguous: {}, location: base}
-    oracle: {solvable: false, reference_plan: [report_impossible(no_experience_source)], expected_failure: missing_experience, expected_strategy: report_impossible}
+    oracle: {solvable: false, reference_plan: ["report_impossible(no_experience_source)"], expected_failure: missing_experience, expected_strategy: report_impossible}
     expected_experience: {path_type: blocked_enchanting, learn: [xp_source_is_required_when_xp_missing]}
   - id: EP_012
     title: No enchanting route exists.
     difficulty: impossible
     characteristic: no_viable_route
     initial_state: {inventory: {pickaxe: iron, enchanted_pickaxe: false, lapis: 0, xp_level: 0, enchanting_table: false, book: 0, diamond: 0, obsidian: 0, emerald: 0, anvil: false}, environment: {nearby_mine: false, nearby_village: false, nearby_mob_area: false}, ambiguous: {}, location: base}
-    oracle: {solvable: false, reference_plan: [report_impossible(no_viable_plan)], expected_failure: missing_enchanting_route, expected_strategy: report_impossible}
+    oracle: {solvable: false, reference_plan: ["report_impossible(no_viable_plan)"], expected_failure: missing_enchanting_route, expected_strategy: report_impossible}
     expected_experience: {path_type: impossible, learn: [enchanted_pickaxe_needs_table_or_book_route]}
