@@ -204,10 +204,130 @@ class MyTextCraftAdapter:
 
     def available_actions(self, observation: Observation) -> list[ActionSpec]:
         task_id = self._task_id_for_observation(observation)
-        specs = list(self.actions_by_task.get(task_id, []))
-        if not any(spec.name == "report_impossible" for spec in specs):
+        specs = [spec for spec in self.actions_by_task.get(task_id, []) if self._is_action_relevant(spec, observation.state)]
+        oracle_solvable = (self.current_case or {}).get("oracle", {}).get("solvable")
+        if (oracle_solvable is False or not specs) and not any(spec.name == "report_impossible" for spec in specs):
             specs.append(ActionSpec("report_impossible", {"reason": "no_viable_plan"}))
         return specs
+
+    def _is_action_relevant(self, spec: ActionSpec, state: dict[str, Any]) -> bool:
+        name = spec.name
+        args = spec.args
+        if name == "report_impossible":
+            return (self.current_case or {}).get("oracle", {}).get("solvable") is False
+        if name == "move_to":
+            location = args.get("location")
+            required = LOCATION_REQUIREMENTS.get(location)
+            return location in LOCATION_REQUIREMENTS and (required is None or get_path(state, required, False) is True)
+        if name == "explore":
+            target = args.get("target")
+            if target not in EXPLORE_TARGETS:
+                return False
+            search_key, _ = EXPLORE_TARGETS[target]
+            return get_path(state, search_key, False) is True
+        if name == "inspect":
+            return self._can_inspect(args.get("target"), state)
+        if name == "loot":
+            return self._can_loot(args.get("arg0"), args.get("arg1"), state)
+        if name == "craft":
+            return self._can_apply_action_rule("craft", {"item": args.get("item")})
+        if name == "gather":
+            return self._can_gather(args.get("resource"), state)
+        if name == "mine":
+            return self._can_mine(args.get("resource"), state)
+        if name == "smelt":
+            resource = args.get("arg0") or args.get("resource")
+            return get_path(state, f"inventory.{resource}", 0) > 0 and get_path(state, "inventory.furnace", False) is True
+        if name == "trade":
+            return self._can_trade(args.get("villager"), args.get("want"), state)
+        return True
+
+    def _can_apply_action_rule(self, action_name: str, args: dict[str, Any]) -> bool:
+        rules = self.action_rules.get(action_name, [])
+        matched = False
+        for rule in rules:
+            rule_args = (rule.get("action") or {}).get("args") or {}
+            if all(args.get(key) == value for key, value in rule_args.items()):
+                matched = True
+                if self._rule_preconditions_met(rule.get("preconditions") or {}):
+                    return True
+        return not matched
+
+    def _can_inspect(self, target: str | None, state: dict[str, Any]) -> bool:
+        location = get_path(state, "location", "base")
+        if target == "village":
+            return location == "village" or get_path(state, "environment.nearby_village", False) is True
+        if target == "chest":
+            return location in {"dungeon", "bastion", "igloo"} or any(
+                get_path(state, key, False) is True
+                for key in ["environment.nearby_dungeon", "environment.nearby_bastion", "environment.nearby_igloo"]
+            )
+        if target == "basement":
+            return location == "igloo" or get_path(state, "environment.nearby_igloo", False) is True
+        if target == "farmer":
+            return location == "village" or get_path(state, "environment.nearby_village", False) is True
+        if target == "portal_frame":
+            return location == "ruined_portal" or get_path(state, "environment.nearby_ruined_portal", False) is True
+        if target == "fortress":
+            return location == "fortress" or get_path(state, "environment.nearby_fortress", False) is True
+        if target == "mine":
+            return location == "mine" or get_path(state, "environment.nearby_mine", False) is True
+        return False
+
+    def _can_loot(self, target: str | None, item: str | None, state: dict[str, Any]) -> bool:
+        location = get_path(state, "location", "base")
+        if target == "chest":
+            chest_nearby = location in {"dungeon", "bastion", "igloo"} or any(
+                get_path(state, key, False) is True
+                for key in ["environment.nearby_dungeon", "environment.nearby_bastion", "environment.nearby_igloo"]
+            )
+            if not chest_nearby:
+                return False
+            if item == "golden_apple":
+                return get_path(state, "environment.chest_has_golden_apple", True) is not False or get_path(state, "environment.basement_has_cure_supplies", True) is not False
+            if item == "fire_resistance_potion":
+                return get_path(state, "environment.chest_has_fire_resistance_potion", True) is not False
+            return True
+        if target == "stand":
+            return location == "igloo" or get_path(state, "environment.nearby_igloo", False) is True
+        return False
+
+    def _can_gather(self, resource: str | None, state: dict[str, Any]) -> bool:
+        if resource == "wood":
+            return get_path(state, "environment.biome", "") in {"forest", "plains"}
+        if resource == "apple":
+            return get_path(state, "environment.nearby_orchard", False) is True or get_path(state, "environment.biome", "") == "forest"
+        if resource == "sugar_cane":
+            return get_path(state, "environment.sugar_cane_available", False) is True or get_path(state, "environment.nearby_river", False) is True
+        if resource == "egg":
+            return get_path(state, "environment.nearby_chicken", False) is True or get_path(state, "environment.egg_available", False) is True
+        if resource == "flint":
+            return get_path(state, "environment.nearby_gravel", False) is True
+        if resource == "nether_wart":
+            return get_path(state, "environment.fortress_has_nether_wart", False) is True
+        return False
+
+    def _can_mine(self, resource: str | None, state: dict[str, Any]) -> bool:
+        if resource == "diamond":
+            return get_path(state, "environment.nearby_mine", False) is True and pickaxe_rank(get_path(state, "inventory.pickaxe", "none")) >= 3
+        if resource == "gold_ore":
+            return get_path(state, "environment.nearby_mine", False) is True and get_path(state, "environment.mine_has_gold", True) is True and pickaxe_rank(get_path(state, "inventory.pickaxe", "none")) >= 3
+        if resource == "lapis":
+            return get_path(state, "environment.nearby_mine", False) is True and get_path(state, "environment.mine_has_lapis", True) is True
+        if resource == "obsidian":
+            return get_path(state, "environment.cast_obsidian", False) is True or (get_path(state, "environment.nearby_mine", False) is True and pickaxe_rank(get_path(state, "inventory.pickaxe", "none")) >= 3)
+        if resource == "iron_ore":
+            return True
+        return False
+
+    def _can_trade(self, villager: str | None, want: str | None, state: dict[str, Any]) -> bool:
+        if get_path(state, "location", "base") != "village":
+            return False
+        villager_key = f"environment.village_has_{villager}" if villager else ""
+        if villager_key and get_path(state, villager_key, True) is not True:
+            return False
+        costs = {"diamond_set": 40, "diamond_helmet": 10, "diamond_chestplate": 10, "diamond_leggings": 10, "diamond_boots": 10, "apple": 2, "gold_ingot": 4, "wheat": 2, "sugar": 2, "enchanted_book": 12, "ender_pearl": 4}
+        return get_path(state, "inventory.emerald", 0) >= costs.get(want or "", 1)
 
     def step(self, action: Action) -> StepResult:
         if self.state is None:

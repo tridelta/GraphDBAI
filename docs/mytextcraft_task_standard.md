@@ -16,6 +16,9 @@ Future main evaluation should avoid impossible cases by default. As the world ga
 - `craft(...)` first checks declarative action rules in `world_cases/textcraft_rules.yaml`, then falls back to legacy Python branches for compatibility.
 - Declarative craft coverage currently includes diamond armor pieces, crafting table, golden apple, golden helmet, cake, sugar, potion ingredients, enchanting-table items, and eye of ender.
 - `report_impossible` remains available for diagnostic cases, but future main experiments should prefer solvable schedules.
+- `run_experiment.py --case-ids` can run a fixed subset in a requested order, which is useful for repeated-round learning experiments without clearing the graph.
+- `available_actions()` filters declared actions by the current visible state so agents are not offered routes that are already unavailable.
+- The panel summary API reports repeated-case round summaries and graph growth so learning progress can be inspected during long runs.
 
 ## Required Task Family Fields
 
