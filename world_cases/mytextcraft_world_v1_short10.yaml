@@ -1,0 +1,30 @@
+version: 0.1
+world: mytextcraft_mc
+name: mytextcraft_world_v1_short10
+status: active_benchmark_suite
+last_updated: 2026-06-27
+default_state_file: mytextcraft_default_state.yaml
+description: >
+  Short high-difficulty MyTextCraft world-v1 suite. It keeps the shared world
+  state schema but selects ten solvable cases with route switching, hidden
+  information, limited resources, and long dependency chains.
+case_sources:
+  - task_families
+case_ids:
+  - GEC_004
+  - GEC_005
+  - GEC_006
+  - ZV_010
+  - EP_009
+  - EO_009
+  - FR_010
+  - NP_009
+  - DS_011
+  - CK_010
+round_protocol:
+  recommended_rounds: 5
+  schedule: ordered
+  episodes: 50
+  command_template: >
+    uv run python -B tools/run_mytextcraft_world_v1_experiment.py
+    --preset short10 --rounds 5 --ack-external-api

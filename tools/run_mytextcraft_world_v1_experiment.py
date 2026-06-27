@@ -12,11 +12,21 @@ from pathlib import Path
 
 
 RUN_ID_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
-DEFAULT_RUN_ID = "mytextcraft_world_v1_graph_full_flash_s1"
+PRESETS = {
+    "short10": {
+        "cases": "world_cases/mytextcraft_world_v1_short10.yaml",
+        "run_id": "mytextcraft_world_v1_short10_graph_full_flash_s1",
+    },
+    "all": {
+        "cases": "world_cases/mytextcraft_world_v1.yaml",
+        "run_id": "mytextcraft_world_v1_graph_full_flash_s1",
+    },
+}
 
 
 def main() -> None:
     args = parse_args()
+    apply_preset_defaults(args)
     validate_args(args)
     experiment_command = build_experiment_command(args)
     panel_command = build_panel_command(args)
@@ -56,7 +66,9 @@ def main() -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Launch MyTextCraft world-v1 experiment with progress WebUI hook.")
-    parser.add_argument("--run-id", default=DEFAULT_RUN_ID)
+    parser.add_argument("--preset", choices=sorted(PRESETS), default="short10")
+    parser.add_argument("--cases", default=None, help="Override the cases manifest selected by --preset.")
+    parser.add_argument("--run-id", default=None)
     parser.add_argument("--run-dir", default="runs")
     parser.add_argument("--agent", default="graph", choices=["scripted", "react", "reflexion", "vector_trajectory", "skill_library", "graph"])
     parser.add_argument("--variant", default="full")
@@ -83,6 +95,14 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def apply_preset_defaults(args: argparse.Namespace) -> None:
+    preset = PRESETS[args.preset]
+    if args.cases is None:
+        args.cases = preset["cases"]
+    if args.run_id is None:
+        args.run_id = preset["run_id"]
+
+
 def validate_args(args: argparse.Namespace) -> None:
     if not RUN_ID_RE.match(args.run_id):
         raise SystemExit("run_id may only contain letters, numbers, dot, dash, and underscore.")
@@ -105,7 +125,7 @@ def build_experiment_command(args: argparse.Namespace) -> list[str]:
         "--variant",
         args.variant,
         "--cases",
-        "world_cases/mytextcraft_world_v1.yaml",
+        args.cases,
         "--rules",
         "world_cases/textcraft_rules.yaml",
         "--task-id",

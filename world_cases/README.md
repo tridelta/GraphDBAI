@@ -10,6 +10,7 @@ Files:
 - `textcraft_cases.yaml`: legacy filename for the original diamond-set active suite.
 - `mytextcraft_default_state.yaml`: shared default state schema used by world-level suites.
 - `mytextcraft_world_v1.yaml`: manifest that loads all current task families into one world-level benchmark suite.
+- `mytextcraft_world_v1_short10.yaml`: short high-difficulty world-level suite for quick iteration.
 - `task_families/`: draft multi-family MyTextCraft task suite with 9 families and 102 cases.
 - `sample_experiences.jsonl`: example `ExperienceRecord` rows derived from representative cases.
 

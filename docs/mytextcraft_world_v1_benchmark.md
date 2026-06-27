@@ -11,6 +11,7 @@ The suite is intended for open-world-style experiments where an agent faces many
 ## Files
 
 - `world_cases/mytextcraft_world_v1.yaml`: benchmark suite manifest.
+- `world_cases/mytextcraft_world_v1_short10.yaml`: short high-difficulty suite for quick iteration.
 - `world_cases/mytextcraft_default_state.yaml`: shared default state schema.
 - `world_cases/task_families/`: all current task family cases.
 - `world_cases/textcraft_rules.yaml`: task action spaces and world rules.
@@ -74,13 +75,13 @@ Older no-route cases are retained for diagnostics but should not be mixed into t
 
 ## 5 x n Round Protocol
 
-For a world-level experiment, use 5 rounds over the selected case set:
+For quick iteration, use the short high-difficulty suite:
 
 Recommended wrapper:
 
 ```powershell
 uv run python -B tools/run_mytextcraft_world_v1_experiment.py `
-  --run-id mytextcraft_world_v1_graph_full_flash_s1 `
+  --preset short10 `
   --provider deepseek `
   --model deepseek-v4-flash `
   --rounds 5 `
@@ -91,13 +92,15 @@ uv run python -B tools/run_mytextcraft_world_v1_experiment.py `
 
 The wrapper starts the experiment in the background, writes logs under `output/logs/`, writes a progress hook under `output/experiment_jobs/`, and starts the local panel at `http://127.0.0.1:8765/`.
 
+The short suite contains 10 solvable medium/hard cases, so 5 rounds expands to 50 episodes.
+
 Direct command:
 
 ```powershell
 uv run eg-run-experiment `
   --agent graph `
   --variant full `
-  --cases world_cases/mytextcraft_world_v1.yaml `
+  --cases world_cases/mytextcraft_world_v1_short10.yaml `
   --rules world_cases/textcraft_rules.yaml `
   --task-id all `
   --solvable-only `
@@ -108,6 +111,8 @@ uv run eg-run-experiment `
 ```
 
 If `n` solvable cases are selected, `--rounds 5` expands to `5 * n` episodes.
+
+Use `--preset all` only when intentionally running the full world suite.
 
 Use the same command with different agents or variants for comparisons:
 

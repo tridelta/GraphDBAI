@@ -13,6 +13,7 @@ CASES = ROOT / "world_cases" / "textcraft_cases.yaml"
 RULES = ROOT / "world_cases" / "textcraft_rules.yaml"
 TASK_FAMILIES = ROOT / "world_cases" / "task_families"
 WORLD_SUITE = ROOT / "world_cases" / "mytextcraft_world_v1.yaml"
+SHORT10_SUITE = ROOT / "world_cases" / "mytextcraft_world_v1_short10.yaml"
 
 
 def action_label(spec) -> str:
@@ -81,6 +82,33 @@ def test_world_suite_reset_uses_shared_state_schema():
         assert env.state is not None
         assert "hidden_facts" in env.state
         assert "hidden_facts" not in obs.state
+
+
+def test_short10_world_suite_selects_ordered_hard_cases():
+    env = MyTextCraftAdapter(SHORT10_SUITE, RULES)
+    assert list(env.cases) == [
+        "GEC_004",
+        "GEC_005",
+        "GEC_006",
+        "ZV_010",
+        "EP_009",
+        "EO_009",
+        "FR_010",
+        "NP_009",
+        "DS_011",
+        "CK_010",
+    ]
+    assert all(case["oracle"]["solvable"] is True for case in env.cases.values())
+    assert {case["task"]["id"] for case in env.cases.values()} == {
+        "cake",
+        "cure_zombie_villager",
+        "diamond_set",
+        "enchant_pickaxe",
+        "eye_of_ender",
+        "fire_resistance_potion",
+        "golden_equipment_chain",
+        "nether_portal",
+    }
 
 
 def test_task_family_oracle_plans_match_expected_solvability():

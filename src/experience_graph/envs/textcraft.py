@@ -153,6 +153,13 @@ class MyTextCraftAdapter:
         if len(ids) != len(set(ids)):
             duplicates = sorted({case_id for case_id in ids if ids.count(case_id) > 1})
             raise ValueError(f"Duplicate MyTextCraft case ids: {duplicates}")
+        requested_case_ids = list(self.suite_metadata.get("case_ids") or [])
+        if requested_case_ids:
+            by_id = {case["id"]: case for case in cases}
+            missing = [case_id for case_id in requested_case_ids if case_id not in by_id]
+            if missing:
+                raise ValueError(f"MyTextCraft suite references unknown case ids: {missing}")
+            cases = [by_id[case_id] for case_id in requested_case_ids]
         return {"cases": cases}
 
     def _case_sources(self, path: Path) -> list[Path]:
