@@ -309,6 +309,8 @@ def read_yaml(path: Path) -> dict[str, Any]:
 
 def summarize_run(path: Path) -> dict[str, Any]:
     metrics = read_jsonl(path / "metrics.jsonl")
+    steps_rows = read_jsonl(path / "steps.jsonl")
+    view_rows = read_jsonl(path / "experience_views.jsonl")
     graph_nodes = read_jsonl(path / "graph_nodes.jsonl")
     graph_edges = read_jsonl(path / "graph_edges.jsonl")
     graph_paths = read_jsonl(path / "path_records.jsonl")
@@ -316,10 +318,27 @@ def summarize_run(path: Path) -> dict[str, Any]:
     successes = sum(1 for row in metrics if row.get("success"))
     steps = [row.get("steps", 0) for row in metrics if row.get("success")]
     failures = [row.get("failure_reason") for row in metrics if row.get("failure_reason")]
+    latest_step = steps_rows[-1] if steps_rows else {}
+    total_episodes = int(config.get("episodes") or len(config.get("case_ids") or []) or 0)
+    completed_episodes = len(metrics)
+    current_episode_index = latest_step.get("episode_index")
+    case_ids = list(config.get("case_ids") or [])
+    current_case_id = latest_step.get("case_id")
+    if current_case_id is None and completed_episodes < len(case_ids):
+        current_case_id = case_ids[completed_episodes]
     return {
         "run_id": path.name,
+        "run_path": str(path),
         "config": config,
         "episodes": len(metrics),
+        "target_episodes": total_episodes,
+        "progress_percent": (completed_episodes / total_episodes * 100) if total_episodes else 0,
+        "steps_logged": len(steps_rows),
+        "experience_views_logged": len(view_rows),
+        "current_episode_index": current_episode_index,
+        "current_case_id": current_case_id,
+        "latest_step_index": latest_step.get("step_index"),
+        "latest_action": action_label(latest_step.get("action")),
         "successes": successes,
         "success_rate": successes / len(metrics) if metrics else 0,
         "avg_steps_success": sum(steps) / len(steps) if steps else 0,
@@ -328,9 +347,50 @@ def summarize_run(path: Path) -> dict[str, Any]:
         "graph_paths": len(graph_paths),
         "latest_failures": failures[-5:],
         "latest_episodes": metrics[-10:],
+        "latest_steps": compact_steps(steps_rows[-20:]),
         "round_summaries": round_summaries(metrics, config),
         "graph_growth": graph_growth(metrics),
+        "files": {
+            "config": file_info(path / "config.yaml"),
+            "metrics": file_info(path / "metrics.jsonl"),
+            "steps": file_info(path / "steps.jsonl"),
+            "experience_views": file_info(path / "experience_views.jsonl"),
+        },
     }
+
+
+def file_info(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {"path": str(path), "exists": False, "size": 0}
+    return {"path": str(path), "exists": True, "size": path.stat().st_size}
+
+
+def action_label(action: Any) -> str:
+    if not isinstance(action, dict):
+        return ""
+    name = action.get("name", "")
+    args = action.get("args") or {}
+    if not args:
+        return str(name)
+    return f"{name}(" + ", ".join(str(value) for value in args.values()) + ")"
+
+
+def compact_steps(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "episode_index": row.get("episode_index"),
+            "episode_id": row.get("episode_id"),
+            "case_id": row.get("case_id"),
+            "step_index": row.get("step_index"),
+            "action": action_label(row.get("action")),
+            "ok": row.get("ok"),
+            "done": row.get("done") or row.get("episode_done"),
+            "failure_reason": row.get("failure_reason"),
+            "candidate_paths": row.get("candidate_paths"),
+            "experience_view_id": row.get("experience_view_id"),
+        }
+        for row in rows
+    ]
 
 
 def round_summaries(metrics: list[dict[str, Any]], config: dict[str, Any]) -> list[dict[str, Any]]:
@@ -551,6 +611,160 @@ HTML = """
     function esc(text) { return String(text).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 
     loadRuns(); setInterval(refreshStatus, 5000);
+  </script>
+</body>
+</html>
+"""
+
+
+HTML = """
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>ExperienceGraph Progress</title>
+  <style>
+    body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f7f7f4; color: #1f2528; }
+    header { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 16px 22px; background: #fff; border-bottom: 1px solid #ddd; }
+    h1 { font-size: 20px; margin: 0; }
+    h2 { font-size: 16px; margin: 0 0 10px; }
+    main { padding: 18px 22px 28px; }
+    select, button { font: inherit; padding: 8px 10px; border-radius: 6px; border: 1px solid #c8ccc7; background: #fff; }
+    button { background: #216d66; color: #fff; border-color: #216d66; cursor: pointer; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 14px; }
+    .card, section { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 13px; }
+    .label { color: #617072; font-size: 12px; }
+    .value { font-size: 22px; margin-top: 5px; overflow-wrap: anywhere; }
+    .bar { height: 12px; background: #e7e7e2; border-radius: 999px; overflow: hidden; margin: 8px 0 14px; }
+    .bar span { display: block; height: 100%; background: #2a7a72; width: 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { border-bottom: 1px solid #eee; text-align: left; padding: 8px; font-size: 13px; vertical-align: top; }
+    code { background: #f0f1ed; border-radius: 4px; padding: 2px 4px; }
+    pre { white-space: pre-wrap; background: #1f252b; color: #f5f2e8; border-radius: 8px; padding: 12px; max-height: 260px; overflow: auto; font-size: 12px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+    .ok { color: #137a4f; font-weight: 700; }
+    .bad { color: #b24235; font-weight: 700; }
+    .muted { color: #6a7476; }
+    @media (max-width: 900px) { header, .row { grid-template-columns: 1fr; display: grid; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ExperienceGraph Progress</h1>
+    <div>
+      <select id="runSelect"></select>
+      <button onclick="loadSelected()">Refresh</button>
+    </div>
+  </header>
+  <main>
+    <section>
+      <h2 id="runTitle">No run selected</h2>
+      <div class="bar"><span id="progressBar"></span></div>
+      <div class="grid" id="cards"></div>
+      <div id="paths" class="muted"></div>
+    </section>
+    <div class="row">
+      <section>
+        <h2>Latest Steps</h2>
+        <div id="steps"></div>
+      </section>
+      <section>
+        <h2>Run Logs</h2>
+        <div id="logPaths" class="muted"></div>
+        <pre id="logs">No logs yet.</pre>
+      </section>
+    </div>
+    <section style="margin-top:12px">
+      <h2>Rounds</h2>
+      <div id="rounds"></div>
+    </section>
+  </main>
+  <script>
+    let selectedRun = "";
+
+    async function loadRuns() {
+      const runs = await fetch("/api/runs").then(r => r.json());
+      const select = document.getElementById("runSelect");
+      select.innerHTML = runs.map(r => `<option value="${esc(r.run_id)}">${esc(r.run_id)}</option>`).join("");
+      if (!selectedRun && runs.length) selectedRun = runs[0].run_id;
+      if (selectedRun) select.value = selectedRun;
+      if (selectedRun) await render(selectedRun);
+    }
+
+    async function loadSelected() {
+      selectedRun = document.getElementById("runSelect").value;
+      await render(selectedRun);
+    }
+
+    async function render(runId) {
+      if (!runId) return;
+      let status = null;
+      try {
+        const response = await fetch(`/api/experiment/status/${encodeURIComponent(runId)}`);
+        if (response.ok) status = await response.json();
+      } catch (error) {}
+      const summary = status && status.summary ? status.summary : await fetch(`/api/runs/${encodeURIComponent(runId)}/summary`).then(r => r.json());
+      document.getElementById("runTitle").textContent = `${runId} ${status && status.active ? "(running)" : "(not running)"}`;
+      renderSummary(summary);
+      renderLogs(status || {});
+    }
+
+    function renderSummary(s) {
+      const progress = Math.max(0, Math.min(100, Number(s.progress_percent || 0)));
+      document.getElementById("progressBar").style.width = `${progress}%`;
+      document.getElementById("cards").innerHTML = [
+        card("Completed", `${s.episodes || 0} / ${s.target_episodes || 0}`),
+        card("Progress", `${progress.toFixed(1)}%`),
+        card("Success", `${s.successes || 0} (${pct(s.success_rate)})`),
+        card("Current", `E${s.current_episode_index ?? "-"} ${s.current_case_id || "-"}`),
+        card("Latest Step", `S${s.latest_step_index ?? "-"} ${s.latest_action || ""}`),
+        card("Logged", `${s.steps_logged || 0} steps / ${s.experience_views_logged || 0} views`),
+        card("Graph", `${s.graph_nodes || 0} N / ${s.graph_edges || 0} E / ${s.graph_paths || 0} P`),
+        card("Avg Steps", Number(s.avg_steps_success || 0).toFixed(1)),
+      ].join("");
+      document.getElementById("paths").innerHTML = `Run dir: <code>${esc(s.run_path || "")}</code>`;
+      renderSteps(s.latest_steps || []);
+      renderRounds(s.round_summaries || []);
+    }
+
+    function renderSteps(rows) {
+      if (!rows.length) {
+        document.getElementById("steps").innerHTML = "<p class='muted'>No steps written yet.</p>";
+        return;
+      }
+      document.getElementById("steps").innerHTML = table(
+        ["Ep", "Case", "Step", "Action", "OK", "Failure"],
+        rows.map(r => [r.episode_index, r.case_id, r.step_index, r.action, r.ok ? "yes" : "no", r.failure_reason || ""])
+      );
+    }
+
+    function renderRounds(rows) {
+      if (!rows.length) {
+        document.getElementById("rounds").innerHTML = "<p class='muted'>No completed rounds yet.</p>";
+        return;
+      }
+      document.getElementById("rounds").innerHTML = table(
+        ["Round", "Success", "Avg Steps", "Graph"],
+        rows.map(r => [r.round, `${r.successes}/${r.episodes} (${pct(r.success_rate)})`, Number(r.avg_steps_success || 0).toFixed(1), `${r.graph_nodes} N / ${r.graph_edges} E / ${r.graph_paths} P`])
+      );
+    }
+
+    function renderLogs(status) {
+      const paths = [status.stdout_log, status.stderr_log].filter(Boolean).map(p => `<code>${esc(p)}</code>`).join("<br>");
+      document.getElementById("logPaths").innerHTML = paths || "No wrapper log hook found.";
+      const text = [status.stdout_tail || "", status.stderr_tail || ""].filter(Boolean).join("\\n--- stderr ---\\n");
+      document.getElementById("logs").textContent = text || "No stdout/stderr output yet.";
+    }
+
+    function card(label, value) { return `<div class="card"><div class="label">${esc(label)}</div><div class="value">${esc(value)}</div></div>`; }
+    function table(headers, rows) {
+      return `<table><thead><tr>${headers.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.map(row => `<tr>${row.map(c => `<td>${esc(c ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+    }
+    function pct(value) { return `${(Number(value || 0) * 100).toFixed(1)}%`; }
+    function esc(text) { return String(text).replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c])); }
+
+    loadRuns();
+    setInterval(() => { if (selectedRun) render(selectedRun); }, 3000);
   </script>
 </body>
 </html>

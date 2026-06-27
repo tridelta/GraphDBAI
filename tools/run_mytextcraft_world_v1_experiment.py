@@ -15,11 +15,11 @@ RUN_ID_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 PRESETS = {
     "short10": {
         "cases": "world_cases/mytextcraft_world_v1_short10.yaml",
-        "run_id": "mytextcraft_world_v1_short10_graph_full_flash_s1",
+        "run_id": "mytextcraft_world_v1_short10_graph_full_pro_s1",
     },
     "all": {
         "cases": "world_cases/mytextcraft_world_v1.yaml",
-        "run_id": "mytextcraft_world_v1_graph_full_flash_s1",
+        "run_id": "mytextcraft_world_v1_graph_full_pro_s1",
     },
 }
 
@@ -51,7 +51,12 @@ def main() -> None:
     panel_started = False
     if not args.no_panel:
         if port_is_open(args.host, args.port):
-            print(f"Panel already running: http://{args.host}:{args.port}/")
+            if args.restart_panel and stop_existing_panel(args.host, args.port):
+                start_process(panel_command, panel_stdout_path, panel_stderr_path, env)
+                panel_started = True
+                print(f"Panel restarted: http://{args.host}:{args.port}/")
+            else:
+                print(f"Panel already running: http://{args.host}:{args.port}/")
         else:
             start_process(panel_command, panel_stdout_path, panel_stderr_path, env)
             panel_started = True
@@ -73,7 +78,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--agent", default="graph", choices=["scripted", "react", "reflexion", "vector_trajectory", "skill_library", "graph"])
     parser.add_argument("--variant", default="full")
     parser.add_argument("--provider", default="deepseek", choices=["deepseek", "openai", "fake"])
-    parser.add_argument("--model", default="deepseek-v4-flash")
+    parser.add_argument("--model", default="deepseek-v4-pro")
     parser.add_argument("--rounds", type=int, default=5)
     parser.add_argument("--max-steps", type=int, default=30)
     parser.add_argument("--max-budget-rmb", type=float, default=50.0)
@@ -90,6 +95,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ack-external-api", action="store_true")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--restart-panel", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--no-panel", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
@@ -215,6 +221,23 @@ def port_is_open(host: str, port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.settimeout(0.5)
         return sock.connect_ex((host, port)) == 0
+
+
+def stop_existing_panel(host: str, port: int) -> bool:
+    if os.name != "nt":
+        return False
+    command = (
+        f"$conn = Get-NetTCPConnection -LocalAddress {host} -LocalPort {port} -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1; "
+        "if (-not $conn) { exit 1 }; "
+        "$proc = Get-CimInstance Win32_Process -Filter \"ProcessId=$($conn.OwningProcess)\"; "
+        "if ($proc.CommandLine -notlike '*experience_graph.panel.app*') { exit 2 }; "
+        "Stop-Process -Id $conn.OwningProcess -Force; exit 0"
+    )
+    result = subprocess.run(["powershell", "-NoProfile", "-Command", command], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if result.returncode == 0:
+        time.sleep(1)
+        return True
+    return False
 
 
 if __name__ == "__main__":

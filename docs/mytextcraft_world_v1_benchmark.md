@@ -83,7 +83,7 @@ Recommended wrapper:
 uv run python -B tools/run_mytextcraft_world_v1_experiment.py `
   --preset short10 `
   --provider deepseek `
-  --model deepseek-v4-flash `
+  --model deepseek-v4-pro `
   --rounds 5 `
   --max-steps 30 `
   --max-budget-rmb 50 `
