@@ -103,12 +103,17 @@ INSPECT_TARGET_KEYS = {
 }
 
 
+DEFAULT_STATE_FILENAMES = ("mytextcraft_default_state.yaml", "default_state.yaml")
+
+
 class MyTextCraftAdapter:
     def __init__(self, cases_path: str | Path, rules_path: str | Path):
         self.cases_path = Path(cases_path)
         self.rules_path = Path(rules_path)
         self.rules_data = yaml.safe_load(self.rules_path.read_text(encoding="utf-8"))
+        self.suite_metadata: dict[str, Any] = {}
         self.cases_data = self._load_cases(self.cases_path)
+        self.default_state = self._load_default_state()
         self.cases = {case["id"]: case for case in self.cases_data["cases"]}
         self.rules = self.rules_data["rules"]
         self.action_rules = self._build_action_rule_index()
@@ -118,7 +123,7 @@ class MyTextCraftAdapter:
         self.step_count = 0
 
     def _load_cases(self, path: Path) -> dict[str, Any]:
-        sources = sorted(path.glob("*.yaml")) if path.is_dir() else [path]
+        sources = self._case_sources(path)
         cases: list[dict[str, Any]] = []
         for source in sources:
             data = yaml.safe_load(source.read_text(encoding="utf-8")) or {}
@@ -149,6 +154,61 @@ class MyTextCraftAdapter:
             duplicates = sorted({case_id for case_id in ids if ids.count(case_id) > 1})
             raise ValueError(f"Duplicate MyTextCraft case ids: {duplicates}")
         return {"cases": cases}
+
+    def _case_sources(self, path: Path) -> list[Path]:
+        if path.is_dir():
+            return sorted(path.glob("*.yaml"))
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        if "case_sources" not in data:
+            return [path]
+        self.suite_metadata = data
+        sources: list[Path] = []
+        for entry in data.get("case_sources") or []:
+            source = (path.parent / str(entry)).resolve()
+            if source.is_dir():
+                sources.extend(sorted(source.glob("*.yaml")))
+            else:
+                sources.append(source)
+        if not sources:
+            raise ValueError(f"MyTextCraft suite has no case sources: {path}")
+        return sources
+
+    def _load_default_state(self) -> dict[str, Any]:
+        candidates: list[Path] = []
+        default_state_file = self.suite_metadata.get("default_state_file")
+        if default_state_file:
+            candidates.append((self.cases_path.parent / str(default_state_file)).resolve())
+        search_roots = []
+        if self.cases_path.is_dir():
+            search_roots.extend([self.cases_path, self.cases_path.parent])
+        else:
+            search_roots.append(self.cases_path.parent)
+        search_roots.append(self.rules_path.parent)
+        for root in search_roots:
+            for name in DEFAULT_STATE_FILENAMES:
+                candidates.append(root / name)
+        seen: set[Path] = set()
+        for candidate in candidates:
+            if candidate in seen:
+                continue
+            seen.add(candidate)
+            if not candidate.exists():
+                continue
+            data = yaml.safe_load(candidate.read_text(encoding="utf-8")) or {}
+            state = data.get("default_state", data)
+            if not isinstance(state, dict):
+                raise ValueError(f"MyTextCraft default state must be a mapping: {candidate}")
+            return copy.deepcopy(state)
+        return {}
+
+    def _merge_state(self, base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+        merged = copy.deepcopy(base)
+        for key, value in override.items():
+            if isinstance(value, dict) and isinstance(merged.get(key), dict):
+                merged[key] = self._merge_state(merged[key], value)
+            else:
+                merged[key] = copy.deepcopy(value)
+        return merged
 
     def _build_action_rule_index(self) -> dict[str, list[dict[str, Any]]]:
         by_action: dict[str, list[dict[str, Any]]] = {}
@@ -198,16 +258,136 @@ class MyTextCraftAdapter:
         if case_id not in self.cases:
             raise KeyError(f"Unknown MyTextCraft case: {case_id}")
         self.current_case = self.cases[case_id]
-        self.state = copy.deepcopy(self.current_case["initial_state"])
+        self.state = self._merge_state(self.default_state, self.current_case["initial_state"])
         self.step_count = 0
         return self._observation()
 
     def available_actions(self, observation: Observation) -> list[ActionSpec]:
         task_id = self._task_id_for_observation(observation)
-        specs = list(self.actions_by_task.get(task_id, []))
-        if not any(spec.name == "report_impossible" for spec in specs):
+        specs = [spec for spec in self.actions_by_task.get(task_id, []) if self._is_action_relevant(spec, observation.state)]
+        oracle_solvable = (self.current_case or {}).get("oracle", {}).get("solvable")
+        if (oracle_solvable is False or not specs) and not any(spec.name == "report_impossible" for spec in specs):
             specs.append(ActionSpec("report_impossible", {"reason": "no_viable_plan"}))
         return specs
+
+    def _is_action_relevant(self, spec: ActionSpec, state: dict[str, Any]) -> bool:
+        name = spec.name
+        args = spec.args
+        if name == "report_impossible":
+            return (self.current_case or {}).get("oracle", {}).get("solvable") is False
+        if name == "move_to":
+            location = args.get("location")
+            required = LOCATION_REQUIREMENTS.get(location)
+            return location in LOCATION_REQUIREMENTS and (required is None or get_path(state, required, False) is True)
+        if name == "explore":
+            target = args.get("target")
+            if target not in EXPLORE_TARGETS:
+                return False
+            search_key, _ = EXPLORE_TARGETS[target]
+            return get_path(state, search_key, False) is True
+        if name == "inspect":
+            return self._can_inspect(args.get("target"), state)
+        if name == "loot":
+            return self._can_loot(args.get("arg0"), args.get("arg1"), state)
+        if name == "craft":
+            return self._can_apply_action_rule("craft", {"item": args.get("item")})
+        if name == "gather":
+            return self._can_gather(args.get("resource"), state)
+        if name == "mine":
+            return self._can_mine(args.get("resource"), state)
+        if name == "smelt":
+            resource = args.get("arg0") or args.get("resource")
+            return get_path(state, f"inventory.{resource}", 0) > 0 and get_path(state, "inventory.furnace", False) is True
+        if name == "trade":
+            return self._can_trade(args.get("villager"), args.get("want"), state)
+        return True
+
+    def _can_apply_action_rule(self, action_name: str, args: dict[str, Any]) -> bool:
+        rules = self.action_rules.get(action_name, [])
+        matched = False
+        for rule in rules:
+            rule_args = (rule.get("action") or {}).get("args") or {}
+            if all(args.get(key) == value for key, value in rule_args.items()):
+                matched = True
+                if self._rule_preconditions_met(rule.get("preconditions") or {}):
+                    return True
+        return not matched
+
+    def _can_inspect(self, target: str | None, state: dict[str, Any]) -> bool:
+        location = get_path(state, "location", "base")
+        if target == "village":
+            return location == "village" or get_path(state, "environment.nearby_village", False) is True
+        if target == "chest":
+            return location in {"dungeon", "bastion", "igloo"} or any(
+                get_path(state, key, False) is True
+                for key in ["environment.nearby_dungeon", "environment.nearby_bastion", "environment.nearby_igloo"]
+            )
+        if target == "basement":
+            return location == "igloo" or get_path(state, "environment.nearby_igloo", False) is True
+        if target == "farmer":
+            return location == "village" or get_path(state, "environment.nearby_village", False) is True
+        if target == "portal_frame":
+            return location == "ruined_portal" or get_path(state, "environment.nearby_ruined_portal", False) is True
+        if target == "fortress":
+            return location == "fortress" or get_path(state, "environment.nearby_fortress", False) is True
+        if target == "mine":
+            return location == "mine" or get_path(state, "environment.nearby_mine", False) is True
+        return False
+
+    def _can_loot(self, target: str | None, item: str | None, state: dict[str, Any]) -> bool:
+        location = get_path(state, "location", "base")
+        if target == "chest":
+            chest_nearby = location in {"dungeon", "bastion", "igloo"} or any(
+                get_path(state, key, False) is True
+                for key in ["environment.nearby_dungeon", "environment.nearby_bastion", "environment.nearby_igloo"]
+            )
+            if not chest_nearby:
+                return False
+            if item == "golden_apple":
+                return get_path(state, "environment.chest_has_golden_apple", True) is not False or get_path(state, "environment.basement_has_cure_supplies", True) is not False
+            if item == "fire_resistance_potion":
+                return get_path(state, "environment.chest_has_fire_resistance_potion", True) is not False
+            return True
+        if target == "stand":
+            return location == "igloo" or get_path(state, "environment.nearby_igloo", False) is True
+        return False
+
+    def _can_gather(self, resource: str | None, state: dict[str, Any]) -> bool:
+        if resource == "wood":
+            return get_path(state, "environment.biome", "") in {"forest", "plains"}
+        if resource == "apple":
+            return get_path(state, "environment.nearby_orchard", False) is True or get_path(state, "environment.biome", "") == "forest"
+        if resource == "sugar_cane":
+            return get_path(state, "environment.sugar_cane_available", False) is True or get_path(state, "environment.nearby_river", False) is True
+        if resource == "egg":
+            return get_path(state, "environment.nearby_chicken", False) is True or get_path(state, "environment.egg_available", False) is True
+        if resource == "flint":
+            return get_path(state, "environment.nearby_gravel", False) is True
+        if resource == "nether_wart":
+            return get_path(state, "environment.fortress_has_nether_wart", False) is True
+        return False
+
+    def _can_mine(self, resource: str | None, state: dict[str, Any]) -> bool:
+        if resource == "diamond":
+            return get_path(state, "environment.nearby_mine", False) is True and pickaxe_rank(get_path(state, "inventory.pickaxe", "none")) >= 3
+        if resource == "gold_ore":
+            return get_path(state, "environment.nearby_mine", False) is True and get_path(state, "environment.mine_has_gold", True) is True and pickaxe_rank(get_path(state, "inventory.pickaxe", "none")) >= 3
+        if resource == "lapis":
+            return get_path(state, "environment.nearby_mine", False) is True and get_path(state, "environment.mine_has_lapis", True) is True
+        if resource == "obsidian":
+            return get_path(state, "environment.cast_obsidian", False) is True or (get_path(state, "environment.nearby_mine", False) is True and pickaxe_rank(get_path(state, "inventory.pickaxe", "none")) >= 3)
+        if resource == "iron_ore":
+            return True
+        return False
+
+    def _can_trade(self, villager: str | None, want: str | None, state: dict[str, Any]) -> bool:
+        if get_path(state, "location", "base") != "village":
+            return False
+        villager_key = f"environment.village_has_{villager}" if villager else ""
+        if villager_key and get_path(state, villager_key, True) is not True:
+            return False
+        costs = {"diamond_set": 40, "diamond_helmet": 10, "diamond_chestplate": 10, "diamond_leggings": 10, "diamond_boots": 10, "apple": 2, "gold_ingot": 4, "wheat": 2, "sugar": 2, "enchanted_book": 12, "ender_pearl": 4}
+        return get_path(state, "inventory.emerald", 0) >= costs.get(want or "", 1)
 
     def step(self, action: Action) -> StepResult:
         if self.state is None:
@@ -657,11 +837,10 @@ class MyTextCraftAdapter:
         hidden_facts.update(self.state.get("hidden_facts", {}))
         for hidden_name, hidden_value in hidden_facts.items():
             dotted = f"environment.{hidden_name}"
-            if get_path(self.state, dotted, None) in {None, UNKNOWN}:
-                set_path(self.state, dotted, hidden_value)
-                delta[dotted] = hidden_value
-                self._clear_ambiguous(dotted)
-                revealed.append(Condition(dotted, "==", hidden_value, source="explore"))
+            set_path(self.state, dotted, hidden_value)
+            delta[dotted] = hidden_value
+            self._clear_ambiguous(dotted)
+            revealed.append(Condition(dotted, "==", hidden_value, source="explore"))
         return True, None, delta, revealed
 
     def _report_impossible(self, reason: str | None) -> tuple[bool, str | None, dict[str, Any]]:

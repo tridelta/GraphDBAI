@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from experience_graph.agents.base import extract_action_data
+from experience_graph.agents.base import action_data_is_available, extract_action_data
 from experience_graph.agents.prompts import MYTEXTCRAFT_ACTION_GUIDE
 from experience_graph.agents.react import ReActAgent
 from experience_graph.core.models import Action, AgentInput, AgentOutput
@@ -17,7 +17,7 @@ class ExperienceGraphAgent(ReActAgent):
     def act(self, agent_input: AgentInput) -> AgentOutput:
         payload = self._ask(agent_input)
         action_data = extract_action_data(payload)
-        if not isinstance(action_data, dict) or "name" not in action_data:
+        if not action_data_is_available(action_data, agent_input.available_actions):
             return AgentOutput(action=None, rationale="invalid_llm_output")
         plan = self._parse_plan(payload.get("selected_plan") or payload.get("novel_candidate_path"))
         return AgentOutput(
@@ -80,7 +80,7 @@ class ExperienceGraphAgent(ReActAgent):
                 ),
             },
         ]
-        return self.llm.complete_json(messages, validator=lambda payload: extract_action_data(payload) is not None)
+        return self.llm.complete_json(messages, validator=lambda payload: action_data_is_available(extract_action_data(payload), agent_input.available_actions))
 
     def _parse_plan(self, raw) -> list[Action] | None:
         if not isinstance(raw, list):
@@ -92,6 +92,7 @@ class ExperienceGraphAgent(ReActAgent):
             elif isinstance(item, str):
                 plan.append(Action.parse(item))
         return plan or None
+
 
 
 

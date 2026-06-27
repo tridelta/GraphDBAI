@@ -12,8 +12,9 @@ class ScriptedAgent(BaseAgent):
     def act(self, agent_input: AgentInput) -> AgentOutput:
         case_id = agent_input.observation.case_id or "default"
         plan = self.plans_by_case.get(case_id, [])
-        index = self.positions.get(case_id, 0)
+        index = 0 if agent_input.observation.step_count == 0 else self.positions.get(case_id, 0)
         if index >= len(plan):
             return AgentOutput(action=None, rationale="scripted plan exhausted")
         self.positions[case_id] = index + 1
         return AgentOutput(action=Action.parse(plan[index]), plan=[Action.parse(p) for p in plan], rationale="oracle reference plan")
+

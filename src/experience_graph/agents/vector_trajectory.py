@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from experience_graph.agents.base import BaseAgent, extract_action_data
+from experience_graph.agents.base import BaseAgent, action_data_is_available, extract_action_data
 from experience_graph.agents.prompts import MYTEXTCRAFT_ACTION_GUIDE
 from experience_graph.agents.memory_utils import append_jsonl, jaccard, observation_features, read_jsonl, summarize_experience
 from experience_graph.core.models import Action, AgentInput, AgentOutput, ExperienceRecord
@@ -21,7 +21,7 @@ class VectorTrajectoryAgent(BaseAgent):
     def act(self, agent_input: AgentInput) -> AgentOutput:
         payload = self._ask(agent_input)
         action_data = extract_action_data(payload)
-        if not isinstance(action_data, dict) or "name" not in action_data:
+        if not action_data_is_available(action_data, agent_input.available_actions):
             return AgentOutput(action=None, rationale="invalid_llm_output")
         return AgentOutput(
             action=Action(name=action_data["name"], args=dict(action_data.get("args", {}))),
@@ -64,7 +64,7 @@ class VectorTrajectoryAgent(BaseAgent):
                 ),
             },
         ]
-        return self.llm.complete_json(messages, validator=lambda payload: extract_action_data(payload) is not None)
+        return self.llm.complete_json(messages, validator=lambda payload: action_data_is_available(extract_action_data(payload), agent_input.available_actions))
 
     def _retrieve(self, query_features: set[str], task_id: str) -> list[dict[str, Any]]:
         scored = []
@@ -84,6 +84,7 @@ class VectorTrajectoryAgent(BaseAgent):
             }
             for score, row in scored[: self.top_k]
         ]
+
 
 
 

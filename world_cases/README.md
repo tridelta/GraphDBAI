@@ -1,6 +1,6 @@
 # MyTextCraft World Cases
 
-Last updated: 2026-06-21
+Last updated: 2026-06-27
 
 This folder contains structured benchmark assets for MyTextCraft and ExperienceGraph.
 
@@ -8,6 +8,8 @@ Files:
 
 - `textcraft_rules.yaml`: legacy filename for MyTextCraft world rules used by the simulator and oracle planner.
 - `textcraft_cases.yaml`: legacy filename for the original diamond-set active suite.
+- `mytextcraft_default_state.yaml`: shared default state schema used by world-level suites.
+- `mytextcraft_world_v1.yaml`: manifest that loads all current task families into one world-level benchmark suite.
 - `task_families/`: draft multi-family MyTextCraft task suite with 9 families and 102 cases.
 - `sample_experiences.jsonl`: example `ExperienceRecord` rows derived from representative cases.
 

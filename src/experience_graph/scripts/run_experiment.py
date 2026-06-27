@@ -45,6 +45,9 @@ CONFIG_COMPARE_KEYS = [
     "seed",
     "difficulty",
     "task_id",
+    "solvable_only",
+    "rounds",
+    "case_ids_filter",
     "case_schedule",
     "max_steps",
     "llm_provider",
@@ -116,7 +119,10 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--difficulty", choices=["all", "easy", "medium", "hard", "impossible"], default="all")
     parser.add_argument("--task-id", default="diamond_set")
+    parser.add_argument("--solvable-only", action="store_true", help="Exclude cases whose oracle marks them unsolvable.")
+    parser.add_argument("--case-ids", default=None, help="Comma-separated case ids to run after task/difficulty filtering.")
     parser.add_argument("--case-schedule", choices=["ordered", "shuffled_cycle", "random"], default="shuffled_cycle")
+    parser.add_argument("--rounds", type=int, default=None, help="Run this many full passes over the selected case set.")
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--cross-task-mode", choices=["same_task", "cross_task_actions", "all_tasks"], default="same_task")
     parser.add_argument("--token-budget", type=int, default=1000)
@@ -146,7 +152,10 @@ def main() -> None:
     effective_llm_model = resolve_model(effective_llm_provider, args.llm_model)
 
     env = MyTextCraftAdapter(args.cases, args.rules)
-    selected_cases = filter_cases(env.cases, args.difficulty, args.task_id)
+    selected_cases = filter_cases(env.cases, args.difficulty, args.task_id, args.solvable_only)
+    selected_cases = filter_case_ids(selected_cases, args.case_ids, env.cases)
+    if args.rounds is not None:
+        args.episodes = len(selected_cases) * args.rounds
     case_ids = build_case_schedule(selected_cases, args.episodes, args.seed, args.case_schedule)
     variant_config = build_variant_config(args.variant, args.top_k)
     config = build_config(args, run_id, case_ids, variant_config, effective_llm_provider, effective_llm_model)
@@ -198,6 +207,7 @@ def main() -> None:
         seed=args.seed,
         metadata={
             "task_id": args.task_id,
+            "case_ids_filter": args.case_ids,
             "case_schedule_mode": args.case_schedule,
             "llm_provider": effective_llm_provider,
             "llm_model": effective_llm_model,
@@ -318,18 +328,36 @@ def resolve_model(provider: str, requested_model: str | None) -> str:
     return "none"
 
 
-def filter_cases(cases: dict[str, dict[str, Any]], difficulty: str, task_id: str) -> list[str]:
+def filter_cases(cases: dict[str, dict[str, Any]], difficulty: str, task_id: str, solvable_only: bool = False) -> list[str]:
     case_ids = []
     for case_id, case in cases.items():
         if difficulty != "all" and case.get("difficulty") != difficulty:
             continue
         if task_id != "all" and case.get("task", {}).get("id") != task_id:
             continue
+        if solvable_only and case.get("oracle", {}).get("solvable") is False:
+            continue
         case_ids.append(case_id)
     if not case_ids:
-        raise ValueError(f"No cases found for difficulty={difficulty}, task_id={task_id}")
+        raise ValueError(f"No cases found for difficulty={difficulty}, task_id={task_id}, solvable_only={solvable_only}")
     return case_ids
 
+
+
+def filter_case_ids(selected_cases: list[str], case_ids_arg: str | None, cases: dict[str, dict[str, Any]]) -> list[str]:
+    if not case_ids_arg:
+        return selected_cases
+    requested = [case_id.strip() for case_id in case_ids_arg.split(",") if case_id.strip()]
+    if not requested:
+        return selected_cases
+    selected = set(selected_cases)
+    missing = [case_id for case_id in requested if case_id not in cases]
+    outside_filter = [case_id for case_id in requested if case_id in cases and case_id not in selected]
+    if missing:
+        raise ValueError(f"Unknown case ids: {missing}")
+    if outside_filter:
+        raise ValueError(f"Case ids do not match difficulty/task filters: {outside_filter}")
+    return requested
 
 def build_case_schedule(case_ids: list[str], episodes: int, seed: int, mode: str) -> list[str]:
     if episodes <= 0:
@@ -387,6 +415,9 @@ def build_config(args: argparse.Namespace, run_id: str, case_ids: list[str], var
         "seed": args.seed,
         "difficulty": args.difficulty,
         "task_id": args.task_id,
+        "solvable_only": args.solvable_only,
+        "rounds": args.rounds,
+        "case_ids_filter": args.case_ids,
         "case_schedule": args.case_schedule,
         "case_ids": case_ids,
         "cross_task_mode": args.cross_task_mode,
