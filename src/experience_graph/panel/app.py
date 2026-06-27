@@ -4,8 +4,10 @@ import argparse
 import json
 import os
 import re
+import socket
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +20,7 @@ from pydantic import BaseModel
 COMPLEX_TASK_ID = "golden_equipment_chain"
 COMPLEX_CASE_IDS = "GEC_004,GEC_005,GEC_006"
 RUN_ID_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
+DEFAULT_JOB_DIR = Path("output") / "experiment_jobs"
 
 
 class ExperimentStartRequest(BaseModel):
@@ -39,6 +42,7 @@ def create_app(run_dir: str | Path = "runs") -> FastAPI:
     base = Path(run_dir)
     app = FastAPI(title="ExperienceGraph Panel")
     app.state.jobs = {}
+    app.state.job_dir = DEFAULT_JOB_DIR
 
     @app.get("/", response_class=HTMLResponse)
     def index() -> str:
@@ -124,7 +128,9 @@ def create_app(run_dir: str | Path = "runs") -> FastAPI:
             "command": command,
             "stdout_log": str(stdout_path),
             "stderr_log": str(stderr_path),
+            "started_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         }
+        write_job_metadata(app.state.job_dir, app.state.jobs[run_id])
         return experiment_status_for_job(app.state.jobs[run_id], base)
 
     @app.get("/api/experiment/status/{run_id}")
@@ -132,6 +138,9 @@ def create_app(run_dir: str | Path = "runs") -> FastAPI:
         job = app.state.jobs.get(run_id)
         if job:
             return experiment_status_for_job(job, base)
+        metadata = read_job_metadata(app.state.job_dir, run_id)
+        if metadata:
+            return experiment_status_for_metadata(metadata, base)
         run_path = base / run_id
         if not run_path.exists():
             raise HTTPException(status_code=404, detail="run not found")
@@ -200,12 +209,79 @@ def experiment_status_for_job(job: dict[str, Any], base: Path) -> dict[str, Any]
         "active": returncode is None,
         "returncode": returncode,
         "pid": job.get("pid"),
+        "command": job.get("command"),
+        "started_at": job.get("started_at"),
         "summary": summarize_run(run_path) if run_path.exists() else None,
         "stdout_log": job.get("stdout_log"),
         "stderr_log": job.get("stderr_log"),
         "stdout_tail": read_tail(Path(job["stdout_log"])),
         "stderr_tail": read_tail(Path(job["stderr_log"])),
     }
+
+
+def experiment_status_for_metadata(metadata: dict[str, Any], base: Path) -> dict[str, Any]:
+    run_id = str(metadata["run_id"])
+    run_path = base / run_id
+    active = pid_is_running(metadata.get("pid"))
+    return {
+        "run_id": run_id,
+        "active": active,
+        "returncode": None if active else metadata.get("returncode"),
+        "pid": metadata.get("pid"),
+        "command": metadata.get("command"),
+        "started_at": metadata.get("started_at"),
+        "summary": summarize_run(run_path) if run_path.exists() else None,
+        "stdout_log": metadata.get("stdout_log"),
+        "stderr_log": metadata.get("stderr_log"),
+        "stdout_tail": read_tail(Path(metadata.get("stdout_log") or "")),
+        "stderr_tail": read_tail(Path(metadata.get("stderr_log") or "")),
+    }
+
+
+def write_job_metadata(job_dir: Path, job: dict[str, Any]) -> None:
+    job_dir.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "run_id": job["run_id"],
+        "pid": job.get("pid"),
+        "command": job.get("command"),
+        "stdout_log": job.get("stdout_log"),
+        "stderr_log": job.get("stderr_log"),
+        "started_at": job.get("started_at"),
+    }
+    (job_dir / f"{job['run_id']}.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def read_job_metadata(job_dir: Path, run_id: str) -> dict[str, Any] | None:
+    if not RUN_ID_RE.match(run_id):
+        return None
+    path = job_dir / f"{run_id}.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def pid_is_running(pid: Any) -> bool:
+    try:
+        pid_int = int(pid)
+    except (TypeError, ValueError):
+        return False
+    if pid_int <= 0:
+        return False
+    if os.name == "nt":
+        command = f"$p = Get-Process -Id {pid_int} -ErrorAction SilentlyContinue; if ($p) {{ exit 0 }} else {{ exit 1 }}"
+        result = subprocess.run(["powershell", "-NoProfile", "-Command", command], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return result.returncode == 0
+    try:
+        os.kill(pid_int, 0)
+    except OSError:
+        return False
+    return True
+
+
+def port_is_open(host: str, port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(0.5)
+        return sock.connect_ex((host, port)) == 0
 
 
 def read_tail(path: Path, max_chars: int = 4000) -> str:
@@ -421,7 +497,7 @@ HTML = """
     }
 
     async function refreshStatus() {
-      const runId = activeRunId || value('runId') || selectedRunId;
+      const runId = activeRunId || selectedRunId || value('runId');
       if (!runId) return;
       const response = await fetch(`/api/experiment/status/${encodeURIComponent(runId)}`);
       const data = await response.json();

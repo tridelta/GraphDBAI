@@ -72,7 +72,9 @@ def test_experiment_start_fake_provider_creates_job(tmp_path, monkeypatch):
         return FakeProcess()
 
     monkeypatch.setattr("experience_graph.panel.app.subprocess.Popen", fake_popen)
-    client = TestClient(create_app(tmp_path))
+    app = create_app(tmp_path)
+    app.state.job_dir = tmp_path / "jobs"
+    client = TestClient(app)
     response = client.post(
         "/api/experiment/start",
         json={"run_id": "panel_fake_run", "provider": "fake", "model": "", "acknowledge_external_api": False},
@@ -83,3 +85,37 @@ def test_experiment_start_fake_provider_creates_job(tmp_path, monkeypatch):
     assert data["pid"] == 12345
     assert "experience_graph.scripts.run_experiment" in captured["command"]
     assert "--case-ids" in captured["command"]
+
+
+def test_experiment_status_reads_wrapper_job_metadata(tmp_path, monkeypatch):
+    run = tmp_path / "world_job"
+    run.mkdir()
+    (run / "metrics.jsonl").write_text(json.dumps({"episode_id": "ep0", "episode_index": 0, "case_id": "A", "success": True, "steps": 5}) + "\n", encoding="utf-8")
+    stdout_log = tmp_path / "job.out.log"
+    stderr_log = tmp_path / "job.err.log"
+    stdout_log.write_text("A: success steps=5\n", encoding="utf-8")
+    stderr_log.write_text("", encoding="utf-8")
+
+    app = create_app(tmp_path)
+    app.state.job_dir = tmp_path / "jobs"
+    app.state.job_dir.mkdir()
+    (app.state.job_dir / "world_job.json").write_text(
+        json.dumps(
+            {
+                "run_id": "world_job",
+                "pid": 99999,
+                "command": ["python", "-m", "experience_graph.scripts.run_experiment"],
+                "stdout_log": str(stdout_log),
+                "stderr_log": str(stderr_log),
+                "started_at": "2026-06-27 00:00:00",
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("experience_graph.panel.app.pid_is_running", lambda pid: False)
+
+    client = TestClient(app)
+    data = client.get("/api/experiment/status/world_job").json()
+    assert data["active"] is False
+    assert data["summary"]["episodes"] == 1
+    assert "success steps=5" in data["stdout_tail"]

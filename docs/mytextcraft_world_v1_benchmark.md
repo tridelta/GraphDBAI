@@ -76,6 +76,23 @@ Older no-route cases are retained for diagnostics but should not be mixed into t
 
 For a world-level experiment, use 5 rounds over the selected case set:
 
+Recommended wrapper:
+
+```powershell
+uv run python -B tools/run_mytextcraft_world_v1_experiment.py `
+  --run-id mytextcraft_world_v1_graph_full_flash_s1 `
+  --provider deepseek `
+  --model deepseek-v4-flash `
+  --rounds 5 `
+  --max-steps 30 `
+  --max-budget-rmb 50 `
+  --ack-external-api
+```
+
+The wrapper starts the experiment in the background, writes logs under `output/logs/`, writes a progress hook under `output/experiment_jobs/`, and starts the local panel at `http://127.0.0.1:8765/`.
+
+Direct command:
+
 ```powershell
 uv run eg-run-experiment `
   --agent graph `
