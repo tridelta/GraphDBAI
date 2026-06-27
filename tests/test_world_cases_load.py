@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "world_cases" / "textcraft_cases.yaml"
 RULES = ROOT / "world_cases" / "textcraft_rules.yaml"
 TASK_FAMILIES = ROOT / "world_cases" / "task_families"
+WORLD_SUITE = ROOT / "world_cases" / "mytextcraft_world_v1.yaml"
 
 
 def action_label(spec) -> str:
@@ -56,6 +57,30 @@ def test_task_family_cases_load_as_active_suite():
         assert case["task"]["id"]
         assert case["task"].get("success_conditions")
         assert all(isinstance(action, str) for action in case["oracle"].get("reference_plan", []))
+
+
+def test_world_suite_manifest_loads_all_task_families():
+    env = MyTextCraftAdapter(WORLD_SUITE, RULES)
+    assert env.suite_metadata["name"] == "mytextcraft_world_v1_all_tasks"
+    assert len(env.cases) == 102
+    assert env.default_state["location"] == "base"
+    assert "gold_ingot" in env.default_state["inventory"]
+    assert "nearby_fortress" in env.default_state["environment"]
+
+
+def test_world_suite_reset_uses_shared_state_schema():
+    env = MyTextCraftAdapter(WORLD_SUITE, RULES)
+    inventory_keys = set(env.default_state["inventory"])
+    environment_keys = set(env.default_state["environment"])
+    for case_id in env.cases:
+        obs = env.reset(case_id=case_id)
+        assert set(obs.state["inventory"]) == inventory_keys
+        assert set(obs.state["environment"]) == environment_keys
+        assert "location" in obs.state
+        assert "ambiguous" in obs.state
+        assert env.state is not None
+        assert "hidden_facts" in env.state
+        assert "hidden_facts" not in obs.state
 
 
 def test_task_family_oracle_plans_match_expected_solvability():

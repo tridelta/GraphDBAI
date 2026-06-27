@@ -1,0 +1,20 @@
+version: 0.1
+world: mytextcraft_mc
+name: mytextcraft_world_v1_all_tasks
+status: active_benchmark_suite
+last_updated: 2026-06-27
+default_state_file: mytextcraft_default_state.yaml
+description: >
+  World-level MyTextCraft suite that loads all current task families into one
+  shared state schema. Each episode resets to default_state plus the selected
+  case initial_state.
+case_sources:
+  - task_families
+round_protocol:
+  recommended_rounds: 5
+  case_filter: solvable_only
+  schedule: ordered
+  episodes: "rounds * number_of_selected_cases"
+  command_template: >
+    uv run eg-run-experiment --agent graph --cases world_cases/mytextcraft_world_v1.yaml
+    --task-id all --solvable-only --rounds 5 --case-schedule ordered

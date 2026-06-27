@@ -1,0 +1,126 @@
+version: 0.1
+world: mytextcraft_mc
+last_updated: 2026-06-27
+description: >
+  Shared default state schema for MyTextCraft world-level benchmark suites.
+  Case initial_state values override this template on reset.
+default_state:
+  location: base
+  inventory:
+    anvil: false
+    apple: 0
+    blaze_powder: 0
+    blaze_rod: 0
+    book: 0
+    bookshelf: 0
+    brewing_stand: false
+    bucket: 0
+    cake: false
+    crafting_table: false
+    diamond: 0
+    diamond_boots: false
+    diamond_chestplate: false
+    diamond_helmet: false
+    diamond_leggings: false
+    egg: 0
+    emerald: 0
+    empty_bottle: 0
+    enchanted_pickaxe: false
+    enchanting_table: false
+    ender_pearl: 0
+    eye_of_ender: false
+    fermented_spider_eye: 0
+    fire_resistance_potion: false
+    flint: 0
+    flint_and_steel: false
+    fuel: 0
+    furnace: false
+    gold_ingot: 0
+    gold_ore: 0
+    golden_apple: false
+    golden_helmet: false
+    gunpowder: 0
+    iron_ingot: 0
+    iron_ore: 0
+    lapis: 0
+    magma_cream: 0
+    milk_bucket: 0
+    nether_wart: 0
+    obsidian: 0
+    pickaxe: none
+    potion_of_weakness: false
+    random_missing_diamond_piece: false
+    seeds: 0
+    slimeball: 0
+    splash_potion_of_weakness: false
+    sugar: 0
+    sugar_cane: 0
+    water_bottle: 0
+    water_bucket: false
+    wheat: 0
+    wood: 0
+    xp_level: 0
+  environment:
+    basement_has_cure_supplies: false
+    biome: plains
+    casting_space_available: false
+    chest_has_fire_resistance_potion: false
+    chest_has_golden_apple: false
+    chicken_search_available: false
+    dungeon_search_available: false
+    enderman_route_available: false
+    farmer_has_wheat_trade: false
+    farmland_available: false
+    fortress_has_blaze: false
+    fortress_has_nether_wart: false
+    high_level_enchant_required: false
+    igloo_has_basement: false
+    igloo_has_weakness_potion: false
+    lava_search_available: false
+    mine_depth: unknown
+    mine_diamond_capacity:
+    mine_gold_capacity:
+    mine_has_gold: false
+    mine_has_lapis: false
+    mine_has_obsidian: false
+    mine_search_available: false
+    nearby_bastion: false
+    nearby_chicken: false
+    nearby_cow: false
+    nearby_dungeon: false
+    nearby_fortress: false
+    nearby_gravel: false
+    nearby_igloo: false
+    nearby_lava_pool: false
+    nearby_magma_cube: false
+    nearby_mine: false
+    nearby_mob_area: false
+    nearby_orchard: false
+    nearby_river: false
+    nearby_ruined_portal: false
+    nearby_village: false
+    nearby_water: false
+    nether_search_available: false
+    nighttime: false
+    pasture_search_available: false
+    pearl_loot_available: false
+    portal_lit: false
+    portal_search_available: false
+    ruined_portal_missing_obsidian: 0
+    ruined_portal_repairable: false
+    safe_combat: true
+    snow_biome_search_available: false
+    sugar_cane_available: false
+    village_has_armorer: false
+    village_has_cleric: false
+    village_has_farmer: false
+    village_has_librarian: false
+    village_search_available: false
+    water_available: false
+    xp_bottle_source: false
+    zombie_villager_cured: false
+    zombie_villager_present: false
+  tool:
+    pickaxe_level: 0
+  ambiguous: {}
+  hidden_facts: {}

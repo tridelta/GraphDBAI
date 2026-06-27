@@ -103,12 +103,17 @@ INSPECT_TARGET_KEYS = {
 }
 
 
+DEFAULT_STATE_FILENAMES = ("mytextcraft_default_state.yaml", "default_state.yaml")
+
+
 class MyTextCraftAdapter:
     def __init__(self, cases_path: str | Path, rules_path: str | Path):
         self.cases_path = Path(cases_path)
         self.rules_path = Path(rules_path)
         self.rules_data = yaml.safe_load(self.rules_path.read_text(encoding="utf-8"))
+        self.suite_metadata: dict[str, Any] = {}
         self.cases_data = self._load_cases(self.cases_path)
+        self.default_state = self._load_default_state()
         self.cases = {case["id"]: case for case in self.cases_data["cases"]}
         self.rules = self.rules_data["rules"]
         self.action_rules = self._build_action_rule_index()
@@ -118,7 +123,7 @@ class MyTextCraftAdapter:
         self.step_count = 0
 
     def _load_cases(self, path: Path) -> dict[str, Any]:
-        sources = sorted(path.glob("*.yaml")) if path.is_dir() else [path]
+        sources = self._case_sources(path)
         cases: list[dict[str, Any]] = []
         for source in sources:
             data = yaml.safe_load(source.read_text(encoding="utf-8")) or {}
@@ -149,6 +154,61 @@ class MyTextCraftAdapter:
             duplicates = sorted({case_id for case_id in ids if ids.count(case_id) > 1})
             raise ValueError(f"Duplicate MyTextCraft case ids: {duplicates}")
         return {"cases": cases}
+
+    def _case_sources(self, path: Path) -> list[Path]:
+        if path.is_dir():
+            return sorted(path.glob("*.yaml"))
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        if "case_sources" not in data:
+            return [path]
+        self.suite_metadata = data
+        sources: list[Path] = []
+        for entry in data.get("case_sources") or []:
+            source = (path.parent / str(entry)).resolve()
+            if source.is_dir():
+                sources.extend(sorted(source.glob("*.yaml")))
+            else:
+                sources.append(source)
+        if not sources:
+            raise ValueError(f"MyTextCraft suite has no case sources: {path}")
+        return sources
+
+    def _load_default_state(self) -> dict[str, Any]:
+        candidates: list[Path] = []
+        default_state_file = self.suite_metadata.get("default_state_file")
+        if default_state_file:
+            candidates.append((self.cases_path.parent / str(default_state_file)).resolve())
+        search_roots = []
+        if self.cases_path.is_dir():
+            search_roots.extend([self.cases_path, self.cases_path.parent])
+        else:
+            search_roots.append(self.cases_path.parent)
+        search_roots.append(self.rules_path.parent)
+        for root in search_roots:
+            for name in DEFAULT_STATE_FILENAMES:
+                candidates.append(root / name)
+        seen: set[Path] = set()
+        for candidate in candidates:
+            if candidate in seen:
+                continue
+            seen.add(candidate)
+            if not candidate.exists():
+                continue
+            data = yaml.safe_load(candidate.read_text(encoding="utf-8")) or {}
+            state = data.get("default_state", data)
+            if not isinstance(state, dict):
+                raise ValueError(f"MyTextCraft default state must be a mapping: {candidate}")
+            return copy.deepcopy(state)
+        return {}
+
+    def _merge_state(self, base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+        merged = copy.deepcopy(base)
+        for key, value in override.items():
+            if isinstance(value, dict) and isinstance(merged.get(key), dict):
+                merged[key] = self._merge_state(merged[key], value)
+            else:
+                merged[key] = copy.deepcopy(value)
+        return merged
 
     def _build_action_rule_index(self) -> dict[str, list[dict[str, Any]]]:
         by_action: dict[str, list[dict[str, Any]]] = {}
@@ -198,7 +258,7 @@ class MyTextCraftAdapter:
         if case_id not in self.cases:
             raise KeyError(f"Unknown MyTextCraft case: {case_id}")
         self.current_case = self.cases[case_id]
-        self.state = copy.deepcopy(self.current_case["initial_state"])
+        self.state = self._merge_state(self.default_state, self.current_case["initial_state"])
         self.step_count = 0
         return self._observation()
 
@@ -777,11 +837,10 @@ class MyTextCraftAdapter:
         hidden_facts.update(self.state.get("hidden_facts", {}))
         for hidden_name, hidden_value in hidden_facts.items():
             dotted = f"environment.{hidden_name}"
-            if get_path(self.state, dotted, None) in {None, UNKNOWN}:
-                set_path(self.state, dotted, hidden_value)
-                delta[dotted] = hidden_value
-                self._clear_ambiguous(dotted)
-                revealed.append(Condition(dotted, "==", hidden_value, source="explore"))
+            set_path(self.state, dotted, hidden_value)
+            delta[dotted] = hidden_value
+            self._clear_ambiguous(dotted)
+            revealed.append(Condition(dotted, "==", hidden_value, source="explore"))
         return True, None, delta, revealed
 
     def _report_impossible(self, reason: str | None) -> tuple[bool, str | None, dict[str, Any]]:
