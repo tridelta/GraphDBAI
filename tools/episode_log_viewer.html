@@ -181,7 +181,7 @@
     .metric { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
     .metric b { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
     .metric span { display: block; font-size: 15px; font-weight: 650; overflow-wrap: anywhere; }
-    details { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; margin: 12px 0; overflow: hidden; }
+    details { background: var(--panel); margin: 12px 0; overflow: hidden; }
     summary { cursor: pointer; padding: 12px 14px; font-weight: 650; border-bottom: 1px solid var(--line); }
     details:not([open]) summary { border-bottom: 0; }
     pre {
@@ -193,6 +193,189 @@
       font-size: 12px;
       line-height: 1.45;
       background: #fbfcfe;
+    }
+    .structured-block {
+      padding: 14px;
+      background: #fbfcfe;
+    }
+    .message-list {
+      display: grid;
+      gap: 10px;
+    }
+    .message-card,
+    .content-panel,
+    .meta-panel {
+      margin: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+    }
+    .message-card summary,
+    .content-panel summary,
+    .meta-panel summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      font-weight: 650;
+      border-bottom: 1px solid var(--line);
+      list-style: none;
+    }
+    .message-card summary::-webkit-details-marker,
+    .content-panel summary::-webkit-details-marker,
+    .meta-panel summary::-webkit-details-marker {
+      display: none;
+    }
+    .message-card:not([open]) summary,
+    .content-panel:not([open]) summary,
+    .meta-panel:not([open]) summary {
+      border-bottom: 0;
+    }
+    .message-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .message-role {
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .message-index,
+    .json-hint {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .message-body {
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+    .message-label {
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .json-tree {
+      display: block;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .json-branch,
+    .json-node {
+      margin: 0;
+      list-style: none;
+    }
+    .json-node summary {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 8px;
+      padding: 2px 0 2px 22px;
+      border: 0;
+      background: transparent;
+      list-style: none;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .json-node summary::-webkit-details-marker {
+      display: none;
+    }
+    .json-node summary::before {
+      content: "+";
+      position: absolute;
+      left: 0;
+      top: 3px;
+      width: 13px;
+      height: 13px;
+      display: grid;
+      place-items: center;
+      border: 1px solid #98a2b3;
+      background: #fff;
+      color: #344054;
+      font-size: 11px;
+      line-height: 1;
+      font-weight: 700;
+    }
+    .json-node[open] > summary::before {
+      content: "-";
+    }
+    .json-children {
+      margin-left: 6px;
+      padding-left: 16px;
+      border-left: 1px solid #cbd5e1;
+    }
+    .json-leaf {
+      position: relative;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin: 0;
+      padding: 2px 0 2px 22px;
+      min-height: 18px;
+      list-style: disc;
+    }
+    .json-leaf::before {
+      content: "";
+      position: absolute;
+      left: 2px;
+      top: 6px;
+      width: 9px;
+      height: 9px;
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      border-radius: 50%;
+    }
+    .json-key {
+      color: #344054;
+      font-size: 13px;
+      font-weight: 650;
+      overflow-wrap: anywhere;
+    }
+    .json-value {
+      display: inline-block;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+    .json-type-string { color: #0f766e; }
+    .json-type-number { color: #175cd3; }
+    .json-type-boolean { color: #b54708; font-weight: 700; }
+    .json-type-null,
+    .json-type-undefined { color: #98a2b3; font-style: italic; }
+    .json-type-struct { color: #7c3aed; }
+    .json-string-block {
+      margin: 4px 0 0;
+      padding: 8px 10px;
+      border-left: 2px solid #99f6e4;
+      background: #f0fdfa;
+      color: #0f766e;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.45;
     }
     .pill {
       display: inline-flex;
@@ -299,7 +482,6 @@ const TERMINAL_FAILURE_REASONS = new Set([
   'invalid_llm_output'
 ]);
 
-drop.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', event => loadFile(event.target.files[0]));
 for (const name of ['dragenter', 'dragover']) {
   drop.addEventListener(name, event => {
@@ -537,7 +719,7 @@ function renderDetail(row, index) {
       ${metric('LLM tokens', usage.total_tokens || usage.estimated_prompt_tokens || 0)}
       ${metric('置信度', row.agent_confidence ?? outputValue(row, 'confidence') ?? '未知')}
     </div>
-    ${block('LLM 输入消息', row.llm_input_messages, true)}
+    ${llmMessagesBlock(row.llm_input_messages)}
     ${block('LLM 解析后输出', row.llm_output, true)}
     ${block('LLM 原始响应', row.llm_raw_response, false)}
     ${block('动作执行结果', pick(row, ['ok', 'done', 'episode_done', 'episode_success', 'episode_terminal_reason', 'reward', 'cost', 'failure_reason', 'state_delta', 'revealed_conditions']), true)}
@@ -730,12 +912,202 @@ function block(title, value, open) {
   return `<details ${open ? 'open' : ''}><summary>${escapeHtml(title)}</summary><pre>${escapeHtml(format(value))}</pre></details>`;
 }
 
+function llmMessagesBlock(messages) {
+  if (!Array.isArray(messages)) return block('LLM 输入消息', messages, true);
+  return `
+    <details open>
+      <summary>LLM 输入消息</summary>
+      <div class="structured-block">
+        <div class="message-list">
+          ${messages.length ? messages.map(renderMessageCard).join('') : '<div class="json-leaf"><span class="json-key">暂无消息</span></div>'}
+        </div>
+      </div>
+    </details>
+  `;
+}
+
+function renderMessageCard(message, index) {
+  const safeMessage = message && typeof message === 'object' ? message : { value: message };
+  const role = safeMessage.role || `message_${index + 1}`;
+  const metaEntries = Object.fromEntries(Object.entries(safeMessage).filter(([key]) => key !== 'content' && key !== 'role'));
+  return `
+    <details class="message-card" ${index === 0 ? 'open' : ''}>
+      <summary>
+        <span class="message-header">
+          <span class="message-role">${escapeHtml(role)}</span>
+          <span class="message-index">message #${index + 1}</span>
+        </span>
+      </summary>
+      <div class="message-body">
+        <div>
+          <div class="message-label">content</div>
+          ${renderMessageContent(safeMessage.content)}
+        </div>
+        ${Object.keys(metaEntries).length ? `
+          <details class="meta-panel">
+            <summary>
+              <span class="message-header">
+                <span>message metadata</span>
+              </span>
+            </summary>
+            <div class="message-body">
+              ${renderJsonTree(metaEntries, 0)}
+            </div>
+          </details>
+        ` : ''}
+      </div>
+    </details>
+  `;
+}
+
+function renderMessageContent(content) {
+  if (content === undefined) {
+    return '<div class="json-leaf"><span class="json-key">content</span><span class="json-value json-type-undefined">undefined</span></div>';
+  }
+  const parsed = typeof content === 'string' ? tryParseJson(content) : null;
+  if (parsed !== null) {
+    return `
+      <details class="content-panel" open>
+        <summary>
+          <span class="message-header">
+            <span>structured content</span>
+          </span>
+          <span class="json-hint">${describeValue(parsed)}</span>
+        </summary>
+        <div class="message-body">
+          ${renderJsonTree(parsed, 0)}
+        </div>
+      </details>
+      <details class="content-panel">
+        <summary>
+          <span class="message-header">
+            <span>raw content</span>
+          </span>
+        </summary>
+        <pre>${escapeHtml(format(parsed))}</pre>
+      </details>
+    `;
+  }
+  if (content && typeof content === 'object') {
+    return `
+      <details class="content-panel" open>
+        <summary>
+          <span class="message-header">
+            <span>structured content</span>
+          </span>
+          <span class="json-hint">${describeValue(content)}</span>
+        </summary>
+        <div class="message-body">
+          ${renderJsonTree(content, 0)}
+        </div>
+      </details>
+    `;
+  }
+  return `
+    <details class="content-panel" open>
+      <summary>
+        <span class="message-header">
+          <span>text content</span>
+        </span>
+      </summary>
+      <pre>${escapeHtml(format(content))}</pre>
+    </details>
+  `;
+}
+
+function renderJsonTree(value, depth) {
+  if (value === null || typeof value !== 'object') {
+    return `<ul class="json-tree">${renderJsonLeaf(null, value)}</ul>`;
+  }
+  const entries = Array.isArray(value)
+    ? value.map((item, index) => [String(index), item])
+    : Object.entries(value);
+  if (!entries.length) {
+    return `<ul class="json-tree">${renderJsonLeaf(null, Array.isArray(value) ? [] : {})}</ul>`;
+  }
+  return `<ul class="json-tree">${entries.map(([key, child]) => renderJsonNode(key, child, depth)).join('')}</ul>`;
+}
+
+function renderJsonNode(key, value, depth) {
+  if (value !== null && typeof value === 'object') {
+    const open = depth < 1 ? 'open' : '';
+    return `
+      <li class="json-branch">
+        <details class="json-node" ${open}>
+          <summary>
+            <span class="message-header">
+              <span class="json-key">${escapeHtml(key)}</span>
+            </span>
+            <span class="json-hint">${describeValue(value)}</span>
+          </summary>
+          <div class="json-children">
+            ${renderJsonTree(value, depth + 1)}
+          </div>
+        </details>
+      </li>
+    `;
+  }
+  return renderJsonLeaf(key, value);
+}
+
+function renderJsonLeaf(key, value) {
+  const renderedValue = renderScalarValue(value);
+  return `
+    <li class="json-leaf">
+      ${key === null ? '' : `<span class="json-key">${escapeHtml(key)}</span>`}
+      ${renderedValue}
+    </li>
+  `;
+}
+
+function renderScalarValue(value) {
+  if (typeof value === 'string' && value.includes('\n')) {
+    return `<pre class="json-string-block">${escapeHtml(value)}</pre>`;
+  }
+  return `<span class="json-value ${scalarTypeClass(value)}">${escapeHtml(formatScalar(value))}</span>`;
+}
+
+function tryParseJson(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed || !/^[\[{]/.test(trimmed)) return null;
+  try {
+    return JSON.parse(trimmed);
+  } catch (_) {
+    return null;
+  }
+}
+
+function describeValue(value) {
+  if (Array.isArray(value)) return `Array(${value.length})`;
+  if (value && typeof value === 'object') return `Object(${Object.keys(value).length})`;
+  return typeof value;
+}
+
+function formatScalar(value) {
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
+  if (typeof value === 'string') return `"${value}"`;
+  if (Array.isArray(value)) return `Array(${value.length})`;
+  if (value && typeof value === 'object') return `Object(${Object.keys(value).length})`;
+  return String(value);
+}
+
+function scalarTypeClass(value) {
+  if (value === null) return 'json-type-null';
+  if (value === undefined) return 'json-type-undefined';
+  if (typeof value === 'string') return 'json-type-string';
+  if (typeof value === 'number') return 'json-type-number';
+  if (typeof value === 'boolean') return 'json-type-boolean';
+  return 'json-type-struct';
+}
+
 function pick(obj, keys) {
   return Object.fromEntries(keys.map(key => [key, obj[key]]));
 }
 
 function format(value) {
-  return typeof value === 'string' ? value : JSON.stringify(value ?? null, null, 2);
+  return typeof value === 'string' ? value : JSON.stringify(value ?? null, null, 4);
 }
 
 function formatInline(value) {
