@@ -25,9 +25,11 @@ from experience_graph.graph.retriever import GraphRetriever
 from experience_graph.graph.store import JsonGraphStore
 from experience_graph.llm.client import build_llm_client
 from experience_graph.runners.episode_runner import EpisodeRunner, RunContext
+from experience_graph.semantic_retrieval import SemanticFallbackGraphRetriever
 
 
 AGENTS = ["scripted", "react", "reflexion", "vector_trajectory", "skill_library", "graph"]
+RETRIEVAL_MODES = ["graph", "semantic_fallback"]
 VARIANTS = {
     "full",
     "no_exploration",
@@ -57,6 +59,7 @@ CONFIG_COMPARE_KEYS = [
     "llm_retries",
     "continue_after_env_failure",
     "cross_task_mode",
+    "retrieval_mode",
     "warm_start_run",
 ]
 EPISODE_SCOPED_LOGS = (
@@ -125,6 +128,7 @@ def main() -> None:
     parser.add_argument("--rounds", type=int, default=None, help="Run this many full passes over the selected case set.")
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--cross-task-mode", choices=["same_task", "cross_task_actions", "all_tasks"], default="same_task")
+    parser.add_argument("--retrieval-mode", choices=RETRIEVAL_MODES, default="graph")
     parser.add_argument("--token-budget", type=int, default=1000)
     parser.add_argument("--min-attempts-for-dormant", type=int, default=5)
     parser.add_argument("--dormant-success-threshold", type=float, default=0.1)
@@ -190,15 +194,7 @@ def main() -> None:
         enable_node_merging=variant_config["enable_node_merging"],
         learn_failure_preconditions=variant_config["learn_failure_preconditions"],
     )
-    retriever = GraphRetriever(
-        store,
-        token_budget=args.token_budget,
-        top_k=variant_config["top_k"],
-        include_statistics=variant_config["include_statistics"],
-        ranking_mode=variant_config["ranking_mode"],
-        random_seed=args.seed,
-        cross_task_mode=args.cross_task_mode,
-    )
+    retriever = build_retriever(args, store, variant_config)
     logger = EvaluationLogger(run_dir)
     run_context = RunContext(
         run_id=run_id,
@@ -211,6 +207,7 @@ def main() -> None:
             "case_schedule_mode": args.case_schedule,
             "llm_provider": effective_llm_provider,
             "llm_model": effective_llm_model,
+            "retrieval_mode": args.retrieval_mode,
         },
     )
     runner = EpisodeRunner(
@@ -313,7 +310,8 @@ def copy_warm_start_files(source_run: Path, target_run: Path) -> None:
 
 def build_run_id(args: argparse.Namespace) -> str:
     timestamp = time.strftime("run_%Y%m%d_%H%M%S")
-    return f"{timestamp}_{args.agent}_{args.variant}_seed{args.seed}"
+    retrieval_suffix = "" if args.retrieval_mode == "graph" else f"_{args.retrieval_mode}"
+    return f"{timestamp}_{args.agent}_{args.variant}{retrieval_suffix}_seed{args.seed}"
 
 
 def resolve_model(provider: str, requested_model: str | None) -> str:
@@ -421,6 +419,7 @@ def build_config(args: argparse.Namespace, run_id: str, case_ids: list[str], var
         "case_schedule": args.case_schedule,
         "case_ids": case_ids,
         "cross_task_mode": args.cross_task_mode,
+        "retrieval_mode": args.retrieval_mode,
         "top_k": variant_config["top_k"],
         "requested_top_k": args.top_k,
         "token_budget": args.token_budget,
@@ -439,6 +438,21 @@ def build_config(args: argparse.Namespace, run_id: str, case_ids: list[str], var
         "supported_agents": AGENTS,
         "warm_start_run": args.warm_start_run,
     }
+
+
+def build_retriever(args: argparse.Namespace, store: JsonGraphStore, variant_config: dict[str, Any]) -> GraphRetriever:
+    retriever_cls = GraphRetriever
+    if args.retrieval_mode == "semantic_fallback":
+        retriever_cls = SemanticFallbackGraphRetriever
+    return retriever_cls(
+        store,
+        token_budget=args.token_budget,
+        top_k=variant_config["top_k"],
+        include_statistics=variant_config["include_statistics"],
+        ranking_mode=variant_config["ranking_mode"],
+        random_seed=args.seed,
+        cross_task_mode=args.cross_task_mode,
+    )
 
 
 def validate_resume_config(existing: dict[str, Any], current: dict[str, Any], allow_mismatch: bool) -> None:

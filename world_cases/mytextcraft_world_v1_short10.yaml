@@ -28,3 +28,6 @@ round_protocol:
   command_template: >
     uv run python -B tools/run_mytextcraft_world_v1_experiment.py
     --preset short10 --rounds 5 --ack-external-api
+  parallel_command_template: >
+    uv run python -B tools/run_mytextcraft_world_v1_short10_parallel.py
+    --rounds 5 --max-workers 10 --ack-external-api

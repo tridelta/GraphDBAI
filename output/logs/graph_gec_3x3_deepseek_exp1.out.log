@@ -1,0 +1,10 @@
+GEC_004: success steps=13 seed=1 cost「0.1237 RMB
+GEC_005: success steps=11 seed=2 cost「0.2727 RMB
+GEC_006: success steps=4 seed=3 cost「0.2952 RMB
+GEC_004: success steps=12 seed=4 cost「0.4418 RMB
+GEC_005: success steps=9 seed=5 cost「0.5751 RMB
+GEC_006: success steps=4 seed=6 cost「0.6113 RMB
+GEC_004: success steps=12 seed=7 cost「0.8027 RMB
+GEC_005: success steps=7 seed=8 cost「0.9182 RMB
+GEC_006: success steps=5 seed=9 cost「0.9686 RMB
+Run written to runs\graph_gec_3x3_deepseek_exp1

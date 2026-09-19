@@ -12,21 +12,12 @@ from pathlib import Path
 
 
 RUN_ID_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
-PRESETS = {
-    "short10": {
-        "cases": "world_cases/mytextcraft_world_v1_short10.yaml",
-        "run_id": "mytextcraft_world_v1_short10_graph_full_pro_s1",
-    },
-    "all": {
-        "cases": "world_cases/mytextcraft_world_v1.yaml",
-        "run_id": "mytextcraft_world_v1_graph_full_pro_s1",
-    },
-}
+DEFAULT_RUN_ID = "mytextcraft_world_v1_short10_graph_full_pro_parallel_s1"
 
 
 def main() -> None:
     args = parse_args()
-    apply_preset_defaults(args)
+    apply_defaults(args)
     validate_args(args)
     experiment_command = build_experiment_command(args)
     panel_command = build_panel_command(args)
@@ -62,7 +53,7 @@ def main() -> None:
             panel_started = True
             print(f"Panel started: http://{args.host}:{args.port}/")
 
-    print(f"Experiment started: run_id={args.run_id}, pid={experiment.pid}")
+    print(f"Parallel experiment started: run_id={args.run_id}, pid={experiment.pid}")
     print(f"Progress URL: http://{args.host}:{args.port}/")
     print(f"Logs: {stdout_path} / {stderr_path}")
     if not panel_started and args.no_panel:
@@ -70,27 +61,29 @@ def main() -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Launch MyTextCraft world-v1 experiment with progress WebUI hook.")
-    parser.add_argument("--preset", choices=sorted(PRESETS), default="short10")
-    parser.add_argument("--cases", default=None, help="Override the cases manifest selected by --preset.")
+    parser = argparse.ArgumentParser(description="Launch the short10 round-parallel MyTextCraft experiment.")
     parser.add_argument("--run-id", default=None)
     parser.add_argument("--run-dir", default="runs")
-    parser.add_argument("--agent", default="graph", choices=["scripted", "react", "reflexion", "vector_trajectory", "skill_library", "graph"])
+    parser.add_argument("--agent", default="graph", choices=["scripted", "graph"])
     parser.add_argument("--variant", default="full")
     parser.add_argument("--provider", default="deepseek", choices=["deepseek", "openai", "fake"])
     parser.add_argument("--model", default="deepseek-v4-pro")
     parser.add_argument("--rounds", type=int, default=5)
+    parser.add_argument("--max-workers", type=int, default=10)
     parser.add_argument("--max-steps", type=int, default=30)
     parser.add_argument("--max-budget-rmb", type=float, default=50.0)
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--retrieval-mode", default="graph", choices=["graph", "semantic_fallback"])
     parser.add_argument("--llm-retries", type=int, default=1)
+    parser.add_argument("--llm-max-tokens", type=int, default=None)
+    parser.add_argument("--llm-retry-max-tokens", type=int, default=None)
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--case-schedule", default="ordered", choices=["ordered", "shuffled_cycle", "random"])
     parser.add_argument("--case-ids", default=None)
     parser.add_argument("--task-id", default="all")
     parser.add_argument("--cross-task-mode", default="all_tasks", choices=["same_task", "cross_task_actions", "all_tasks"])
     parser.add_argument("--include-unsolvable", action="store_true")
+    parser.add_argument("--warm-start-run", default=None)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--allow-config-mismatch", action="store_true")
     parser.add_argument("--ack-external-api", action="store_true")
@@ -102,12 +95,9 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def apply_preset_defaults(args: argparse.Namespace) -> None:
-    preset = PRESETS[args.preset]
-    if args.cases is None:
-        args.cases = preset["cases"]
+def apply_defaults(args: argparse.Namespace) -> None:
     if args.run_id is None:
-        args.run_id = preset["run_id"]
+        args.run_id = DEFAULT_RUN_ID
         if args.retrieval_mode != "graph":
             args.run_id = args.run_id.replace("_graph_full_", f"_graph_{args.retrieval_mode}_")
 
@@ -117,8 +107,8 @@ def validate_args(args: argparse.Namespace) -> None:
         raise SystemExit("run_id may only contain letters, numbers, dot, dash, and underscore.")
     if args.provider in {"deepseek", "openai"} and not args.ack_external_api and not args.dry_run:
         raise SystemExit("--ack-external-api is required for deepseek/openai runs.")
-    if args.rounds <= 0 or args.max_steps <= 0 or args.top_k < 0 or args.llm_retries < 0:
-        raise SystemExit("rounds, max_steps, top_k, and llm_retries must be valid non-negative settings.")
+    if args.rounds <= 0 or args.max_workers <= 0 or args.max_steps <= 0 or args.top_k < 0 or args.llm_retries < 0:
+        raise SystemExit("rounds, max-workers, max-steps, top-k, and llm-retries must be valid non-negative settings.")
     run_path = Path(args.run_dir) / args.run_id
     if run_path.exists() and (run_path / "config.yaml").exists() and not args.resume and not args.dry_run:
         raise SystemExit(f"Run already exists: {run_path}. Use --resume or choose a new --run-id.")
@@ -128,19 +118,21 @@ def build_experiment_command(args: argparse.Namespace) -> list[str]:
     command = [
         sys.executable,
         "-m",
-        "experience_graph.scripts.run_experiment",
+        "experience_graph.scripts.run_parallel_round_experiment",
         "--agent",
         args.agent,
         "--variant",
         args.variant,
         "--cases",
-        args.cases,
+        "world_cases/mytextcraft_world_v1_short10.yaml",
         "--rules",
         "world_cases/textcraft_rules.yaml",
         "--task-id",
         args.task_id,
         "--rounds",
         str(args.rounds),
+        "--max-workers",
+        str(args.max_workers),
         "--case-schedule",
         args.case_schedule,
         "--max-steps",
@@ -166,14 +158,20 @@ def build_experiment_command(args: argparse.Namespace) -> list[str]:
     ]
     if args.model:
         command.extend(["--llm-model", args.model])
+    if args.llm_max_tokens is not None:
+        command.extend(["--llm-max-tokens", str(args.llm_max_tokens)])
+    if args.llm_retry_max_tokens is not None:
+        command.extend(["--llm-retry-max-tokens", str(args.llm_retry_max_tokens)])
     if args.case_ids:
         command.extend(["--case-ids", args.case_ids])
-    if not args.include_unsolvable:
-        command.append("--solvable-only")
+    if args.warm_start_run:
+        command.extend(["--warm-start-run", args.warm_start_run])
     if args.resume:
         command.append("--resume")
     if args.allow_config_mismatch:
         command.append("--allow-config-mismatch")
+    if not args.include_unsolvable:
+        command.append("--solvable-only")
     return command
 
 
@@ -217,6 +215,7 @@ def write_job_hook(args: argparse.Namespace, pid: int, command: list[str], stdou
         "command": command,
         "stdout_log": str(stdout_path),
         "stderr_log": str(stderr_path),
+        "parallel_protocol": "round_batch",
         "started_at": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
     (job_dir / f"{args.run_id}.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -238,11 +237,8 @@ def stop_existing_panel(host: str, port: int) -> bool:
         "if ($proc.CommandLine -notlike '*experience_graph.panel.app*') { exit 2 }; "
         "Stop-Process -Id $conn.OwningProcess -Force; exit 0"
     )
-    result = subprocess.run(["powershell", "-NoProfile", "-Command", command], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    if result.returncode == 0:
-        time.sleep(1)
-        return True
-    return False
+    completed = subprocess.run(["powershell", "-NoProfile", "-Command", command], cwd=Path.cwd(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return completed.returncode == 0
 
 
 if __name__ == "__main__":

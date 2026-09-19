@@ -1,0 +1,28 @@
+Round 1/5: starting 10 cases with graph=0N/0E/0P
+Round 1: NP_009 finished success steps=4 episode_index=7
+Round 1: GEC_006 finished success steps=5 episode_index=2
+Round 1: EO_009 finished success steps=5 episode_index=5
+Round 1: DS_011 finished success steps=11 episode_index=8
+Round 1: EP_009 finished success steps=8 episode_index=4
+Round 1: CK_010 finished success steps=12 episode_index=9
+Round 1: GEC_004 finished success steps=12 episode_index=0
+Round 1: GEC_005 finished success steps=10 episode_index=1
+Round 1: ZV_010 finished success steps=13 episode_index=3
+Round 1: FR_010 finished failed:step_budget_exhausted steps=30 episode_index=6
+Round 1/5: integrated 10 cases, successes=9, graph=57N/73E/10P, cost¡Ö0.8780 RMB
+Round 2/5: starting 10 cases with graph=57N/73E/10P
+Round 2: NP_009 finished success steps=4 episode_index=17
+Round 2: GEC_006 finished success steps=4 episode_index=12
+Round 2: DS_011 finished success steps=9 episode_index=18
+Round 2: EO_009 finished success steps=6 episode_index=15
+Round 2: GEC_005 finished success steps=8 episode_index=11
+Round 2: FR_010 finished failed:step_budget_exhausted steps=30 episode_index=16
+Round 2: CK_010 finished success steps=12 episode_index=19
+Round 2: EP_009 finished success steps=11 episode_index=14
+Round 2: GEC_004 finished success steps=24 episode_index=10
+Round 2: ZV_010 finished failed:missing_weakness_ingredients steps=30 episode_index=13
+Round 2/5: integrated 10 cases, successes=8, graph=59N/103E/19P, cost¡Ö2.7712 RMB
+Round 3/5: starting 10 cases with graph=59N/103E/19P
+Round 3: GEC_006 finished success steps=4 episode_index=22
+Round 3: NP_009 finished success steps=5 episode_index=27
+Round 3: EO_009 finished success steps=5 episode_index=25

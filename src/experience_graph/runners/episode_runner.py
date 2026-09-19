@@ -10,7 +10,7 @@ from experience_graph.core.models import AgentInput, ExperienceRecord, StepRecor
 from experience_graph.core.serialization import to_jsonable
 from experience_graph.envs.textcraft import MyTextCraftAdapter
 from experience_graph.evaluation.logger import EvaluationLogger
-from experience_graph.graph.organizer import GraphOrganizer
+from experience_graph.graph.organizer import GraphOrganizer, GraphUpdateSummary
 from experience_graph.graph.retriever import GraphRetriever
 from experience_graph.llm.client import usage_delta
 
@@ -53,6 +53,8 @@ class EpisodeRunner:
         max_steps: int = 30,
         run_context: RunContext | None = None,
         continue_after_env_failure: bool = True,
+        integrate_experience: bool = True,
+        update_agent_memory: bool = True,
     ):
         self.env = env
         self.agent = agent
@@ -63,6 +65,8 @@ class EpisodeRunner:
         self.builder = ExperienceBuilder()
         self.run_context = run_context or RunContext()
         self.continue_after_env_failure = continue_after_env_failure
+        self.integrate_experience = integrate_experience
+        self.update_agent_memory = update_agent_memory
 
     def run_episode(
         self,
@@ -225,7 +229,7 @@ class EpisodeRunner:
         if failure_reason and not experience.failure_reason:
             experience.failure_reason = failure_reason
             experience.metrics["failure_reason"] = failure_reason
-        update = self.organizer.integrate(experience)
+        update = self.organizer.integrate(experience) if self.integrate_experience else GraphUpdateSummary()
         graph_summary = self.organizer.store.summary()
         episode_usage_after = self._usage_snapshot()
         llm_episode_usage = usage_delta(episode_usage_before, episode_usage_after)
@@ -258,7 +262,8 @@ class EpisodeRunner:
         episode_row["metrics"] = metrics
         self.logger.write_jsonl("episodes.jsonl", episode_row)
         self.logger.write_jsonl("metrics.jsonl", metrics)
-        self.agent.update(experience)
+        if self.update_agent_memory:
+            self.agent.update(experience)
         return EpisodeResult(experience=experience, metrics=metrics)
 
     def _should_continue_after_failure(self, failure_reason: str | None, step_index: int) -> bool:

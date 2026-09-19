@@ -15,6 +15,7 @@ dependencies = [
 
 [project.scripts]
 eg-run-experiment = "experience_graph.scripts.run_experiment:main"
+eg-run-parallel-round-experiment = "experience_graph.scripts.run_parallel_round_experiment:main"
 eg-panel = "experience_graph.panel.app:main"
 eg-analyze-results = "experience_graph.scripts.analyze_results:main"
 

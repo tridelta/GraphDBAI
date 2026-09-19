@@ -1,0 +1,1790 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ExperienceGraph State Matching Visual</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1d2433;
+      --muted: #607086;
+      --line: #d6dde8;
+      --panel: #ffffff;
+      --bg: #f5f7fb;
+      --soft: #eef3f8;
+      --green: #1f8a68;
+      --green-soft: #e5f4ee;
+      --blue: #2866b5;
+      --blue-soft: #e7f0fb;
+      --gold: #a56a00;
+      --gold-soft: #fff2d1;
+      --red: #b33a3a;
+      --red-soft: #fae8e8;
+      --violet: #6750a4;
+      --violet-soft: #eee9fb;
+      --shadow: 0 14px 36px rgba(39, 52, 77, 0.12);
+      font-family:
+        Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", "Microsoft YaHei", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, #fbfcff 0%, var(--bg) 42%, #eef2f6 100%);
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .app {
+      width: min(1480px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 20px 0 28px;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 18px;
+      align-items: end;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(26px, 3vw, 42px);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 0;
+      max-width: 780px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .summary-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metric {
+      min-height: 94px;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.76);
+    }
+
+    .metric .label {
+      margin: 0 0 9px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .metric .value {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 760;
+      line-height: 1.25;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 260px minmax(560px, 1fr) 360px;
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: var(--shadow);
+    }
+
+    .side {
+      padding: 14px;
+      min-height: 720px;
+    }
+
+    .section-title {
+      margin: 0 0 10px;
+      font-size: 13px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    .task-list {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .task-button,
+    .mode-button {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+    }
+
+    .task-button {
+      min-height: 72px;
+      padding: 11px 12px;
+    }
+
+    .task-button:hover,
+    .mode-button:hover {
+      border-color: #9badc2;
+      transform: translateY(-1px);
+    }
+
+    .task-button.active {
+      border-color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    .task-name {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: 740;
+    }
+
+    .task-small {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .mode-buttons {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .mode-button {
+      min-height: 54px;
+      padding: 9px 11px;
+    }
+
+    .mode-button.active {
+      border-color: var(--green);
+      background: var(--green-soft);
+    }
+
+    .mode-button[data-mode="semantic"].active {
+      border-color: var(--red);
+      background: var(--red-soft);
+    }
+
+    .note {
+      margin: 0;
+      padding: 11px 12px;
+      border-radius: 8px;
+      background: var(--soft);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .stage {
+      min-height: 720px;
+      overflow: hidden;
+    }
+
+    .stage-head {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .stage-title {
+      margin: 0 0 4px;
+      font-size: 20px;
+      line-height: 1.2;
+    }
+
+    .stage-desc {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 4px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .chip::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      margin-right: 6px;
+      border-radius: 50%;
+      background: var(--blue);
+    }
+
+    .chip.condition::before {
+      background: var(--blue);
+    }
+
+    .chip.action::before {
+      background: var(--gold);
+    }
+
+    .chip.goal::before {
+      background: var(--green);
+    }
+
+    .chip.rejected::before {
+      background: var(--red);
+    }
+
+    .canvas-wrap {
+      position: relative;
+      min-height: 512px;
+      padding: 12px 14px 6px;
+      background:
+        linear-gradient(rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.78)),
+        radial-gradient(circle at 20% 18%, rgba(40, 102, 181, 0.12), transparent 34%),
+        radial-gradient(circle at 80% 75%, rgba(31, 138, 104, 0.11), transparent 35%);
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 500px;
+      overflow: visible;
+    }
+
+    .edge {
+      fill: none;
+      stroke: #94a3b8;
+      stroke-width: 2.5;
+      marker-end: url(#arrow);
+    }
+
+    .edge.rejected {
+      stroke: var(--red);
+      stroke-dasharray: 8 7;
+      marker-end: url(#arrowRed);
+    }
+
+    .edge-label {
+      font-size: 12px;
+      fill: #475569;
+      paint-order: stroke;
+      stroke: rgba(255, 255, 255, 0.86);
+      stroke-width: 5px;
+      stroke-linejoin: round;
+    }
+
+    .node {
+      cursor: pointer;
+      filter: drop-shadow(0 10px 18px rgba(34, 47, 72, 0.12));
+    }
+
+    .node rect {
+      stroke-width: 2;
+      rx: 8;
+      ry: 8;
+      transition: stroke-width 160ms ease, transform 160ms ease, filter 160ms ease;
+    }
+
+    .node:hover rect,
+    .node.active rect {
+      stroke-width: 3;
+      filter: brightness(1.03);
+    }
+
+    .node .node-title {
+      font-size: 14px;
+      font-weight: 760;
+      fill: var(--ink);
+    }
+
+    .node .node-kind {
+      font-size: 11px;
+      fill: #64748b;
+    }
+
+    .node .node-line {
+      font-size: 12px;
+      fill: #334155;
+    }
+
+    .node.condition rect {
+      fill: var(--blue-soft);
+      stroke: var(--blue);
+    }
+
+    .node.action rect {
+      fill: var(--gold-soft);
+      stroke: var(--gold);
+    }
+
+    .node.goal rect {
+      fill: var(--green-soft);
+      stroke: var(--green);
+    }
+
+    .node.rejected rect {
+      fill: var(--red-soft);
+      stroke: var(--red);
+    }
+
+    .tooltip {
+      position: fixed;
+      z-index: 10;
+      max-width: 340px;
+      pointer-events: none;
+      padding: 12px 13px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.98);
+      box-shadow: var(--shadow);
+      transform: translate(-50%, calc(-100% - 14px));
+      opacity: 0;
+      transition: opacity 120ms ease;
+    }
+
+    .tooltip.visible {
+      opacity: 1;
+    }
+
+    .tooltip h3 {
+      margin: 0 0 7px;
+      font-size: 14px;
+    }
+
+    .tooltip p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .continuations {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      padding: 0 16px 16px;
+    }
+
+    .continuation {
+      min-height: 138px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .continuation.good {
+      border-color: rgba(31, 138, 104, 0.42);
+      background: var(--green-soft);
+    }
+
+    .continuation.warn {
+      border-color: rgba(179, 58, 58, 0.36);
+      background: var(--red-soft);
+    }
+
+    .continuation h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      line-height: 1.25;
+    }
+
+    .continuation p {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .mono {
+      font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+    }
+
+    .detail {
+      min-height: 720px;
+      padding: 15px;
+    }
+
+    .detail-card {
+      margin-bottom: 12px;
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .detail-card.emphasis {
+      border-color: rgba(40, 102, 181, 0.36);
+      background: var(--blue-soft);
+    }
+
+    .detail-card.reject {
+      border-color: rgba(179, 58, 58, 0.32);
+      background: var(--red-soft);
+    }
+
+    .detail-card h2,
+    .detail-card h3 {
+      margin: 0 0 9px;
+      font-size: 15px;
+    }
+
+    .detail-card p {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .detail-card p:last-child {
+      margin-bottom: 0;
+    }
+
+    .kv {
+      display: grid;
+      gap: 7px;
+      margin: 0;
+    }
+
+    .kv div {
+      display: grid;
+      grid-template-columns: 104px 1fr;
+      gap: 8px;
+      align-items: start;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .kv dt {
+      color: var(--muted);
+    }
+
+    .kv dd {
+      margin: 0;
+      color: var(--ink);
+    }
+
+    .predicates {
+      display: grid;
+      gap: 6px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .predicates li {
+      padding: 6px 8px;
+      border: 1px solid rgba(96, 112, 134, 0.2);
+      border-radius: 7px;
+      background: rgba(255, 255, 255, 0.72);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .insight-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .insight {
+      min-height: 104px;
+      padding: 11px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .insight strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+
+    .insight span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .formula {
+      padding: 10px 11px;
+      border-radius: 8px;
+      background: #182234;
+      color: #f8fafc;
+      font-size: 12px;
+      line-height: 1.55;
+      overflow-x: auto;
+    }
+
+    .formula .dim {
+      color: #b6c1d1;
+    }
+
+    @media (max-width: 1180px) {
+      .topbar,
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .summary-strip {
+        grid-template-columns: repeat(3, minmax(180px, 1fr));
+        overflow-x: auto;
+      }
+
+      .side,
+      .stage,
+      .detail {
+        min-height: auto;
+      }
+
+      .task-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .mode-buttons {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 760px) {
+      .app {
+        width: min(100vw - 18px, 1480px);
+        padding-top: 10px;
+      }
+
+      .summary-strip,
+      .continuations,
+      .insight-grid,
+      .task-list,
+      .mode-buttons {
+        grid-template-columns: 1fr;
+      }
+
+      .stage-head {
+        grid-template-columns: 1fr;
+      }
+
+      .legend {
+        justify-content: flex-start;
+      }
+
+      .canvas-wrap {
+        overflow-x: auto;
+      }
+
+      svg {
+        width: 760px;
+      }
+
+      .kv div {
+        grid-template-columns: 1fr;
+        gap: 2px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="topbar" aria-label="Overview">
+      <div>
+        <h1>ExperienceGraph 状态匹配可视化</h1>
+        <p class="subtitle">
+          这页把“经验 + 探索”的记忆机制画成可交互图：节点表示可复用的条件集合，边表示动作，路径记录表示从某个条件出发到目标成功的历史证据。
+        </p>
+      </div>
+      <div class="summary-strip" aria-label="Core ideas">
+        <article class="metric">
+          <p class="label">节点</p>
+          <p class="value">不是完整环境状态，而是当前决策需要的条件签名。</p>
+        </article>
+        <article class="metric">
+          <p class="label">匹配</p>
+          <p class="value">当前 observation 满足条件，且目标上下文一致。</p>
+        </article>
+        <article class="metric">
+          <p class="label">展示</p>
+          <p class="value">给 agent 下一步动作、短路径和统计证据。</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="layout" aria-label="Interactive state matching model">
+      <aside class="panel side">
+        <p class="section-title">任务</p>
+        <div class="task-list" id="taskList"></div>
+
+        <p class="section-title">检索模式</p>
+        <div class="mode-buttons">
+          <button class="mode-button active" type="button" data-mode="strict">
+            <span class="task-name">严格条件匹配</span>
+            <span class="task-small">只展示满足 condition signature 的经验。</span>
+          </button>
+          <button class="mode-button" type="button" data-mode="semantic">
+            <span class="task-name">模糊相似示例</span>
+            <span class="task-small">展示“看起来像”但不可直接复用的建议。</span>
+          </button>
+        </div>
+
+        <p class="note" id="modeNote">
+          严格模式下，gold block 不会因为“都是矿物 + craft”而收到 diamond chestplate 的经验。
+        </p>
+      </aside>
+
+      <section class="panel stage">
+        <header class="stage-head">
+          <div>
+            <h2 class="stage-title" id="taskTitle"></h2>
+            <p class="stage-desc" id="taskDescription"></p>
+          </div>
+          <div class="legend" aria-label="Legend">
+            <span class="chip condition">condition node</span>
+            <span class="chip action">action edge</span>
+            <span class="chip goal">goal</span>
+            <span class="chip rejected">rejected</span>
+          </div>
+        </header>
+
+        <div class="canvas-wrap">
+          <svg id="graph" viewBox="0 0 920 500" role="img" aria-label="ExperienceGraph condition path visualization">
+            <defs>
+              <marker id="arrow" viewBox="0 0 12 12" refX="9.5" refY="6" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+                <path d="M 0 0 L 12 6 L 0 12 z" fill="#94a3b8"></path>
+              </marker>
+              <marker id="arrowRed" viewBox="0 0 12 12" refX="9.5" refY="6" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+                <path d="M 0 0 L 12 6 L 0 12 z" fill="#b33a3a"></path>
+              </marker>
+            </defs>
+          </svg>
+          <div class="tooltip" id="tooltip" role="status" aria-live="polite"></div>
+        </div>
+
+        <div class="continuations" id="continuations"></div>
+      </section>
+
+      <aside class="panel detail" aria-live="polite">
+        <section class="detail-card emphasis">
+          <h2 id="detailTitle">节点详情</h2>
+          <p id="detailIntro"></p>
+          <dl class="kv" id="detailKv"></dl>
+        </section>
+
+        <section class="detail-card">
+          <h3>Condition signature</h3>
+          <ul class="predicates" id="predicateList"></ul>
+        </section>
+
+        <section class="detail-card">
+          <h3>ExperienceView 建议格式</h3>
+          <div class="formula" id="viewFormat"></div>
+        </section>
+
+        <section class="detail-card reject" id="rejectCard">
+          <h3>被拒绝的相似经验</h3>
+          <p id="rejectText"></p>
+        </section>
+      </aside>
+    </section>
+
+    <section class="insight-grid" aria-label="Design notes">
+      <article class="insight">
+        <strong>为什么不用完整状态相等</strong>
+        <span>完整状态会把无关物品也算进去，例如 gold block 任务里多了 apple，不应该让经验失效。</span>
+      </article>
+      <article class="insight">
+        <strong>为什么不用文本相似直接匹配</strong>
+        <span>diamond chestplate 和 gold block 都是矿物 craft，但目标、数量、材料都不同，不能把经验当成同一个状态。</span>
+      </article>
+      <article class="insight">
+        <strong>为什么路径比单步次数有用</strong>
+        <span>下一步告诉 agent 现在做什么，短路径告诉它这个动作通向哪个结果，统计证据给出历史可靠度。</span>
+      </article>
+      <article class="insight">
+        <strong>探索怎样进入图谱</strong>
+        <span>没有匹配经验时 agent 自由探索；成功后记录 start condition、actions、result，下次满足条件时才展示。</span>
+      </article>
+      <article class="insight">
+        <strong>跨任务复用的边界</strong>
+        <span>一个任务的成功结果可以成为另一个任务的子目标条件，例如 iron_ingot x3 可以服务于 iron_pickaxe。</span>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    const tasks = [
+      {
+        id: "gold_block",
+        name: "obtain(gold_block)",
+        short: "gold ingot x9 + crafting_table",
+        description: "当前目标是合成金块。经验只在目标一致，并且当前 observation 满足金块所需条件时展示。",
+        current: "has(gold_ingot) = 9, has(crafting_table) = true, extra: apple",
+        nodes: [
+          {
+            id: "ore",
+            kind: "condition",
+            x: 36,
+            y: 96,
+            w: 210,
+            h: 118,
+            title: "Gold ore state",
+            kindLabel: "condition node",
+            lines: ["gold_ore >= 9", "furnace + fuel", "crafting_table"],
+            predicates: [
+              "goal == obtain(gold_block)",
+              "inventory.gold_ore >= 9",
+              "inventory.furnace >= 1",
+              "inventory.fuel >= 9",
+              "inventory.crafting_table >= 1"
+            ],
+            intro: "这是一个较早的可复用起点：已经具备把 gold_ore 变成 gold_ingot，并继续合成 gold_block 的条件。",
+            match: "满足时可以展示 smelt -> craft 这条历史路径。",
+            evidence: "3 successes, 0 failures, avg 10 steps",
+            path: "smelt gold_ore x9 -> craft(gold_block)",
+            next: "smelt(gold_ore)",
+            type: "start_condition"
+          },
+          {
+            id: "ingot",
+            kind: "condition",
+            x: 340,
+            y: 96,
+            w: 220,
+            h: 118,
+            title: "Ready to craft",
+            kindLabel: "matched condition",
+            lines: ["gold_ingot >= 9", "crafting_table"],
+            predicates: [
+              "goal == obtain(gold_block)",
+              "inventory.gold_ingot >= 9",
+              "inventory.crafting_table >= 1"
+            ],
+            intro: "当前 observation 满足这个条件签名。额外的 apple 不参与判断，因此不会阻止经验复用。",
+            match: "严格匹配成功：目标一致，required predicates 全部满足。",
+            evidence: "5 successes, 0 failures, avg 1 step",
+            path: "craft(gold_block)",
+            next: "craft(gold_block)",
+            type: "current_condition"
+          },
+          {
+            id: "craft",
+            kind: "action",
+            x: 650,
+            y: 110,
+            w: 166,
+            h: 90,
+            title: "craft",
+            kindLabel: "action edge",
+            lines: ["gold_block"],
+            predicates: [
+              "requires inventory.gold_ingot >= 9",
+              "requires inventory.crafting_table >= 1",
+              "effect inventory.gold_block += 1"
+            ],
+            intro: "边代表在源条件下可以执行的动作，而不是另一个状态相似度判断。",
+            match: "动作的 hard preconditions 已被源节点覆盖。",
+            evidence: "5/5 action attempts succeeded",
+            path: "craft(gold_block) -> success",
+            next: "craft(gold_block)",
+            type: "action"
+          },
+          {
+            id: "goal",
+            kind: "goal",
+            x: 660,
+            y: 300,
+            w: 180,
+            h: 92,
+            title: "Goal achieved",
+            kindLabel: "goal node",
+            lines: ["has(gold_block)"],
+            predicates: [
+              "inventory.gold_block >= 1",
+              "task_success == true"
+            ],
+            intro: "目标节点记录结果，不作为下一步动作建议本身。",
+            match: "路径统计会把成功结果关联回 start condition。",
+            evidence: "8 total successful paths",
+            path: "any valid path -> obtain(gold_block)",
+            next: "none",
+            type: "goal"
+          },
+          {
+            id: "reject",
+            kind: "rejected",
+            x: 334,
+            y: 316,
+            w: 252,
+            h: 108,
+            title: "Rejected neighbor",
+            kindLabel: "semantic neighbor",
+            lines: ["diamond_chestplate", "crafting_table", "mineral craft"],
+            predicates: [
+              "goal == obtain(diamond_chestplate)",
+              "inventory.diamond >= 8",
+              "inventory.crafting_table >= 1"
+            ],
+            intro: "它看起来与 gold_block 相似，但条件和目标都不同，不能作为同一个经验节点。",
+            match: "严格模式拒绝：goal mismatch, material mismatch, quantity mismatch。",
+            evidence: "只可作为 semantic note，不可作为 action continuation。",
+            path: "craft(diamond_chestplate) is not applicable",
+            next: "reject",
+            type: "rejected"
+          }
+        ],
+        edges: [
+          { from: "ore", to: "ingot", label: "smelt x9" },
+          { from: "ingot", to: "craft", label: "next action" },
+          { from: "craft", to: "goal", label: "effect" },
+          { from: "reject", to: "craft", label: "wrong reuse", rejected: true, semanticOnly: true }
+        ],
+        continuations: [
+          {
+            title: "Next action",
+            body: "craft(gold_block)",
+            meta: "来自 matched condition；5 successes, 0 failures。",
+            tone: "good"
+          },
+          {
+            title: "Path record",
+            body: "craft(gold_block) -> obtain(gold_block)",
+            meta: "短路径用于解释动作为什么值得选。",
+            tone: "good"
+          },
+          {
+            title: "Rejected",
+            body: "craft(diamond_chestplate)",
+            meta: "相似但目标和材料不一致。",
+            tone: "warn"
+          }
+        ],
+        rejectText: "diamond chestplate 经验在文本上接近，但 condition signature 不满足 gold_block 任务。这个例子说明 semantic similarity 只能做提醒，不能把两个节点合并。"
+      },
+      {
+        id: "diamond_chestplate",
+        name: "obtain(diamond_chestplate)",
+        short: "diamond x8 + crafting_table",
+        description: "这个任务和 gold block 很像，都是矿物和工作台，但它需要自己的条件节点。",
+        current: "has(diamond) = 8, has(crafting_table) = true, extra: gold_ingot",
+        nodes: [
+          {
+            id: "mine",
+            kind: "condition",
+            x: 42,
+            y: 92,
+            w: 220,
+            h: 124,
+            title: "Mine-ready state",
+            kindLabel: "condition node",
+            lines: ["iron_pickaxe or better", "nearby_deep_mine"],
+            predicates: [
+              "goal == obtain(diamond_chestplate)",
+              "tool.pickaxe_level in [iron, diamond, netherite]",
+              "environment.nearby_deep_mine == true"
+            ],
+            intro: "这个节点表达的是挖钻石路径的起点，不要求当前已经有 8 个 diamond。",
+            match: "如果当前 observation 只有普通矿洞，不应展示这条路径。",
+            evidence: "4 successes, 2 failures, avg 14 steps",
+            path: "mine(diamond) until 8 -> craft(diamond_chestplate)",
+            next: "mine(diamond)",
+            type: "start_condition"
+          },
+          {
+            id: "diamonds",
+            kind: "condition",
+            x: 346,
+            y: 94,
+            w: 220,
+            h: 118,
+            title: "Ready to craft",
+            kindLabel: "matched condition",
+            lines: ["diamond >= 8", "crafting_table"],
+            predicates: [
+              "goal == obtain(diamond_chestplate)",
+              "inventory.diamond >= 8",
+              "inventory.crafting_table >= 1"
+            ],
+            intro: "当前 observation 满足该条件，因此可以给出合成胸甲的经验。",
+            match: "严格匹配成功：diamond 数量和 crafting_table 都满足。",
+            evidence: "6 successes, 0 failures, avg 1 step",
+            path: "craft(diamond_chestplate)",
+            next: "craft(diamond_chestplate)",
+            type: "current_condition"
+          },
+          {
+            id: "craft",
+            kind: "action",
+            x: 654,
+            y: 112,
+            w: 178,
+            h: 90,
+            title: "craft",
+            kindLabel: "action edge",
+            lines: ["diamond_chestplate"],
+            predicates: [
+              "requires inventory.diamond >= 8",
+              "requires inventory.crafting_table >= 1",
+              "effect inventory.diamond_chestplate += 1"
+            ],
+            intro: "该动作和 gold_block 的 craft 动作同名，但参数不同。",
+            match: "action template 的参数也必须一致。",
+            evidence: "6/6 action attempts succeeded",
+            path: "craft(diamond_chestplate) -> success",
+            next: "craft(diamond_chestplate)",
+            type: "action"
+          },
+          {
+            id: "goal",
+            kind: "goal",
+            x: 656,
+            y: 302,
+            w: 196,
+            h: 92,
+            title: "Goal achieved",
+            kindLabel: "goal node",
+            lines: ["has(chestplate)"],
+            predicates: [
+              "inventory.diamond_chestplate >= 1",
+              "task_success == true"
+            ],
+            intro: "路径成功会反向更新各段路径和边的统计。",
+            match: "目标上下文仍然保留在 path record 中。",
+            evidence: "10 total successful paths",
+            path: "valid diamond path -> obtain(diamond_chestplate)",
+            next: "none",
+            type: "goal"
+          },
+          {
+            id: "reject",
+            kind: "rejected",
+            x: 316,
+            y: 318,
+            w: 280,
+            h: 106,
+            title: "Rejected neighbor",
+            kindLabel: "semantic neighbor",
+            lines: ["gold_block", "crafting_table", "mineral craft"],
+            predicates: [
+              "goal == obtain(gold_block)",
+              "inventory.gold_ingot >= 9",
+              "inventory.crafting_table >= 1"
+            ],
+            intro: "gold_block 的经验不能替换 diamond_chestplate 的经验。",
+            match: "严格模式拒绝：goal 和 material 都不一致。",
+            evidence: "不可作为下一步动作。",
+            path: "craft(gold_block) is not applicable",
+            next: "reject",
+            type: "rejected"
+          }
+        ],
+        edges: [
+          { from: "mine", to: "diamonds", label: "mine until 8" },
+          { from: "diamonds", to: "craft", label: "next action" },
+          { from: "craft", to: "goal", label: "effect" },
+          { from: "reject", to: "craft", label: "wrong reuse", rejected: true, semanticOnly: true }
+        ],
+        continuations: [
+          {
+            title: "Next action",
+            body: "craft(diamond_chestplate)",
+            meta: "当前条件已满足；6 successes, 0 failures。",
+            tone: "good"
+          },
+          {
+            title: "Earlier path",
+            body: "mine(diamond) until 8 -> craft(diamond_chestplate)",
+            meta: "只在 deep_mine 条件满足时展示。",
+            tone: "good"
+          },
+          {
+            title: "Rejected",
+            body: "craft(gold_block)",
+            meta: "都是矿物 craft，但不是同一经验。",
+            tone: "warn"
+          }
+        ],
+        rejectText: "这里的反例和 gold block 对称：相同动作名 craft 不足以说明经验可复用，action template 的参数和目标都要一致。"
+      },
+      {
+        id: "bread",
+        name: "obtain(bread)",
+        short: "wheat x3",
+        description: "这个任务展示：有时不需要 crafting_table，节点条件应该只保留真正相关的 required predicates。",
+        current: "has(wheat) = 3, no crafting_table, extra: furnace",
+        nodes: [
+          {
+            id: "farm",
+            kind: "condition",
+            x: 44,
+            y: 96,
+            w: 216,
+            h: 118,
+            title: "Farm state",
+            kindLabel: "condition node",
+            lines: ["seeds >= 3", "farmland", "time available"],
+            predicates: [
+              "goal == obtain(bread)",
+              "inventory.seeds >= 3",
+              "environment.farmland == true",
+              "budget.steps_remaining >= 4"
+            ],
+            intro: "从种子到小麦的路径有前置环境条件，不能只按 inventory 判断。",
+            match: "当前若已经有 wheat >= 3，则不需要展示 farm 路径作为主建议。",
+            evidence: "2 successes, 1 failure, avg 5 steps",
+            path: "plant -> harvest -> craft(bread)",
+            next: "plant(wheat)",
+            type: "start_condition"
+          },
+          {
+            id: "wheat",
+            kind: "condition",
+            x: 346,
+            y: 96,
+            w: 220,
+            h: 118,
+            title: "Ready to craft",
+            kindLabel: "matched condition",
+            lines: ["wheat >= 3", "no table needed"],
+            predicates: [
+              "goal == obtain(bread)",
+              "inventory.wheat >= 3"
+            ],
+            intro: "bread 的 condition signature 不应该要求 crafting_table。多出来的 furnace 也不影响经验复用。",
+            match: "严格匹配成功：只需要 wheat >= 3。",
+            evidence: "7 successes, 0 failures, avg 1 step",
+            path: "craft(bread)",
+            next: "craft(bread)",
+            type: "current_condition"
+          },
+          {
+            id: "craft",
+            kind: "action",
+            x: 654,
+            y: 112,
+            w: 166,
+            h: 90,
+            title: "craft",
+            kindLabel: "action edge",
+            lines: ["bread"],
+            predicates: [
+              "requires inventory.wheat >= 3",
+              "effect inventory.bread += 1"
+            ],
+            intro: "动作的 required 条件来自规则，不需要把无关设施写入节点。",
+            match: "action preconditions 与源节点一致。",
+            evidence: "7/7 action attempts succeeded",
+            path: "craft(bread) -> success",
+            next: "craft(bread)",
+            type: "action"
+          },
+          {
+            id: "goal",
+            kind: "goal",
+            x: 660,
+            y: 302,
+            w: 180,
+            h: 92,
+            title: "Goal achieved",
+            kindLabel: "goal node",
+            lines: ["has(bread)"],
+            predicates: [
+              "inventory.bread >= 1",
+              "task_success == true"
+            ],
+            intro: "成功结果会记录到 bread 任务的路径统计中。",
+            match: "与 cake 等食物任务分开保存。",
+            evidence: "9 total successful paths",
+            path: "valid wheat path -> obtain(bread)",
+            next: "none",
+            type: "goal"
+          },
+          {
+            id: "reject",
+            kind: "rejected",
+            x: 316,
+            y: 318,
+            w: 282,
+            h: 108,
+            title: "Rejected neighbor",
+            kindLabel: "semantic neighbor",
+            lines: ["cake", "wheat", "food craft"],
+            predicates: [
+              "goal == obtain(cake)",
+              "inventory.wheat >= 3",
+              "inventory.milk_bucket >= 3",
+              "inventory.sugar >= 2",
+              "inventory.egg >= 1"
+            ],
+            intro: "cake 和 bread 都是 food crafting，但 cake 的条件更多。",
+            match: "严格模式拒绝：goal mismatch 且 missing milk/sugar/egg。",
+            evidence: "不可当作 bread 的 continuation。",
+            path: "craft(cake) is not applicable",
+            next: "reject",
+            type: "rejected"
+          }
+        ],
+        edges: [
+          { from: "farm", to: "wheat", label: "harvest" },
+          { from: "wheat", to: "craft", label: "next action" },
+          { from: "craft", to: "goal", label: "effect" },
+          { from: "reject", to: "craft", label: "wrong reuse", rejected: true, semanticOnly: true }
+        ],
+        continuations: [
+          {
+            title: "Next action",
+            body: "craft(bread)",
+            meta: "条件只要求 wheat >= 3。",
+            tone: "good"
+          },
+          {
+            title: "Path record",
+            body: "plant -> harvest -> craft(bread)",
+            meta: "只有 farm 条件满足时才展示。",
+            tone: "good"
+          },
+          {
+            title: "Rejected",
+            body: "craft(cake)",
+            meta: "同属 food，但 missing conditions 太多。",
+            tone: "warn"
+          }
+        ],
+        rejectText: "bread 的例子说明 condition signature 不应过宽，也不应过窄：不需要 crafting_table，但 cake 所需的 milk、sugar、egg 不能忽略。"
+      },
+      {
+        id: "iron_ingot_from_scratch",
+        name: "obtain(iron_ingot_x3_from_scratch)",
+        short: "empty hand -> iron_ingot x3",
+        description: "这个任务展示一个可被其他任务消费的子目标经验：从空手建立基础工具链，最终得到 3 个 iron_ingot。",
+        current: "empty inventory, nearby forest, nearby mine, fuel available",
+        nodes: [
+          {
+            id: "empty",
+            kind: "condition",
+            x: 34,
+            y: 88,
+            w: 218,
+            h: 126,
+            title: "Empty-hand start",
+            kindLabel: "matched condition",
+            lines: ["no tools", "forest + mine", "fuel visible"],
+            predicates: [
+              "goal == obtain(iron_ingot_x3_from_scratch)",
+              "inventory.iron_ingot == 0",
+              "inventory.pickaxe == 0",
+              "environment.nearby_forest == true",
+              "environment.nearby_mine == true",
+              "environment.fuel_available == true"
+            ],
+            intro: "这是从空手开始的起点。它不是和 iron_pickaxe 同一个任务，但它的结果可以成为 iron_pickaxe 的前置条件。",
+            match: "严格匹配成功：当前 observation 满足空手到 iron_ingot x3 的起点条件。",
+            evidence: "4 successes, 1 failure, avg 13 steps",
+            path: "collect wood -> craft table -> craft wooden_pickaxe -> mine stone -> craft furnace -> mine iron_ore x3 -> smelt x3",
+            next: "collect(wood)",
+            type: "current_condition"
+          },
+          {
+            id: "toolchain",
+            kind: "condition",
+            x: 320,
+            y: 84,
+            w: 238,
+            h: 132,
+            title: "Basic toolchain",
+            kindLabel: "checkpoint condition",
+            lines: ["wooden_pickaxe", "furnace", "fuel"],
+            predicates: [
+              "goal == obtain(iron_ingot_x3_from_scratch)",
+              "inventory.wooden_pickaxe >= 1",
+              "inventory.furnace >= 1",
+              "inventory.fuel >= 3",
+              "environment.nearby_iron_ore == true"
+            ],
+            intro: "这个 checkpoint 把长路径分成更可解释的两段：先建立工具链，再获得铁矿并烧制。",
+            match: "如果 observation 已经满足这里，就直接展示 mine -> smelt 的后半段。",
+            evidence: "6 successes, 0 failures, avg 5 steps from checkpoint",
+            path: "mine iron_ore x3 -> smelt iron_ore x3",
+            next: "mine(iron_ore)",
+            type: "checkpoint_condition"
+          },
+          {
+            id: "smelt",
+            kind: "action",
+            x: 642,
+            y: 112,
+            w: 168,
+            h: 90,
+            title: "smelt",
+            kindLabel: "action edge",
+            lines: ["iron_ore -> ingot", "repeat x3"],
+            predicates: [
+              "requires inventory.iron_ore >= 3",
+              "requires inventory.furnace >= 1",
+              "requires inventory.fuel >= 3",
+              "effect inventory.iron_ingot >= 3"
+            ],
+            intro: "这条动作边产生一个很有价值的 result condition：iron_ingot >= 3。",
+            match: "动作可执行后，result condition 能被其他任务引用。",
+            evidence: "6/6 smelt attempts succeeded",
+            path: "smelt iron_ore x3 -> has(iron_ingot >= 3)",
+            next: "smelt(iron_ore)",
+            type: "action"
+          },
+          {
+            id: "goal",
+            kind: "goal",
+            x: 650,
+            y: 306,
+            w: 190,
+            h: 92,
+            title: "Reusable result",
+            kindLabel: "goal node",
+            lines: ["iron_ingot >= 3"],
+            predicates: [
+              "inventory.iron_ingot >= 3",
+              "subgoal_success == true",
+              "exportable_condition == true"
+            ],
+            intro: "这个结果可以作为 iron_pickaxe 的前置条件被引用，因为 iron_pickaxe 需要 iron_ingot >= 3。",
+            match: "可被目标需要 iron_ingot >= 3 的任务消费。",
+            evidence: "4 complete paths exported",
+            path: "obtain(iron_ingot_x3_from_scratch) -> inventory.iron_ingot >= 3",
+            next: "none",
+            type: "goal"
+          },
+          {
+            id: "reject",
+            kind: "rejected",
+            x: 300,
+            y: 318,
+            w: 292,
+            h: 108,
+            title: "Rejected neighbor",
+            kindLabel: "semantic neighbor",
+            lines: ["obtain(copper_ingot)", "mine + smelt", "metal ingot"],
+            predicates: [
+              "goal == obtain(copper_ingot)",
+              "inventory.copper_ore >= 3",
+              "inventory.furnace >= 1",
+              "inventory.fuel >= 3"
+            ],
+            intro: "copper_ingot 的路径结构很像，但 result condition 不能满足 iron_pickaxe。",
+            match: "严格模式拒绝：result condition mismatch。",
+            evidence: "不可作为 iron_pickaxe 的前置条件。",
+            path: "smelt(copper_ore) does not produce iron_ingot",
+            next: "reject",
+            type: "rejected"
+          }
+        ],
+        edges: [
+          { from: "empty", to: "toolchain", label: "build tools" },
+          { from: "toolchain", to: "smelt", label: "mine ore" },
+          { from: "smelt", to: "goal", label: "result" },
+          { from: "reject", to: "smelt", label: "wrong result", rejected: true, semanticOnly: true }
+        ],
+        continuations: [
+          {
+            title: "Next action",
+            body: "collect(wood)",
+            meta: "空手起点的历史下一步。",
+            tone: "good"
+          },
+          {
+            title: "Exported result",
+            body: "inventory.iron_ingot >= 3",
+            meta: "这个 result condition 可服务于 iron_pickaxe。",
+            tone: "good"
+          },
+          {
+            title: "Rejected",
+            body: "smelt(copper_ore)",
+            meta: "结构相似，但结果不是 iron_ingot。",
+            tone: "warn"
+          }
+        ],
+        rejectText: "这个任务说明：跨任务复用不是按路径文本相似，而是看 result condition 是否满足另一个任务的 required condition。"
+      },
+      {
+        id: "iron_pickaxe",
+        name: "obtain(iron_pickaxe)",
+        short: "iron_ingot x3 + stick x2",
+        description: "这个任务展示跨任务复用：缺少 iron_ingot 时，可以引用 obtain(iron_ingot_x3_from_scratch) 的成功路径作为子目标经验。",
+        current: "has(stick) = 2, has(crafting_table) = true, iron_ingot = 0, nearby forest + mine",
+        nodes: [
+          {
+            id: "need_ingots",
+            kind: "condition",
+            x: 28,
+            y: 86,
+            w: 236,
+            h: 132,
+            title: "Need iron ingots",
+            kindLabel: "matched condition",
+            lines: ["iron_ingot = 0", "stick >= 2", "table ready"],
+            predicates: [
+              "goal == obtain(iron_pickaxe)",
+              "inventory.stick >= 2",
+              "inventory.crafting_table >= 1",
+              "inventory.iron_ingot < 3",
+              "environment.nearby_forest == true",
+              "environment.nearby_mine == true"
+            ],
+            intro: "当前还不能 craft iron_pickaxe，但它缺的核心条件正好是 iron_ingot >= 3。",
+            match: "匹配到一个可消费的子目标：obtain(iron_ingot_x3_from_scratch) 的 result condition 能满足这里缺失的条件。",
+            evidence: "4 reused subgoal successes, then 4/4 craft successes",
+            path: "reuse obtain(iron_ingot_x3_from_scratch) -> craft(iron_pickaxe)",
+            next: "collect(wood)",
+            type: "current_condition"
+          },
+          {
+            id: "reused_ingots",
+            kind: "condition",
+            x: 324,
+            y: 80,
+            w: 240,
+            h: 138,
+            title: "Reused subgoal",
+            kindLabel: "exported condition",
+            lines: ["from ingot task", "iron_ingot >= 3", "path imported"],
+            predicates: [
+              "source_goal == obtain(iron_ingot_x3_from_scratch)",
+              "result.inventory.iron_ingot >= 3",
+              "required_by == obtain(iron_pickaxe)",
+              "missing_condition == inventory.iron_ingot >= 3"
+            ],
+            intro: "这是从另一个任务导入的经验结果。它不是把两个任务合并，而是把已验证的子目标路径拿来完成缺失条件。",
+            match: "result condition 与 iron_pickaxe 的 required condition 对齐。",
+            evidence: "4 exported paths, avg 13 steps from empty hand",
+            path: "collect wood -> tools -> mine iron_ore x3 -> smelt x3",
+            next: "collect(wood)",
+            type: "subgoal_condition"
+          },
+          {
+            id: "ready",
+            kind: "condition",
+            x: 620,
+            y: 84,
+            w: 230,
+            h: 122,
+            title: "Ready to craft",
+            kindLabel: "checkpoint condition",
+            lines: ["iron_ingot >= 3", "stick >= 2", "crafting_table"],
+            predicates: [
+              "goal == obtain(iron_pickaxe)",
+              "inventory.iron_ingot >= 3",
+              "inventory.stick >= 2",
+              "inventory.crafting_table >= 1"
+            ],
+            intro: "子目标完成后进入这个 checkpoint。此时来源已经不重要，当前可执行条件已经满足。",
+            match: "达到 craft-ready condition 后，展示 craft(iron_pickaxe)。",
+            evidence: "8 successes, 0 failures, avg 1 step",
+            path: "craft(iron_pickaxe)",
+            next: "craft(iron_pickaxe)",
+            type: "checkpoint_condition"
+          },
+          {
+            id: "craft",
+            kind: "action",
+            x: 674,
+            y: 256,
+            w: 170,
+            h: 90,
+            title: "craft",
+            kindLabel: "action edge",
+            lines: ["iron_pickaxe"],
+            predicates: [
+              "requires inventory.iron_ingot >= 3",
+              "requires inventory.stick >= 2",
+              "requires inventory.crafting_table >= 1",
+              "effect tool.pickaxe_level = iron"
+            ],
+            intro: "动作效果会改变后续任务的可用条件，例如 diamond mining。",
+            match: "action preconditions 已满足。",
+            evidence: "8/8 action attempts succeeded",
+            path: "craft(iron_pickaxe) -> success",
+            next: "craft(iron_pickaxe)",
+            type: "action"
+          },
+          {
+            id: "goal",
+            kind: "goal",
+            x: 668,
+            y: 386,
+            w: 190,
+            h: 92,
+            title: "Goal achieved",
+            kindLabel: "goal node",
+            lines: ["has(iron_pickaxe)"],
+            predicates: [
+              "inventory.iron_pickaxe >= 1",
+              "tool.pickaxe_level in [iron, diamond, netherite]",
+              "task_success == true"
+            ],
+            intro: "iron_pickaxe 的结果也可能成为 diamond task 的 condition。",
+            match: "跨任务共享应通过明确 condition，而不是文本相似。",
+            evidence: "12 total successful paths",
+            path: "reused ingot path -> craft -> obtain(iron_pickaxe)",
+            next: "none",
+            type: "goal"
+          },
+          {
+            id: "reject",
+            kind: "rejected",
+            x: 284,
+            y: 324,
+            w: 286,
+            h: 106,
+            title: "Rejected neighbor",
+            kindLabel: "semantic neighbor",
+            lines: ["stone_pickaxe", "stick", "crafting_table"],
+            predicates: [
+              "goal == obtain(stone_pickaxe)",
+              "inventory.cobblestone >= 3",
+              "inventory.stick >= 2",
+              "inventory.crafting_table >= 1"
+            ],
+            intro: "stone_pickaxe 和 iron_pickaxe 的结构很像，但材料与效果不同。",
+            match: "严格模式拒绝：material mismatch, resulting tool level mismatch。",
+            evidence: "不可替代 iron_pickaxe 经验。",
+            path: "craft(stone_pickaxe) is not applicable",
+            next: "reject",
+            type: "rejected"
+          }
+        ],
+        edges: [
+          { from: "need_ingots", to: "reused_ingots", label: "reuse subgoal" },
+          { from: "reused_ingots", to: "ready", label: "result condition" },
+          { from: "ready", to: "craft", label: "next action" },
+          { from: "craft", to: "goal", label: "effect" },
+          { from: "reject", to: "reused_ingots", label: "wrong material", rejected: true, semanticOnly: true }
+        ],
+        continuations: [
+          {
+            title: "Next action",
+            body: "collect(wood)",
+            meta: "来自 iron_ingot_x3 子目标路径的第一步。",
+            tone: "good"
+          },
+          {
+            title: "Reused path",
+            body: "obtain(iron_ingot_x3_from_scratch) -> craft(iron_pickaxe)",
+            meta: "子目标结果满足 iron_pickaxe 的 required condition。",
+            tone: "good"
+          },
+          {
+            title: "Rejected",
+            body: "craft(stone_pickaxe)",
+            meta: "形状相似，材料和效果不同。",
+            tone: "warn"
+          }
+        ],
+        rejectText: "iron_pickaxe 任务说明：可以复用 iron_ingot_x3 的 result condition，但不能复用 stone_pickaxe 这种形状相似、材料和结果不同的经验。"
+      }
+    ];
+
+    let activeTask = tasks[0];
+    let mode = "strict";
+    let selectedNodeId = activeTask.nodes[1].id;
+
+    const taskList = document.querySelector("#taskList");
+    const graph = document.querySelector("#graph");
+    const tooltip = document.querySelector("#tooltip");
+    const taskTitle = document.querySelector("#taskTitle");
+    const taskDescription = document.querySelector("#taskDescription");
+    const continuations = document.querySelector("#continuations");
+    const detailTitle = document.querySelector("#detailTitle");
+    const detailIntro = document.querySelector("#detailIntro");
+    const detailKv = document.querySelector("#detailKv");
+    const predicateList = document.querySelector("#predicateList");
+    const viewFormat = document.querySelector("#viewFormat");
+    const rejectCard = document.querySelector("#rejectCard");
+    const rejectText = document.querySelector("#rejectText");
+    const modeNote = document.querySelector("#modeNote");
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function nodeCenter(node) {
+      return {
+        x: node.x + node.w / 2,
+        y: node.y + node.h / 2
+      };
+    }
+
+    function edgePath(from, to) {
+      const a = nodeCenter(from);
+      const b = nodeCenter(to);
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const bend = Math.min(72, Math.max(28, Math.abs(dx) * 0.22 + Math.abs(dy) * 0.12));
+
+      if (Math.abs(dx) > Math.abs(dy)) {
+        const startX = dx > 0 ? from.x + from.w : from.x;
+        const startY = a.y;
+        const endX = dx > 0 ? to.x : to.x + to.w;
+        const endY = b.y;
+        const c1x = startX + Math.sign(dx || 1) * bend;
+        const c2x = endX - Math.sign(dx || 1) * bend;
+        return `M ${startX} ${startY} C ${c1x} ${startY}, ${c2x} ${endY}, ${endX} ${endY}`;
+      }
+
+      const startX = a.x;
+      const startY = dy > 0 ? from.y + from.h : from.y;
+      const endX = b.x;
+      const endY = dy > 0 ? to.y : to.y + to.h;
+      const c1y = startY + Math.sign(dy || 1) * bend;
+      const c2y = endY - Math.sign(dy || 1) * bend;
+      return `M ${startX} ${startY} C ${startX} ${c1y}, ${endX} ${c2y}, ${endX} ${endY}`;
+    }
+
+    function renderTaskButtons() {
+      taskList.innerHTML = tasks.map((task) => `
+        <button class="task-button${task.id === activeTask.id ? " active" : ""}" type="button" data-task="${task.id}">
+          <span class="task-name">${escapeHtml(task.name)}</span>
+          <span class="task-small">${escapeHtml(task.short)}</span>
+        </button>
+      `).join("");
+
+      taskList.querySelectorAll("button").forEach((button) => {
+        button.addEventListener("click", () => {
+          activeTask = tasks.find((task) => task.id === button.dataset.task);
+          selectedNodeId = (activeTask.nodes.find((node) => node.type === "current_condition") || activeTask.nodes[0]).id;
+          render();
+        });
+      });
+    }
+
+    function renderGraph() {
+      graph.querySelectorAll(".edge, .edge-label, .node").forEach((el) => el.remove());
+
+      const nodeById = Object.fromEntries(activeTask.nodes.map((node) => [node.id, node]));
+      activeTask.edges.forEach((edge) => {
+        if (edge.semanticOnly && mode !== "semantic") {
+          return;
+        }
+
+        const from = nodeById[edge.from];
+        const to = nodeById[edge.to];
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("class", `edge${edge.rejected ? " rejected" : ""}`);
+        path.setAttribute("d", edgePath(from, to));
+        graph.appendChild(path);
+
+        const a = nodeCenter(from);
+        const b = nodeCenter(to);
+        const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        label.setAttribute("class", "edge-label");
+        label.setAttribute("x", String((a.x + b.x) / 2));
+        label.setAttribute("y", String((a.y + b.y) / 2 - 10));
+        label.setAttribute("text-anchor", "middle");
+        label.textContent = edge.label;
+        graph.appendChild(label);
+      });
+
+      activeTask.nodes.forEach((node) => {
+        if (node.kind === "rejected" && mode !== "semantic") {
+          return;
+        }
+
+        const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        group.setAttribute("class", `node ${node.kind}${node.id === selectedNodeId ? " active" : ""}`);
+        group.setAttribute("tabindex", "0");
+        group.setAttribute("role", "button");
+        group.setAttribute("aria-label", node.title);
+        group.dataset.node = node.id;
+
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        rect.setAttribute("x", String(node.x));
+        rect.setAttribute("y", String(node.y));
+        rect.setAttribute("width", String(node.w));
+        rect.setAttribute("height", String(node.h));
+        group.appendChild(rect);
+
+        const kind = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        kind.setAttribute("x", String(node.x + 14));
+        kind.setAttribute("y", String(node.y + 22));
+        kind.setAttribute("class", "node-kind");
+        kind.textContent = node.kindLabel;
+        group.appendChild(kind);
+
+        const title = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        title.setAttribute("x", String(node.x + 14));
+        title.setAttribute("y", String(node.y + 45));
+        title.setAttribute("class", "node-title");
+        title.textContent = node.title;
+        group.appendChild(title);
+
+        node.lines.forEach((line, index) => {
+          const item = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          item.setAttribute("x", String(node.x + 14));
+          item.setAttribute("y", String(node.y + 70 + index * 18));
+          item.setAttribute("class", "node-line");
+          item.textContent = line;
+          group.appendChild(item);
+        });
+
+        group.addEventListener("mousemove", (event) => showTooltip(event, node));
+        group.addEventListener("mouseleave", hideTooltip);
+        group.addEventListener("click", () => {
+          selectedNodeId = node.id;
+          renderGraph();
+          renderDetail();
+        });
+        group.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            selectedNodeId = node.id;
+            renderGraph();
+            renderDetail();
+          }
+        });
+
+        graph.appendChild(group);
+      });
+    }
+
+    function showTooltip(event, node) {
+      tooltip.innerHTML = `
+        <h3>${escapeHtml(node.title)}</h3>
+        <p>${escapeHtml(node.match)}</p>
+      `;
+      tooltip.style.left = `${event.clientX}px`;
+      tooltip.style.top = `${event.clientY}px`;
+      tooltip.classList.add("visible");
+    }
+
+    function hideTooltip() {
+      tooltip.classList.remove("visible");
+    }
+
+    function renderContinuations() {
+      continuations.innerHTML = activeTask.continuations.map((item) => `
+        <article class="continuation ${item.tone}">
+          <h3>${escapeHtml(item.title)}</h3>
+          <p class="mono">${escapeHtml(item.body)}</p>
+          <p>${escapeHtml(item.meta)}</p>
+        </article>
+      `).join("");
+    }
+
+    function renderDetail() {
+      const fallbackNode = activeTask.nodes.find((node) => node.type === "current_condition") || activeTask.nodes[0];
+      const node = activeTask.nodes.find((item) => item.id === selectedNodeId) || fallbackNode;
+
+      detailTitle.textContent = node.title;
+      detailIntro.textContent = node.intro;
+      detailKv.innerHTML = `
+        <div><dt>节点角色</dt><dd>${escapeHtml(node.kindLabel)}</dd></div>
+        <div><dt>当前观察</dt><dd>${escapeHtml(activeTask.current)}</dd></div>
+        <div><dt>匹配结果</dt><dd>${escapeHtml(node.match)}</dd></div>
+        <div><dt>历史证据</dt><dd>${escapeHtml(node.evidence)}</dd></div>
+        <div><dt>建议动作</dt><dd class="mono">${escapeHtml(node.next)}</dd></div>
+        <div><dt>路径记录</dt><dd class="mono">${escapeHtml(node.path)}</dd></div>
+      `;
+      predicateList.innerHTML = node.predicates
+        .map((predicate) => `<li class="mono">${escapeHtml(predicate)}</li>`)
+        .join("");
+
+      const selectedContinuation = activeTask.continuations.find((item) => item.tone === "good");
+      viewFormat.innerHTML = [
+        '<span class="dim">Matched experience:</span>',
+        `goal: ${escapeHtml(activeTask.name)}`,
+        `condition: ${escapeHtml(node.predicates.join(" AND "))}`,
+        `next_action: ${escapeHtml(node.next)}`,
+        `path: ${escapeHtml(node.path)}`,
+        `evidence: ${escapeHtml(node.evidence)}`,
+        selectedContinuation ? `display: ${escapeHtml(selectedContinuation.body)}` : ""
+      ].filter(Boolean).join("<br>");
+
+      rejectCard.style.display = mode === "semantic" ? "block" : "none";
+      rejectText.textContent = activeTask.rejectText;
+    }
+
+    function renderMode() {
+      document.querySelectorAll(".mode-button").forEach((button) => {
+        button.classList.toggle("active", button.dataset.mode === mode);
+      });
+
+      modeNote.textContent = mode === "strict"
+        ? "严格模式下，只展示目标一致且 required predicates 已满足的经验。"
+        : "模糊相似示例会把 rejected neighbor 画出来，用来说明为什么不能把相似文本当成同一状态。";
+
+      if (mode === "strict" && activeTask.nodes.find((node) => node.id === selectedNodeId)?.kind === "rejected") {
+        selectedNodeId = (activeTask.nodes.find((node) => node.type === "current_condition") || activeTask.nodes[0]).id;
+      }
+    }
+
+    function render() {
+      renderTaskButtons();
+      renderMode();
+      taskTitle.textContent = activeTask.name;
+      taskDescription.textContent = activeTask.description;
+      renderGraph();
+      renderContinuations();
+      renderDetail();
+    }
+
+    document.querySelectorAll(".mode-button").forEach((button) => {
+      button.addEventListener("click", () => {
+        mode = button.dataset.mode;
+        render();
+      });
+    });
+
+    render();
+  </script>
+</body>
+</html>
